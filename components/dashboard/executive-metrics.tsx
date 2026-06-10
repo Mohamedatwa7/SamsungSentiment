@@ -18,6 +18,8 @@ import {
   Instagram,
   Music2,
   Facebook,
+  Heart,
+  ExternalLink,
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -508,7 +510,23 @@ export function CriticalAlerts({ platformFilter, dateRange }: ExecutiveMetricsPr
   
   const comments = useMemo(() => getFilteredComments(commentPlatformFilter, dateRange, segmentation), [getFilteredComments, commentPlatformFilter, dateRange, segmentation])
   const commentMetrics = useMemo(() => getCommentMetrics(commentPlatformFilter, dateRange, segmentation), [getCommentMetrics, commentPlatformFilter, dateRange, segmentation])
-  
+
+  // Metrics for the equal-length window immediately before the selected range,
+  // so insights can report momentum ("negative up 6pts vs the prior period").
+  const prevMetrics = useMemo(() => {
+    if (!dateRange) return null
+    const len = dateRange.to.getTime() - dateRange.from.getTime()
+    if (len <= 0) return null
+    const prevRange = {
+      from: new Date(dateRange.from.getTime() - len),
+      to: new Date(dateRange.from.getTime() - 1),
+      label: "previous period",
+    }
+    const m = getCommentMetrics(commentPlatformFilter, prevRange, segmentation)
+    // Require a meaningful sample before trusting the comparison.
+    return m.total >= 50 ? m : null
+  }, [getCommentMetrics, commentPlatformFilter, dateRange, segmentation])
+
   // Calculate commentsByProduct from comments
   const commentsByProduct = useMemo(() => {
     const byProduct: Record<string, { total: number; positive: number; negative: number; neutral: number }> = {}
@@ -565,7 +583,7 @@ export function CriticalAlerts({ platformFilter, dateRange }: ExecutiveMetricsPr
   }, [comments])
   
   // State for dialog
-  const [selectedAlert, setSelectedAlert] = useState<{ title: string; comments: Comment[] } | null>(null)
+  const [selectedAlert, setSelectedAlert] = useState<{ title: string; message: string; comments: Comment[] } | null>(null)
   
   // Function to get related comments for an alert - returns max 200 unique, relevant comments
   const getRelatedComments = useCallback((alertType: string, alertData?: string): Comment[] => {
@@ -637,8 +655,9 @@ export function CriticalAlerts({ platformFilter, dateRange }: ExecutiveMetricsPr
         filtered = [...positive, ...negative, ...neutral]
         break
       case "health_score":
-        // Show representative sample for health score
-        filtered = comments.slice(0, 200)
+        // Representative sample for the health score: the most visible comments
+        // (highest engagement) across all sentiments.
+        filtered = [...comments].sort((a, b) => (b.likes || 0) - (a.likes || 0)).slice(0, 200)
         break
       default:
         filtered = []
@@ -653,22 +672,26 @@ export function CriticalAlerts({ platformFilter, dateRange }: ExecutiveMetricsPr
       return true
     })
     
-    // Sort by relevance: negative first for issues, positive first for praise, then by date
+    // Sort by relevance: matching sentiment first, then by ENGAGEMENT (these are
+    // the comments stakeholders' audiences actually saw), then by recency.
+    const byImpact = (a: Comment, b: Comment) =>
+      (b.likes || 0) - (a.likes || 0) ||
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+
     if (alertType === "negative_sentiment" || alertType === "issue" || alertType === "product_underperforming") {
       unique.sort((a, b) => {
         if (a.sentiment === "negative" && b.sentiment !== "negative") return -1
         if (b.sentiment === "negative" && a.sentiment !== "negative") return 1
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        return byImpact(a, b)
       })
     } else if (alertType === "positive_sentiment" || alertType === "praise" || alertType === "product_leading") {
       unique.sort((a, b) => {
         if (a.sentiment === "positive" && b.sentiment !== "positive") return -1
         if (b.sentiment === "positive" && a.sentiment !== "positive") return 1
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        return byImpact(a, b)
       })
     } else {
-      // Default: sort by date, newest first
-      unique.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      unique.sort(byImpact)
     }
     
     // Return max 200 comments
@@ -729,7 +752,31 @@ export function CriticalAlerts({ platformFilter, dateRange }: ExecutiveMetricsPr
       alertType: "health_score"
     })
 
-    // 2. Negative sentiment is the most actionable overall signal - only flag when elevated.
+    // 2. Momentum vs the previous equal-length period - the single most useful
+    // stakeholder signal: is sentiment getting better or worse right now?
+    if (prevMetrics) {
+      const negDelta = commentMetrics.negativeRate - prevMetrics.negativeRate
+      const posDelta = commentMetrics.positiveRate - prevMetrics.positiveRate
+      if (negDelta >= 5) {
+        alertList.push({
+          type: negDelta >= 10 ? "danger" : "warning",
+          title: `Negative Sentiment Rising (+${negDelta}pts)`,
+          message: `Negative share moved from ${prevMetrics.negativeRate}% to ${commentMetrics.negativeRate}% vs the previous period - review the examples to identify what changed and respond before it compounds`,
+          icon: <TrendingDown className="h-4 w-4" />,
+          alertType: "negative_sentiment"
+        })
+      } else if (posDelta >= 5) {
+        alertList.push({
+          type: "success",
+          title: `Positive Sentiment Climbing (+${posDelta}pts)`,
+          message: `Positive share moved from ${prevMetrics.positiveRate}% to ${commentMetrics.positiveRate}% vs the previous period - identify the content driving this and repeat it`,
+          icon: <TrendingUp className="h-4 w-4" />,
+          alertType: "positive_sentiment"
+        })
+      }
+    }
+
+    // 3. Negative sentiment is the most actionable overall signal - only flag when elevated.
     if (commentMetrics.negativeRate >= 25) {
       alertList.push({
         type: commentMetrics.negativeRate >= 40 ? "danger" : "warning",
@@ -824,7 +871,7 @@ export function CriticalAlerts({ platformFilter, dateRange }: ExecutiveMetricsPr
     }
 
     return alertList
-  }, [commentMetrics, commentsByProduct, brandHealthScore, topIssues, topPraise])
+  }, [commentMetrics, prevMetrics, commentsByProduct, brandHealthScore, topIssues, topPraise])
 
   return (
     <Card className="border-0 shadow-sm">
@@ -841,17 +888,14 @@ export function CriticalAlerts({ platformFilter, dateRange }: ExecutiveMetricsPr
             <p className="text-sm text-muted-foreground">No critical alerts at this time</p>
           ) : (
             alerts.map((alert, idx) => {
-              const hasDetails = alert.alertType !== "health_score"
+              const hasDetails = true
               return (
-                <button 
+                <button
                   key={idx}
                   onClick={() => {
-                    if (hasDetails) {
-                      const relatedComments = getRelatedComments(alert.alertType, alert.alertData)
-                      setSelectedAlert({ title: alert.title, comments: relatedComments })
-                    }
+                    const relatedComments = getRelatedComments(alert.alertType, alert.alertData)
+                    setSelectedAlert({ title: alert.title, message: alert.message, comments: relatedComments })
                   }}
-                  disabled={!hasDetails}
                   className={cn(
                     "flex w-full items-start gap-3 rounded-lg p-3 text-left transition-all",
                     alert.type === "danger" && "bg-negative/10",
@@ -897,8 +941,11 @@ export function CriticalAlerts({ platformFilter, dateRange }: ExecutiveMetricsPr
         <DialogContent className="max-h-[80vh] max-w-2xl overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>{selectedAlert?.title}</DialogTitle>
-            <DialogDescription>
-              {selectedAlert?.comments.length} related comments found
+            <DialogDescription className="space-y-1">
+              <span className="block">{selectedAlert?.message}</span>
+              <span className="block text-xs">
+                {selectedAlert?.comments.length.toLocaleString()} example comments, highest-engagement first
+              </span>
             </DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto space-y-3 pr-2">
@@ -942,11 +989,33 @@ export function CriticalAlerts({ platformFilter, dateRange }: ExecutiveMetricsPr
                   </div>
                 </div>
                 <p className="text-sm">{comment.text}</p>
-                {comment.createdAt && (
-                  <p className="text-[10px] text-muted-foreground">
-                    {new Date(comment.createdAt).toLocaleDateString()}
-                  </p>
-                )}
+                <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                  {comment.createdAt && (
+                    <span>{new Date(comment.createdAt).toLocaleDateString()}</span>
+                  )}
+                  {(comment.likes || 0) > 0 && (
+                    <span className="flex items-center gap-1">
+                      <Heart className="h-3 w-3" />
+                      {comment.likes.toLocaleString()}
+                    </span>
+                  )}
+                  {comment.product && comment.product !== "General" && (
+                    <Badge variant="outline" className="h-4 px-1.5 text-[10px] font-normal">
+                      {comment.product}
+                    </Badge>
+                  )}
+                  {comment.postUrl && (
+                    <a
+                      href={comment.postUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="ml-auto flex items-center gap-1 hover:text-foreground"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      View post
+                    </a>
+                  )}
+                </div>
               </div>
             ))}
             {selectedAlert && selectedAlert.comments.length > 200 && (

@@ -11,6 +11,9 @@ export interface SentimentResult {
   score: number
   // short machine-readable tags describing the comment, e.g. "price_complaint", "green_line", "praise"
   flags: string[]
+  // true when the LLM call failed and this is a placeholder, NOT a real analysis.
+  // Callers must not persist failed results as analyzed, so they get retried.
+  failed?: boolean
 }
 
 export interface CommentToAnalyze {
@@ -75,7 +78,7 @@ ${batch
   .join("\n\n")}`
 }
 
-const FALLBACK: Omit<SentimentResult, "id"> = { sentiment: "neutral", score: 50, flags: [] }
+const FALLBACK: Omit<SentimentResult, "id"> = { sentiment: "neutral", score: 50, flags: [], failed: true }
 
 /**
  * Analyze a single batch of comments with the LLM.

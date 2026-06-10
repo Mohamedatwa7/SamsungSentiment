@@ -1,4 +1,4 @@
-// Apify Data Sync Service
+﻿// Apify Data Sync Service
 // Fetches data from Apify datasets and syncs to Supabase
 
 import { createClient } from "@/lib/supabase/server"
@@ -96,11 +96,27 @@ export async function getLatestRuns(actorId: string, limit = 5): Promise<ApifyRu
   return data.data?.items || []
 }
 
-export async function getDatasetItems<T>(datasetId: string, limit = 1000): Promise<T[]> {
-  const response = await fetch(
-    `https://api.apify.com/v2/datasets/${datasetId}/items?token=${APIFY_TOKEN}&limit=${limit}`
-  )
-  return response.json()
+// Fetch ALL items from a dataset, paginating past Apify's per-request cap so a
+// large scrape is never silently truncated. `maxItems` is a safety ceiling.
+export async function getDatasetItems<T>(datasetId: string, maxItems = 50000): Promise<T[]> {
+  const PAGE_SIZE = 1000
+  const all: T[] = []
+  let offset = 0
+  while (all.length < maxItems) {
+    const response = await fetch(
+      `https://api.apify.com/v2/datasets/${datasetId}/items?token=${APIFY_TOKEN}&limit=${PAGE_SIZE}&offset=${offset}`
+    )
+    if (!response.ok) {
+      console.error(`[v0] Dataset ${datasetId} fetch failed: ${response.status}`)
+      break
+    }
+    const page = (await response.json()) as T[]
+    if (!Array.isArray(page) || page.length === 0) break
+    all.push(...page)
+    if (page.length < PAGE_SIZE) break
+    offset += PAGE_SIZE
+  }
+  return all
 }
 
 export async function syncTwitterPosts() {
@@ -111,7 +127,7 @@ export async function syncTwitterPosts() {
   
   if (runs.length === 0) return { inserted: 0, updated: 0, total: 0 }
   
-  const posts = await getDatasetItems<TwitterPost>(runs[0].defaultDatasetId, 1000)
+  const posts = await getDatasetItems<TwitterPost>(runs[0].defaultDatasetId)
   let inserted = 0, updated = 0
   const errors: string[] = []
   
@@ -122,28 +138,48 @@ export async function syncTwitterPosts() {
   }
   
   for (const post of posts) {
-    // Try multiple possible ID fields
-    const externalId = post.id || (post as any).tweetId || (post as any).id_str || (post as any).rest_id
-    
+    const p = post as any
+    // The current actor emits postId/postText/postUrl; older actors used
+    // id/text/url variants, so try every known shape.
+    const externalId =
+      post.id || p.postId || p.tweetId || p.id_str || p.rest_id ||
+      (p.postUrl ? String(p.postUrl).match(/status\/(\d+)/)?.[1] : undefined)
+
     if (!externalId) {
-      errors.push("No ID found for post")
+      errors.push("No ID found for post: " + JSON.stringify(Object.keys(p)))
       continue
     }
-    
+
+    // media can be an array of URLs (old actor) or an object (current actor).
+    const mediaObj = p.media
+    const mediaUrl = Array.isArray(mediaObj)
+      ? mediaObj[0]
+      : mediaObj?.mediaUrlHttps || mediaObj?.media_url_https || undefined
+    const mediaType = Array.isArray(mediaObj)
+      ? (mediaObj.length ? "video" : "text")
+      : mediaObj?.type || "text"
+
+    // timestamp is epoch milliseconds on the current actor; createdAt on old ones.
+    const publishedAt = post.createdAt
+      ? new Date(post.createdAt).toISOString()
+      : typeof p.timestamp === "number"
+        ? new Date(p.timestamp).toISOString()
+        : new Date().toISOString()
+
     const { error } = await supabase
       .from("social_posts")
       .upsert({
         platform: "twitter",
         external_id: String(externalId),
-        post_url: post.url || (post as any).tweetUrl || `https://twitter.com/i/status/${externalId}`,
-        caption: post.fullText || post.text || (post as any).full_text || "",
-        media_type: post.media?.length ? "video" : "text",
-        media_url: post.media?.[0],
-        likes_count: post.likeCount || (post as any).favorite_count || 0,
-        comments_count: post.replyCount || (post as any).reply_count || 0,
-        shares_count: post.retweetCount || (post as any).retweet_count || 0,
-        views_count: post.viewCount || (post as any).views_count || 0,
-        published_at: post.createdAt ? new Date(post.createdAt).toISOString() : new Date().toISOString(),
+        post_url: post.url || p.tweetUrl || p.postUrl || `https://twitter.com/i/status/${externalId}`,
+        caption: post.fullText || post.text || p.full_text || p.postText || "",
+        media_type: mediaType,
+        media_url: mediaUrl,
+        likes_count: post.likeCount || p.favorite_count || p.favouriteCount || 0,
+        comments_count: post.replyCount || p.reply_count || 0,
+        shares_count: post.retweetCount || p.retweet_count || p.repostCount || 0,
+        views_count: post.viewCount || p.views_count || 0,
+        published_at: publishedAt,
         scraped_at: new Date().toISOString(),
         raw_data: post,
       }, { onConflict: "platform,external_id" })
@@ -170,7 +206,7 @@ export async function syncInstagramPosts() {
   
   if (runs.length === 0) return { inserted: 0, updated: 0 }
   
-  const posts = await getDatasetItems<InstagramPost>(runs[0].defaultDatasetId, 1000)
+  const posts = await getDatasetItems<InstagramPost>(runs[0].defaultDatasetId)
   let inserted = 0
   
   for (const post of posts) {
@@ -215,7 +251,7 @@ export async function syncTikTokPosts() {
     author_username: string
     author_display_name: string
     comment_language: string
-  }>(runs[0].defaultDatasetId, 1000)
+  }>(runs[0].defaultDatasetId)
   
   let inserted = 0
   const errors: string[] = []
@@ -256,7 +292,35 @@ export async function syncTikTokPosts() {
   if (errors.length > 0) {
     console.log("[v0] TikTok sync errors (first 5):", errors.slice(0, 5))
   }
-  
+
+  // The TikTok actor only returns comments, so synthesize a stub post row per
+  // distinct video. Without these, TikTok comments have no parent post and the
+  // dashboard can't link to or attribute them.
+  const videos = new Map<string, { url: string; count: number }>()
+  for (const comment of comments) {
+    if (!comment.video_url) continue
+    const videoIdMatch = comment.video_url.match(/video\/(\d+)/)
+    const videoId = videoIdMatch ? videoIdMatch[1] : comment.video_url
+    const existing = videos.get(videoId)
+    if (existing) existing.count++
+    else videos.set(videoId, { url: comment.video_url, count: 1 })
+  }
+  for (const [videoId, v] of videos) {
+    await supabase
+      .from("social_posts")
+      .upsert({
+        platform: "tiktok",
+        external_id: videoId,
+        post_url: v.url,
+        caption: "",
+        media_type: "video",
+        comments_count: v.count,
+        published_at: new Date().toISOString(),
+        scraped_at: new Date().toISOString(),
+        raw_data: { source: "derived_from_comments", video_url: v.url },
+      }, { onConflict: "platform,external_id", ignoreDuplicates: true })
+  }
+
   return { inserted, total: comments.length }
 }
 
@@ -266,7 +330,7 @@ export async function syncFacebookPosts() {
   
   if (runs.length === 0) return { inserted: 0, updated: 0 }
   
-  const posts = await getDatasetItems<FacebookPost>(runs[0].defaultDatasetId, 1000)
+  const posts = await getDatasetItems<FacebookPost>(runs[0].defaultDatasetId)
   let inserted = 0
   
   for (const post of posts) {
@@ -308,7 +372,7 @@ export async function syncInstagramComments() {
     likesCount: number
     postUrl: string
     postId?: string
-  }>(runs[0].defaultDatasetId, 2000)
+  }>(runs[0].defaultDatasetId)
   
   console.log("[v0] Instagram Comments fetched:", comments.length)
   if (comments.length > 0) {
@@ -387,7 +451,7 @@ export async function syncAllPlatforms() {
   // falls back to keyword sentiment. Capped per run to keep sync responsive.
   let analyzed = 0
   try {
-    analyzed = await analyzeUnanalyzedComments(500)
+    analyzed = await analyzeUnanalyzedComments(1500)
   } catch (e) {
     console.error("[v0] Post-sync sentiment analysis failed:", e)
   }
@@ -419,11 +483,15 @@ export async function analyzeUnanalyzedComments(limit = 500): Promise<number> {
   const now = new Date().toISOString()
 
   await analyzeComments(toAnalyze, {
-    batchSize: 50,
-    delayMs: 500,
+    batchSize: 25,
+    delayMs: 300,
+    concurrency: 4,
     onBatch: async (batchResults) => {
+      // Skip failed placeholders so those comments are retried next sync
+      // instead of being permanently stamped as neutral.
+      const real = batchResults.filter((res) => !res.failed)
       await Promise.all(
-        batchResults.map((res) =>
+        real.map((res) =>
           supabase
             .from("social_comments")
             .update({
@@ -435,7 +503,7 @@ export async function analyzeUnanalyzedComments(limit = 500): Promise<number> {
             .eq("external_id", res.id),
         ),
       )
-      persisted += batchResults.length
+      persisted += real.length
     },
   })
 

@@ -81,8 +81,11 @@ export async function POST(request: Request) {
       delayMs: 300,
       onBatch: async (results) => {
         // Persist each batch immediately so progress survives timeouts.
+        // Skip failed placeholders so those comments are retried next run
+        // instead of being permanently stamped as neutral.
+        const real = results.filter((r) => !r.failed)
         const updates = await Promise.all(
-          results.map((r) =>
+          real.map((r) =>
             supabase
               .from("social_comments")
               .update({

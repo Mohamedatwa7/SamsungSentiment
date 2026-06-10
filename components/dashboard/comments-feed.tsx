@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Instagram, ThumbsUp, ThumbsDown, Minus, ExternalLink, RefreshCw, MessageCircle, Music2, Facebook, Sparkles, Search, X, AlertTriangle, DollarSign, ShoppingCart, Swords, CircleAlert } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -16,14 +16,27 @@ import { useDashboardData } from "@/contexts/dashboard-data-context"
 import { type DateRange } from "@/components/dashboard/date-filter"
 import { useSegmentation } from "@/components/dashboard/segmentation-filter"
 
-// Flag display configuration
-const FLAG_CONFIG: Record<SentimentFlag, { icon: typeof AlertTriangle; label: string; color: string }> = {
-  SARCASM: { icon: CircleAlert, label: "Sarcasm Detected", color: "text-amber-500" },
-  COMPETITOR_MENTION: { icon: Swords, label: "Competitor Mention", color: "text-red-500" },
-  MIXED: { icon: Minus, label: "Mixed Sentiment", color: "text-blue-500" },
-  SAFETY_ISSUE: { icon: AlertTriangle, label: "Safety Issue", color: "text-red-600" },
-  PRICE_COMPLAINT: { icon: DollarSign, label: "Price Complaint", color: "text-orange-500" },
-  PURCHASE_INTENT: { icon: ShoppingCart, label: "Purchase Intent", color: "text-green-500" },
+// Flag display configuration. The LLM emits snake_case flags (price_complaint,
+// green_line_defect, comparison_iphone, ...), so we resolve by pattern instead
+// of exact key so every meaningful flag gets an icon.
+const FLAG_CONFIG: Record<string, { icon: typeof AlertTriangle; label: string; color: string }> = {
+  sarcasm: { icon: CircleAlert, label: "Sarcasm Detected", color: "text-amber-500" },
+  competitor: { icon: Swords, label: "Competitor Mention", color: "text-red-500" },
+  mixed: { icon: Minus, label: "Mixed Sentiment", color: "text-blue-500" },
+  safety: { icon: AlertTriangle, label: "Safety Issue", color: "text-red-600" },
+  price: { icon: DollarSign, label: "Price Complaint", color: "text-orange-500" },
+  purchase: { icon: ShoppingCart, label: "Purchase Intent", color: "text-green-500" },
+}
+
+function resolveFlagConfig(flag: string): { icon: typeof AlertTriangle; label: string; color: string } | null {
+  const f = flag.toLowerCase()
+  if (f.includes("sarcas")) return FLAG_CONFIG.sarcasm
+  if (f.includes("competitor") || f.startsWith("comparison")) return FLAG_CONFIG.competitor
+  if (f.includes("safety") || f.includes("overheat") || f.includes("defect") || f.includes("green_line")) return FLAG_CONFIG.safety
+  if (f.includes("price")) return FLAG_CONFIG.price
+  if (f.includes("purchase") || f.includes("preorder") || f.includes("pre_order")) return FLAG_CONFIG.purchase
+  if (f.includes("mixed")) return FLAG_CONFIG.mixed
+  return null
 }
 
 function SentimentBadge({ sentiment }: { sentiment: Sentiment }) {
@@ -91,7 +104,7 @@ function CommentCard({ comment }: { comment: Comment }) {
                 {flags.length > 0 && (
                   <div className="flex items-center gap-0.5">
                     {flags.map((flag) => {
-                      const config = FLAG_CONFIG[flag]
+                      const config = resolveFlagConfig(String(flag))
                       if (!config) return null
                       const Icon = config.icon
                       return (
@@ -171,12 +184,22 @@ export function CommentsFeed({ platformFilter, dateRange }: CommentsFeedProps) {
     setActiveSearch(searchQuery.trim().toLowerCase())
     setCurrentPage(1) // Reset to first page on new search
   }
-  
+
   const clearSearch = () => {
     setSearchQuery("")
     setActiveSearch("")
     setCurrentPage(1)
   }
+
+  // Live search: apply the query as the user types (debounced) so the search
+  // bar works without needing to press Enter or the Search button.
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      setActiveSearch(searchQuery.trim().toLowerCase())
+      setCurrentPage(1)
+    }, 250)
+    return () => clearTimeout(handle)
+  }, [searchQuery])
   
   const handleAIAnalysis = async () => {
     setIsAnalyzing(true)
@@ -200,24 +223,27 @@ export function CommentsFeed({ platformFilter, dateRange }: CommentsFeedProps) {
     }
   }
   
-  // Filter by platform first, then by sentiment, then by search
-  const platformFiltered = activePlatform === "all"
-    ? allComments
-    : allComments.filter(c => c.platform === activePlatform)
-  
-  // Apply search filter
-  const searchFiltered = useMemo(() => {
-    if (!activeSearch) return platformFiltered
-    return platformFiltered.filter(c => 
-      c.text.toLowerCase().includes(activeSearch) ||
-      c.username.toLowerCase().includes(activeSearch) ||
-      c.product.toLowerCase().includes(activeSearch)
+  // Apply search across ALL comments first so platform tab counts stay accurate,
+  // then narrow by platform, then by sentiment.
+  const searchedAll = useMemo(() => {
+    if (!activeSearch) return allComments
+    return allComments.filter(c =>
+      (c.text || "").toLowerCase().includes(activeSearch) ||
+      (c.username || "").toLowerCase().includes(activeSearch) ||
+      (c.product || "").toLowerCase().includes(activeSearch) ||
+      (c.productModel || "").toLowerCase().includes(activeSearch)
     )
-  }, [platformFiltered, activeSearch])
-  
+  }, [allComments, activeSearch])
+
+  const searchFiltered = useMemo(() => (
+    activePlatform === "all"
+      ? searchedAll
+      : searchedAll.filter(c => c.platform === activePlatform)
+  ), [searchedAll, activePlatform])
+
   // Filter by sentiment
-  const filteredComments = activeTab === "all" 
-    ? searchFiltered 
+  const filteredComments = activeTab === "all"
+    ? searchFiltered
     : searchFiltered.filter(c => c.sentiment === activeTab)
 
   // Reset page when filters change
@@ -231,16 +257,16 @@ export function CommentsFeed({ platformFilter, dateRange }: CommentsFeedProps) {
   }, [filteredComments, validPage])
   
   const searchResultCount = activeSearch ? searchFiltered.length : null
-  
-  // Calculate platform-specific counts (from search-filtered results if searching)
-  const baseComments = activeSearch ? searchFiltered : allComments
-  const instagramCount = baseComments.filter(c => c.platform === "instagram").length
-  const tiktokCount = baseComments.filter(c => c.platform === "tiktok").length
-  const facebookCount = baseComments.filter(c => c.platform === "facebook").length
-  
-  // Calculate sentiment metrics based on search-filtered comments
+
+  // Platform counts always reflect the search (but not the platform tab itself),
+  // so switching platforms never zeroes out the other tabs.
+  const instagramCount = searchedAll.filter(c => c.platform === "instagram").length
+  const tiktokCount = searchedAll.filter(c => c.platform === "tiktok").length
+  const facebookCount = searchedAll.filter(c => c.platform === "facebook").length
+
+  // Sentiment metrics reflect the current search + platform selection.
   const displayMetrics = useMemo(() => {
-    const commentsToAnalyze = activeSearch ? searchFiltered : allComments
+    const commentsToAnalyze = searchFiltered
     const total = commentsToAnalyze.length
     const positiveCount = commentsToAnalyze.filter(c => c.sentiment === "positive").length
     const negativeCount = commentsToAnalyze.filter(c => c.sentiment === "negative").length
@@ -266,7 +292,7 @@ export function CommentsFeed({ platformFilter, dateRange }: CommentsFeedProps) {
       negativePercentage,
       neutralPercentage,
     }
-  }, [activeSearch, searchFiltered, allComments])
+  }, [searchFiltered])
 
   const handleRefresh = () => {
     setIsRefreshing(true)
@@ -282,9 +308,9 @@ export function CommentsFeed({ platformFilter, dateRange }: CommentsFeedProps) {
             Comments Analysis
           </CardTitle>
           <CardDescription>
-            {activeSearch 
-              ? `${displayMetrics.totalComments} comments matching "${activeSearch}"`
-              : `${metrics.totalComments} comments analyzed from Instagram, TikTok and Facebook`
+            {activeSearch
+              ? `${displayMetrics.totalComments.toLocaleString()} comments matching "${activeSearch}"`
+              : `${metrics.total.toLocaleString()} comments analyzed from Instagram, TikTok and Facebook`
             }
           </CardDescription>
         </div>
@@ -375,7 +401,7 @@ export function CommentsFeed({ platformFilter, dateRange }: CommentsFeedProps) {
             onClick={() => { setActivePlatform("all"); setCurrentPage(1); }}
             className="flex-1"
           >
-            All ({allComments.length})
+            All ({searchedAll.length.toLocaleString()})
           </Button>
           <Button
             variant={activePlatform === "instagram" ? "default" : "outline"}
@@ -426,16 +452,16 @@ export function CommentsFeed({ platformFilter, dateRange }: CommentsFeedProps) {
         <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v as typeof activeTab); setCurrentPage(1); }} className="mb-4">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="all">
-              All ({allComments.length})
+              All ({searchFiltered.length.toLocaleString()})
             </TabsTrigger>
             <TabsTrigger value="positive" className="text-positive data-[state=active]:text-positive">
-              Positive ({metrics.positiveCount})
+              Positive ({displayMetrics.positiveCount.toLocaleString()})
             </TabsTrigger>
             <TabsTrigger value="neutral">
-              Neutral ({metrics.neutralCount})
+              Neutral ({displayMetrics.neutralCount.toLocaleString()})
             </TabsTrigger>
             <TabsTrigger value="negative" className="text-negative data-[state=active]:text-negative">
-              Negative ({metrics.negativeCount})
+              Negative ({displayMetrics.negativeCount.toLocaleString()})
             </TabsTrigger>
           </TabsList>
         </Tabs>
@@ -535,9 +561,18 @@ export function CommentsSentimentSummary({ platformFilter, dateRange }: Comments
     (p): p is CommentPlatform => p === "instagram" || p === "tiktok" || p === "facebook"
   )
   const { segmentation } = useSegmentation()
+  const { getCommentMetrics } = useDashboardData()
 
-  const metrics = getCommentMetrics(commentPlatformFilter, dateRange, segmentation)
-  
+  const raw = getCommentMetrics(commentPlatformFilter, dateRange, segmentation)
+  const metrics = {
+    positivePercentage: raw.positiveRate,
+    neutralPercentage: raw.neutralRate,
+    negativePercentage: raw.negativeRate,
+    topIssues: Object.entries(raw.flagCounts || {})
+      .map(([issue, count]) => ({ issue: issue.replace(/_/g, " "), count }))
+      .sort((a, b) => b.count - a.count),
+  }
+
   return (
     <Card className="border-0 shadow-sm">
       <CardHeader className="pb-2">
