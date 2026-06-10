@@ -19,12 +19,12 @@ interface KPICardsProps {
 
 function KPICard({ title, value, subValue, icon, iconColor }: KPICardProps) {
   return (
-    <Card className="relative overflow-hidden border-0 bg-card shadow-sm transition-all duration-300 hover:shadow-md">
+    <Card className="relative overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-500">
       <CardContent className="p-6">
         <div className="flex items-start justify-between">
           <div className="space-y-3">
-            <p className="text-sm font-medium text-muted-foreground">{title}</p>
-            <p className="text-3xl font-bold tracking-tight">{value}</p>
+            <p className="section-label">{title}</p>
+            <p className="kpi-value text-3xl">{value}</p>
             {subValue && (
               <p className="text-sm text-muted-foreground">{subValue}</p>
             )}

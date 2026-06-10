@@ -73,7 +73,7 @@ export function BrandHealthTrend({ platformFilter, dateRange }: BrandHealthTrend
   }))
 
   return (
-    <Card className="border-0 shadow-sm">
+    <Card className="animate-in fade-in slide-in-from-bottom-2 duration-500">
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between">
           <div>
@@ -124,7 +124,7 @@ export function BrandHealthTrend({ platformFilter, dateRange }: BrandHealthTrend
                 data={chartData}
                 margin={{ top: 20, right: 30, left: 0, bottom: 10 }}
               >
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                 <XAxis 
                   dataKey="weekLabel" 
                   tick={{ fontSize: 11 }}
@@ -145,9 +145,9 @@ export function BrandHealthTrend({ platformFilter, dateRange }: BrandHealthTrend
                     if (!active || !payload?.length) return null
                     const data = payload[0].payload
                     return (
-                      <div className="rounded-lg border bg-background p-3 shadow-md">
+                      <div className="rounded-lg border bg-popover px-3 py-2 text-xs shadow-md text-popover-foreground">
                         <p className="text-sm font-medium">Week of {data.weekStart}</p>
-                        <p className="text-2xl font-bold text-foreground">{data.score}</p>
+                        <p className="kpi-value text-2xl">{data.score}</p>
                         <p className="text-xs text-muted-foreground">
                           Based on {data.commentCount.toLocaleString()} comments
                         </p>
@@ -171,8 +171,8 @@ export function BrandHealthTrend({ platformFilter, dateRange }: BrandHealthTrend
                   dataKey="score"
                   stroke="oklch(0.6 0.2 250)"
                   strokeWidth={2.5}
-                  dot={{ fill: "oklch(0.6 0.2 250)", strokeWidth: 2, r: 4 }}
-                  activeDot={{ r: 6, strokeWidth: 2 }}
+                  dot={false}
+                  activeDot={{ r: 4, strokeWidth: 0 }}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -188,15 +188,15 @@ export function BrandHealthTrend({ platformFilter, dateRange }: BrandHealthTrend
         {/* Summary stats */}
         <div className="mt-4 grid grid-cols-3 gap-4 border-t pt-4">
           <div className="text-center">
-            <p className="text-2xl font-bold">{weeklyData.length}</p>
+            <p className="kpi-value text-2xl">{weeklyData.length}</p>
             <p className="text-xs text-muted-foreground">Weeks tracked</p>
           </div>
           <div className="text-center">
-            <p className="text-2xl font-bold">{averageScore}</p>
+            <p className="kpi-value text-2xl">{averageScore}</p>
             <p className="text-xs text-muted-foreground">Average score</p>
           </div>
           <div className="text-center">
-            <p className="text-2xl font-bold">
+            <p className="kpi-value text-2xl">
               {currentWeek?.score ?? "—"}
             </p>
             <p className="text-xs text-muted-foreground">Current week</p>

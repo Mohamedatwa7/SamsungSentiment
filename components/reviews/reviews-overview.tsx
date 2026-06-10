@@ -1,6 +1,7 @@
 "use client"
 
 import { Card, CardContent } from "@/components/ui/card"
+import { CountUp } from "@/components/ui/count-up"
 import { ThumbsUp, ThumbsDown, Minus, Star, MessageSquare, TrendingUp, Eye, Moon, RotateCcw } from "lucide-react"
 import type { SentimentMetrics, S26FeatureMetrics } from "@/lib/reviews-data"
 
@@ -14,6 +15,8 @@ export function ReviewsOverview({ metrics, featureMetrics }: ReviewsOverviewProp
     {
       title: "Total Reviews",
       value: metrics.total.toLocaleString(),
+      numeric: metrics.total,
+      format: (v: number) => Math.round(v).toLocaleString(),
       icon: MessageSquare,
       color: "text-primary",
       bgColor: "bg-primary/10"
@@ -21,21 +24,27 @@ export function ReviewsOverview({ metrics, featureMetrics }: ReviewsOverviewProp
     {
       title: "Brand Health Score",
       value: metrics.brandHealthScore,
+      numeric: metrics.brandHealthScore,
+      format: (v: number) => `${Math.round(v)}`,
       icon: TrendingUp,
-      color: metrics.brandHealthScore >= 70 ? "text-positive" : metrics.brandHealthScore >= 50 ? "text-warning" : "text-negative",
-      bgColor: metrics.brandHealthScore >= 70 ? "bg-positive/10" : metrics.brandHealthScore >= 50 ? "bg-warning/10" : "bg-negative/10"
+      color: metrics.brandHealthScore >= 70 ? "text-positive" : metrics.brandHealthScore >= 50 ? "text-amber-500" : "text-negative",
+      bgColor: metrics.brandHealthScore >= 70 ? "bg-positive/10" : metrics.brandHealthScore >= 50 ? "bg-amber-500/10" : "bg-negative/10"
     },
     {
       title: "Average Rating",
       value: metrics.averageRating.toFixed(1),
+      numeric: metrics.averageRating,
+      format: (v: number) => v.toFixed(1),
       icon: Star,
-      color: "text-warning",
-      bgColor: "bg-warning/10",
+      color: "text-amber-500",
+      bgColor: "bg-amber-500/10",
       suffix: "/ 5"
     },
     {
       title: "Positive",
       value: `${metrics.positivePercent.toFixed(1)}%`,
+      numeric: metrics.positivePercent,
+      format: (v: number) => `${v.toFixed(1)}%`,
       subValue: metrics.positive.toLocaleString(),
       icon: ThumbsUp,
       color: "text-positive",
@@ -44,14 +53,18 @@ export function ReviewsOverview({ metrics, featureMetrics }: ReviewsOverviewProp
     {
       title: "Neutral",
       value: `${metrics.neutralPercent.toFixed(1)}%`,
+      numeric: metrics.neutralPercent,
+      format: (v: number) => `${v.toFixed(1)}%`,
       subValue: metrics.neutral.toLocaleString(),
       icon: Minus,
-      color: "text-neutral-foreground",
+      color: "text-muted-foreground",
       bgColor: "bg-muted"
     },
     {
       title: "Negative",
       value: `${metrics.negativePercent.toFixed(1)}%`,
+      numeric: metrics.negativePercent,
+      format: (v: number) => `${v.toFixed(1)}%`,
       subValue: metrics.negative.toLocaleString(),
       icon: ThumbsDown,
       color: "text-negative",
@@ -60,6 +73,8 @@ export function ReviewsOverview({ metrics, featureMetrics }: ReviewsOverviewProp
     {
       title: "Privacy Display",
       value: featureMetrics.privacyDisplay.mentions.toLocaleString(),
+      numeric: featureMetrics.privacyDisplay.mentions,
+      format: (v: number) => Math.round(v).toLocaleString(),
       subValue: `${featureMetrics.privacyDisplay.positiveRate}% positive`,
       icon: Eye,
       color: "text-violet-500",
@@ -69,6 +84,8 @@ export function ReviewsOverview({ metrics, featureMetrics }: ReviewsOverviewProp
     {
       title: "Nightography",
       value: featureMetrics.nightography.mentions.toLocaleString(),
+      numeric: featureMetrics.nightography.mentions,
+      format: (v: number) => Math.round(v).toLocaleString(),
       subValue: `${featureMetrics.nightography.positiveRate}% positive`,
       icon: Moon,
       color: "text-indigo-500",
@@ -78,6 +95,8 @@ export function ReviewsOverview({ metrics, featureMetrics }: ReviewsOverviewProp
     {
       title: "Horizontal Lock",
       value: featureMetrics.horizontalLock.mentions.toLocaleString(),
+      numeric: featureMetrics.horizontalLock.mentions,
+      format: (v: number) => Math.round(v).toLocaleString(),
       subValue: `${featureMetrics.horizontalLock.positiveRate}% positive`,
       icon: RotateCcw,
       color: "text-cyan-500",
@@ -87,17 +106,17 @@ export function ReviewsOverview({ metrics, featureMetrics }: ReviewsOverviewProp
   ]
   
   return (
-    <div className="flex flex-wrap gap-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
       {cards.map((card) => (
-        <Card key={card.title} className="relative overflow-hidden min-w-[180px] flex-1 basis-[calc(50%-0.5rem)] sm:basis-[calc(33.333%-0.75rem)] md:basis-[calc(25%-0.75rem)] lg:basis-[calc(20%-0.8rem)] xl:basis-[calc(16.666%-0.85rem)]">
+        <Card key={card.title} className="accent-top hover-lift relative overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-500">
           <CardContent className="p-4">
             <div className="flex items-center justify-between gap-3">
               <div className="flex flex-col gap-1 min-w-0 flex-1">
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider truncate">
+                <span className="section-label truncate">
                   {card.title}
                 </span>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-2xl font-bold">{card.value}</span>
+                  <CountUp value={card.numeric} format={card.format} className="kpi-value text-3xl" />
                   {card.suffix && (
                     <span className="text-sm text-muted-foreground">{card.suffix}</span>
                   )}

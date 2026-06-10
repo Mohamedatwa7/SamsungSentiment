@@ -47,7 +47,7 @@ export function MarketplaceFilter({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
+        <Button variant="outline" size="sm" className="gap-2 transition-colors hover:bg-muted/50">
           <Store className="h-4 w-4" />
           <span className="hidden sm:inline">
             {allSelected || noneSelected 
@@ -57,8 +57,8 @@ export function MarketplaceFilter({
           </span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuLabel>Filter by Marketplace</DropdownMenuLabel>
+      <DropdownMenuContent align="end" className="w-48 rounded-lg shadow-md">
+        <DropdownMenuLabel className="section-label">Filter by Marketplace</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuCheckboxItem
           checked={allSelected}
@@ -74,7 +74,7 @@ export function MarketplaceFilter({
             onCheckedChange={() => toggleMarketplace(marketplace.id)}
           >
             <div className="flex items-center gap-2">
-              <div className={cn("h-2 w-2 rounded-full", marketplace.color)} />
+              <div className={cn("h-2.5 w-2.5 rounded-full ring-2 ring-background", marketplace.color)} />
               {marketplace.label}
             </div>
           </DropdownMenuCheckboxItem>

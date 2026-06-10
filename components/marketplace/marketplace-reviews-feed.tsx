@@ -19,19 +19,19 @@ function ReviewCard({ review }: { review: MarketplaceReview }) {
   const [isExpanded, setIsExpanded] = useState(false)
   
   const sentimentColor = {
-    positive: "text-emerald-600",
-    negative: "text-rose-600",
+    positive: "text-positive",
+    negative: "text-negative",
     neutral: "text-muted-foreground",
   }
-  
+
   const sentimentBg = {
-    positive: "bg-emerald-50 border-emerald-200",
-    negative: "bg-rose-50 border-rose-200",
-    neutral: "bg-muted border-muted",
+    positive: "bg-positive/5 border-positive/20",
+    negative: "bg-negative/5 border-negative/20",
+    neutral: "bg-muted/50 border-border",
   }
 
   return (
-    <div className={cn("rounded-lg border p-4", sentimentBg[review.sentiment])}>
+    <div className={cn("rounded-xl border p-4 transition-colors", sentimentBg[review.sentiment])}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
@@ -50,7 +50,7 @@ function ReviewCard({ review }: { review: MarketplaceReview }) {
               ))}
             </div>
             {review.verifiedPurchase && (
-              <span className="flex items-center gap-1 text-xs text-emerald-600">
+              <span className="flex items-center gap-1 text-xs text-positive">
                 <CheckCircle2 className="h-3 w-3" />
                 Verified
               </span>
@@ -100,7 +100,7 @@ export function MarketplaceReviewsFeed({ marketplaceFilter, dateRange }: Marketp
   }, [marketplaceFilter, dateRange, filter])
 
   return (
-    <Card className="border-0 shadow-sm">
+    <Card className="animate-in fade-in slide-in-from-bottom-2 duration-500">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div>
@@ -117,9 +117,12 @@ export function MarketplaceReviewsFeed({ marketplaceFilter, dateRange }: Marketp
         </div>
       </CardHeader>
       <CardContent>
-        <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
+        <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2 nice-scroll">
           {reviews.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">No reviews found for the selected filters.</p>
+            <div className="flex flex-col items-center justify-center gap-2 py-8">
+              <Star className="h-8 w-8 text-muted-foreground/50" />
+              <p className="text-center text-sm text-muted-foreground">No reviews found for the selected filters.</p>
+            </div>
           ) : (
             reviews.map((review) => (
               <ReviewCard key={review.id} review={review} />

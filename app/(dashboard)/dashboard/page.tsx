@@ -50,17 +50,20 @@ function DashboardContent() {
   ).filter((p): p is "instagram" | "tiktok" | "facebook" => p === "instagram" || p === "tiktok" || p === "facebook")
 
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <div className="flex flex-col gap-6 p-4 md:p-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Social Reviews Dashboard</h1>
-          <p className="text-muted-foreground">
-            Samsung Gulf social analytics — Instagram, TikTok &amp; Facebook comments segmented by department, product and feature
-          </p>
-        </div>
-        {activeTab === "overview" && (
-          <div className="flex flex-wrap items-center gap-3">
+      <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+        <p className="section-label">Samsung Gulf · Social Intelligence</p>
+        <h1 className="mt-1 text-2xl font-bold tracking-tight md:text-3xl">Social Reviews Dashboard</h1>
+        <p className="mt-1 text-sm text-muted-foreground md:text-base">
+          Instagram, TikTok &amp; Facebook comments segmented by department, product and feature
+        </p>
+      </div>
+
+      {/* Sticky filter bar — condenses against the top nav on scroll */}
+      {activeTab === "overview" && (
+        <div className="sticky top-16 z-20 -mx-4 border-y border-border/40 bg-background/85 px-4 py-3 backdrop-blur-xl md:-mx-6 md:px-6">
+          <div className="flex flex-wrap items-center gap-2 md:gap-3">
             <SegmentationFilter value={segmentation} onChange={setSegmentation} />
             <DateFilter
               dateRange={dateRange}
@@ -72,10 +75,12 @@ function DashboardContent() {
               selectedPlatforms={selectedPlatforms}
               onPlatformsChange={setSelectedPlatforms}
             />
-            <DashboardExportButton platformFilter={selectedPlatforms} />
+            <div className="ml-auto">
+              <DashboardExportButton platformFilter={selectedPlatforms} />
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2 lg:w-auto lg:grid-cols-none lg:flex">

@@ -57,6 +57,7 @@ import {
   Legend,
 } from "recharts"
 import { cn } from "@/lib/utils"
+import { CountUp } from "@/components/ui/count-up"
 import { getProcessedDashboardData, type Platform } from "@/lib/social-data"
 import { type CommentPlatform, type Comment } from "@/lib/comments-data"
 import { useDashboardData } from "@/contexts/dashboard-data-context"
@@ -89,13 +90,13 @@ interface ExecKPIProps {
 
 function ExecKPI({ title, value, subtitle, trend, trendValue, icon, status }: ExecKPIProps) {
   return (
-    <Card className="border-0 shadow-sm">
+    <Card className="animate-in fade-in slide-in-from-bottom-2 duration-500">
       <CardContent className="p-5">
         <div className="flex items-start justify-between">
           <div className="space-y-1">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{title}</p>
+            <p className="section-label">{title}</p>
             <div className="flex items-baseline gap-2">
-              <p className="text-2xl font-bold">{value}</p>
+              <p className="kpi-value text-2xl">{value}</p>
               {trend && trendValue && (
                 <span className={cn(
                   "flex items-center text-xs font-medium",
@@ -265,15 +266,15 @@ export function MainKPIs({ platformFilter, dateRange }: ExecutiveMetricsProps) {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
       {/* Comment Health Index */}
-      <Card className="border-0 shadow-sm">
+      <Card className="accent-top animate-in fade-in slide-in-from-bottom-2 duration-500">
         <CardContent className="p-5">
           <div className="flex items-start justify-between">
             <div className="space-y-1">
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Health Index</p>
+              <p className="section-label">Health Index</p>
               <p className={cn(
-                "text-3xl font-bold",
+                "kpi-value text-4xl",
                 commentHealthScore >= 70 ? "text-positive" : commentHealthScore >= 50 ? "text-amber-500" : "text-negative"
-              )}>{commentHealthScore}/100</p>
+              )}><CountUp value={commentHealthScore} format={(v) => `${Math.round(v)}/100`} /></p>
               <p className="text-xs text-muted-foreground">overall comment sentiment</p>
             </div>
             <div className={cn(
@@ -290,12 +291,12 @@ export function MainKPIs({ platformFilter, dateRange }: ExecutiveMetricsProps) {
       </Card>
 
       {/* Total Posts */}
-      <Card className="border-0 shadow-sm">
+      <Card className="accent-top animate-in fade-in slide-in-from-bottom-2 duration-500">
         <CardContent className="p-5">
           <div className="flex items-start justify-between">
             <div className="space-y-1">
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total Posts</p>
-              <p className="text-3xl font-bold">{totalPosts.toLocaleString()}</p>
+              <p className="section-label">Total Posts</p>
+              <p className="kpi-value text-4xl"><CountUp value={totalPosts} /></p>
               <p className="text-xs text-muted-foreground">across all platforms</p>
             </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
@@ -306,12 +307,12 @@ export function MainKPIs({ platformFilter, dateRange }: ExecutiveMetricsProps) {
       </Card>
 
       {/* Number of Comments */}
-      <Card className="border-0 shadow-sm">
+      <Card className="accent-top animate-in fade-in slide-in-from-bottom-2 duration-500">
         <CardContent className="p-5">
           <div className="flex items-start justify-between">
             <div className="space-y-1">
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total Comments</p>
-              <p className="text-3xl font-bold">{total.toLocaleString()}</p>
+              <p className="section-label">Total Comments</p>
+              <p className="kpi-value text-4xl"><CountUp value={total} /></p>
               <p className="text-xs text-muted-foreground">analyzed from all platforms</p>
             </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
@@ -322,10 +323,10 @@ export function MainKPIs({ platformFilter, dateRange }: ExecutiveMetricsProps) {
       </Card>
 
       {/* Platform Split */}
-      <Card className="border-0 shadow-sm">
+      <Card className="accent-top animate-in fade-in slide-in-from-bottom-2 duration-500">
         <CardContent className="p-5">
           <div className="space-y-2">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Platform Split</p>
+            <p className="section-label">Platform Split</p>
             <div className="flex h-2.5 overflow-hidden rounded-full bg-muted">
               <div className="bg-[#E4405F]" style={{ width: `${instagramPct}%` }} title={`Instagram: ${instagramPct}%`} />
               <div className="bg-[#00f2ea]" style={{ width: `${tiktokPct}%` }} title={`TikTok: ${tiktokPct}%`} />
@@ -350,12 +351,12 @@ export function MainKPIs({ platformFilter, dateRange }: ExecutiveMetricsProps) {
       </Card>
 
       {/* Positive to Negative Ratio */}
-      <Card className="border-0 shadow-sm">
+      <Card className="accent-top animate-in fade-in slide-in-from-bottom-2 duration-500">
         <CardContent className="p-5">
           <div className="flex items-start justify-between">
             <div className="space-y-1">
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Pos:Neg Ratio</p>
-              <p className="text-3xl font-bold">{posToNegRatio}:1</p>
+              <p className="section-label">Pos:Neg Ratio</p>
+              <p className="kpi-value text-4xl">{posToNegRatio}:1</p>
               <p className="text-xs text-muted-foreground">
                 {commentMetrics.positive.toLocaleString()} pos / {commentMetrics.negative.toLocaleString()} neg
               </p>
@@ -400,7 +401,7 @@ export function BrandHealthGauge({ platformFilter, dateRange }: ExecutiveMetrics
   const topContributors = brandHealth.topContributors.slice(0, 5)
 
   return (
-    <Card className="border-0 shadow-sm">
+    <Card className="animate-in fade-in slide-in-from-bottom-2 duration-500">
       <CardHeader className="pb-2">
         <CardTitle className="text-lg font-semibold">Comment Health Index</CardTitle>
         <CardDescription>
@@ -422,14 +423,14 @@ export function BrandHealthGauge({ platformFilter, dateRange }: ExecutiveMetrics
                 endAngle={0}
               >
                 <RadialBar
-                  background={{ fill: "oklch(0.9 0 0)" }}
+                  background={{ fill: "var(--muted)" }}
                   dataKey="value"
                   cornerRadius={10}
                 />
               </RadialBarChart>
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-4xl font-bold">{brandHealthScore}</span>
+              <CountUp value={brandHealthScore} className="kpi-value text-4xl" />
               <span className="text-xs text-muted-foreground">out of 100</span>
             </div>
           </div>
@@ -874,7 +875,7 @@ export function CriticalAlerts({ platformFilter, dateRange }: ExecutiveMetricsPr
   }, [commentMetrics, prevMetrics, commentsByProduct, brandHealthScore, topIssues, topPraise])
 
   return (
-    <Card className="border-0 shadow-sm">
+    <Card className="animate-in fade-in slide-in-from-bottom-2 duration-500">
       <CardHeader className="pb-3">
         <CardTitle className="text-lg font-semibold flex items-center gap-2">
           <Activity className="h-5 w-5" />
@@ -897,7 +898,7 @@ export function CriticalAlerts({ platformFilter, dateRange }: ExecutiveMetricsPr
                     setSelectedAlert({ title: alert.title, message: alert.message, comments: relatedComments })
                   }}
                   className={cn(
-                    "flex w-full items-start gap-3 rounded-lg p-3 text-left transition-all",
+                    "hover-lift flex w-full items-start gap-3 rounded-xl p-3 text-left transition-all",
                     alert.type === "danger" && "bg-negative/10",
                     alert.type === "warning" && "bg-amber-500/10",
                     alert.type === "success" && "bg-positive/10",
@@ -948,14 +949,14 @@ export function CriticalAlerts({ platformFilter, dateRange }: ExecutiveMetricsPr
               </span>
             </DialogDescription>
           </DialogHeader>
-          <div className="flex-1 overflow-y-auto space-y-3 pr-2">
+          <div className="nice-scroll flex-1 overflow-y-auto space-y-3 pr-2">
             {selectedAlert?.comments.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <p className="text-sm text-muted-foreground">No comments found for this insight</p>
               </div>
             ) : null}
             {selectedAlert?.comments.slice(0, 200).map((comment, idx) => (
-              <div key={idx} className="rounded-lg border p-3 space-y-2">
+              <div key={idx} className="rounded-lg border p-3 space-y-2 transition-colors hover:bg-muted/40">
                 <div className="flex items-center gap-2">
                   <div className={cn(
                     "flex h-5 w-5 items-center justify-center rounded-full",
@@ -1181,7 +1182,7 @@ export function ProductPerformanceChart({ platformFilter }: ExecutiveMetricsProp
   const leastPraised = topics.filter(t => t.score <= 0).sort((a, b) => a.score - b.score).slice(0, 3)
 
   return (
-    <Card className="border-0 shadow-sm">
+    <Card className="animate-in fade-in slide-in-from-bottom-2 duration-500">
       <CardHeader className="pb-2">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -1220,15 +1221,15 @@ export function ProductPerformanceChart({ platformFilter }: ExecutiveMetricsProp
         {/* Sentiment Overview */}
         <div className="mb-4 grid grid-cols-3 gap-2 text-center">
           <div className="rounded-lg bg-positive/10 p-3">
-            <p className="text-2xl font-bold text-positive">{sentimentBreakdown.positiveRate}%</p>
+            <p className="kpi-value text-2xl text-positive">{sentimentBreakdown.positiveRate}%</p>
             <p className="text-xs text-muted-foreground">Positive ({sentimentBreakdown.positive})</p>
           </div>
           <div className="rounded-lg bg-muted p-3">
-            <p className="text-2xl font-bold text-muted-foreground">{sentimentBreakdown.neutralRate}%</p>
+            <p className="kpi-value text-2xl text-muted-foreground">{sentimentBreakdown.neutralRate}%</p>
             <p className="text-xs text-muted-foreground">Neutral ({sentimentBreakdown.neutral})</p>
           </div>
           <div className="rounded-lg bg-negative/10 p-3">
-            <p className="text-2xl font-bold text-negative">{sentimentBreakdown.negativeRate}%</p>
+            <p className="kpi-value text-2xl text-negative">{sentimentBreakdown.negativeRate}%</p>
             <p className="text-xs text-muted-foreground">Negative ({sentimentBreakdown.negative})</p>
           </div>
         </div>
@@ -1316,7 +1317,7 @@ export function PlatformROI({ platformFilter, dateRange }: ExecutiveMetricsProps
   const maxEngagement = Math.max(...platformMetrics.map(p => p.engagement))
 
   return (
-    <Card className="border-0 shadow-sm">
+    <Card className="animate-in fade-in slide-in-from-bottom-2 duration-500">
       <CardHeader className="pb-2">
         <CardTitle className="text-lg font-semibold">Platform Efficiency</CardTitle>
         <CardDescription>Engagement per post by platform</CardDescription>
@@ -1353,7 +1354,7 @@ export function QuickSummary({ platformFilter }: ExecutiveMetricsProps) {
   const commentMetrics = useMemo(() => getCommentMetrics(commentPlatformFilter, undefined, segmentation), [getCommentMetrics, commentPlatformFilter, segmentation])
   
   return (
-    <Card className="border-0 shadow-sm bg-gradient-to-br from-primary/5 to-primary/10">
+    <Card className="bg-gradient-to-br from-primary/5 to-primary/10 animate-in fade-in slide-in-from-bottom-2 duration-500">
       <CardHeader className="pb-2">
         <CardTitle className="text-lg font-semibold">Performance Summary</CardTitle>
         <CardDescription>Key metrics at a glance</CardDescription>
@@ -1361,19 +1362,19 @@ export function QuickSummary({ platformFilter }: ExecutiveMetricsProps) {
       <CardContent className="pt-0">
         <div className="grid grid-cols-2 gap-4">
           <div className="rounded-lg bg-background/80 p-3 text-center">
-            <p className="text-2xl font-bold">{dashboardData.kpiMetrics.totalPosts}</p>
+            <p className="kpi-value text-2xl">{dashboardData.kpiMetrics.totalPosts}</p>
             <p className="text-xs text-muted-foreground">Total Posts</p>
           </div>
           <div className="rounded-lg bg-background/80 p-3 text-center">
-            <p className="text-2xl font-bold">{commentMetrics.total.toLocaleString()}</p>
+            <p className="kpi-value text-2xl">{commentMetrics.total.toLocaleString()}</p>
             <p className="text-xs text-muted-foreground">Comments Analyzed</p>
           </div>
           <div className="rounded-lg bg-background/80 p-3 text-center">
-            <p className="text-2xl font-bold text-positive">{commentMetrics.positiveRate}%</p>
+            <p className="kpi-value text-2xl text-positive">{commentMetrics.positiveRate}%</p>
             <p className="text-xs text-muted-foreground">Positive Sentiment</p>
           </div>
           <div className="rounded-lg bg-background/80 p-3 text-center">
-            <p className="text-2xl font-bold text-negative">{commentMetrics.negativeRate}%</p>
+            <p className="kpi-value text-2xl text-negative">{commentMetrics.negativeRate}%</p>
             <p className="text-xs text-muted-foreground">Negative Sentiment</p>
           </div>
         </div>

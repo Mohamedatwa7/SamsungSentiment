@@ -93,9 +93,10 @@ export default function ReviewsPage() {
   return (
     <div className="flex flex-col gap-6 p-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Product Reviews Analysis</h1>
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between animate-in fade-in slide-in-from-bottom-2 duration-500">
+        <div className="space-y-1">
+          <p className="section-label">Samsung.com · Product Reviews</p>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Product Reviews Analysis</h1>
           <p className="text-muted-foreground">
             Sentiment analysis of Samsung.com product reviews
           </p>
@@ -138,7 +139,7 @@ export default function ReviewsPage() {
                   </div>
                 </div>
               </div>
-              <div className="max-h-[300px] overflow-y-auto p-2">
+              <div className="max-h-[300px] overflow-y-auto nice-scroll p-2">
                 {productLines.map(line => (
                   <label
                     key={line}

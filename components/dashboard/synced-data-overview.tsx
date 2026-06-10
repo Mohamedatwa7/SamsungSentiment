@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { MessageSquare, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { CountUp } from "@/components/ui/count-up"
 
 interface SyncedDataStats {
   counts: {
@@ -50,13 +51,27 @@ export function SyncedDataOverview() {
 
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-6 w-48" />
-          <Skeleton className="h-4 w-64" />
+      <Card className="animate-in fade-in duration-500">
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+          <Skeleton className="h-8 w-8 rounded-md" />
         </CardHeader>
         <CardContent>
-          <Skeleton className="h-20 w-full" />
+          <div className="mb-4 grid grid-cols-2 gap-4">
+            <Skeleton className="h-24 w-full rounded-lg" />
+            <Skeleton className="h-24 w-full rounded-lg" />
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-40" />
+            <div className="flex flex-wrap gap-2">
+              <Skeleton className="h-6 w-24 rounded-full" />
+              <Skeleton className="h-6 w-24 rounded-full" />
+              <Skeleton className="h-6 w-24 rounded-full" />
+            </div>
+          </div>
         </CardContent>
       </Card>
     )
@@ -77,14 +92,14 @@ export function SyncedDataOverview() {
   }
 
   const platformColors: Record<string, string> = {
-    instagram: "bg-pink-500",
-    tiktok: "bg-black",
-    facebook: "bg-blue-600",
-    twitter: "bg-sky-500",
+    instagram: "bg-pink-500 text-white",
+    tiktok: "bg-foreground text-background",
+    facebook: "bg-blue-600 text-white",
+    twitter: "bg-sky-500 text-white",
   }
 
   return (
-    <Card>
+    <Card className="animate-in fade-in slide-in-from-bottom-2 duration-500">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <div>
           <CardTitle className="flex items-center gap-2">
@@ -102,11 +117,11 @@ export function SyncedDataOverview() {
       <CardContent>
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div className="text-center p-4 bg-muted/50 rounded-lg">
-            <div className="text-3xl font-bold">{data.counts.posts}</div>
+            <div className="kpi-value text-3xl"><CountUp value={data.counts.posts} format={(v) => `${Math.round(v)}`} /></div>
             <div className="text-sm text-muted-foreground">Synced Posts</div>
           </div>
           <div className="text-center p-4 bg-muted/50 rounded-lg">
-            <div className="text-3xl font-bold">{data.counts.comments}</div>
+            <div className="kpi-value text-3xl"><CountUp value={data.counts.comments} format={(v) => `${Math.round(v)}`} /></div>
             <div className="text-sm text-muted-foreground">Synced Comments</div>
           </div>
         </div>
@@ -118,7 +133,7 @@ export function SyncedDataOverview() {
               <Badge 
                 key={platform} 
                 variant="secondary"
-                className={`${platformColors[platform] || "bg-gray-500"} text-white`}
+                className={platformColors[platform] || "bg-gray-500 text-white"}
               >
                 {platform}: {count}
               </Badge>

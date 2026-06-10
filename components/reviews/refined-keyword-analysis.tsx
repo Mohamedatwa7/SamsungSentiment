@@ -110,23 +110,23 @@ function KeywordCard({ keyword, index }: { keyword: CanonicalKeyword; index: num
   const TypeIcon = config.icon
   const AspectIcon = aspectIcons[keyword.aspectCategory] || MessageSquare
   
-  const sentimentColor = keyword.sentiment === "positive" 
-    ? "text-emerald-600 dark:text-emerald-400"
+  const sentimentColor = keyword.sentiment === "positive"
+    ? "text-positive"
     : keyword.sentiment === "negative"
-    ? "text-rose-600 dark:text-rose-400"
+    ? "text-negative"
     : "text-muted-foreground"
-  
-  const sentimentBg = keyword.sentiment === "positive" 
-    ? "bg-emerald-50 dark:bg-emerald-950/30"
+
+  const sentimentBg = keyword.sentiment === "positive"
+    ? "bg-positive/5"
     : keyword.sentiment === "negative"
-    ? "bg-rose-50 dark:bg-rose-950/30"
+    ? "bg-negative/5"
     : "bg-muted/30"
   
   return (
     <div className={cn(
       "border rounded-lg p-4 transition-all",
       sentimentBg,
-      "hover:shadow-md"
+      "hover:shadow-md hover:bg-muted/40"
     )}>
       {/* Header */}
       <div className="flex flex-col gap-3">
@@ -138,7 +138,7 @@ function KeywordCard({ keyword, index }: { keyword: CanonicalKeyword; index: num
             <h3 className="font-semibold text-base capitalize">{keyword.canonical}</h3>
           </div>
           <div className="text-right">
-            <div className="text-xl font-bold">{keyword.totalMentions}</div>
+            <div className="kpi-value text-xl">{keyword.totalMentions}</div>
             <div className="text-xs text-muted-foreground">reviews</div>
           </div>
         </div>
@@ -152,9 +152,9 @@ function KeywordCard({ keyword, index }: { keyword: CanonicalKeyword; index: num
               {keyword.sentiment.charAt(0).toUpperCase() + keyword.sentiment.slice(1)}
             </span>
           </div>
-          <div className={cn("text-sm font-semibold", 
-            keyword.positivePercentage >= 60 ? "text-emerald-600" : 
-            keyword.positivePercentage >= 40 ? "text-amber-600" : "text-rose-600"
+          <div className={cn("text-sm font-semibold tabular-nums",
+            keyword.positivePercentage >= 60 ? "text-positive" :
+            keyword.positivePercentage >= 40 ? "text-amber-600 dark:text-amber-400" : "text-negative"
           )}>
             {keyword.positivePercentage}% positive
           </div>
@@ -273,9 +273,9 @@ export function RefinedKeywordAnalysis({ reviews }: RefinedKeywordAnalysisProps)
               key={type}
               onClick={() => setSelectedType(isSelected ? "all" : type)}
               className={cn(
-                "p-3 rounded-lg border text-left transition-all",
-                isSelected 
-                  ? "ring-2 ring-primary bg-primary/5" 
+                "p-3 rounded-lg border bg-card text-left transition-all hover-lift",
+                isSelected
+                  ? "ring-2 ring-primary bg-primary/5"
                   : "hover:bg-muted/50",
               )}
             >
@@ -283,7 +283,7 @@ export function RefinedKeywordAnalysis({ reviews }: RefinedKeywordAnalysisProps)
                 <Icon className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm font-medium">{config.label}</span>
               </div>
-              <div className="text-2xl font-bold">{count}</div>
+              <div className="kpi-value text-2xl">{count}</div>
               <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{config.description}</p>
             </button>
           )
@@ -309,7 +309,10 @@ export function RefinedKeywordAnalysis({ reviews }: RefinedKeywordAnalysisProps)
         ))}
         
         {filteredKeywords.length === 0 && (
-          <div className="col-span-2 text-center py-12 text-muted-foreground">
+          <div className="col-span-2 flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
+            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+              <MessageSquare className="h-6 w-6 text-muted-foreground/70" />
+            </div>
             No keywords found for this filter
           </div>
         )}

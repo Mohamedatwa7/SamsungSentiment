@@ -71,7 +71,7 @@ function PostCard({ post, index }: { post: RecentActivityPost; index: number }) 
 
   return (
     <div className={cn(
-      "rounded-xl border bg-card p-4 transition-all duration-200 hover:shadow-sm",
+      "rounded-xl border bg-card p-4 transition-all duration-200 hover:bg-muted/40 hover:shadow-sm",
       sentimentTrend > 20 && "border-positive/30",
       sentimentTrend < -20 && "border-negative/30",
     )}>
@@ -321,7 +321,7 @@ export function LastWeekPosts({ platformFilter, dateRange }: LastWeekPostsProps)
   }, [posts])
 
   return (
-    <Card className="border-0 shadow-sm">
+    <Card className="animate-in fade-in slide-in-from-bottom-2 duration-500">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <div>
@@ -401,21 +401,21 @@ export function LastWeekPosts({ platformFilter, dateRange }: LastWeekPostsProps)
       {!isCollapsed && (
         <CardContent className="pt-4">
           {/* Summary Stats */}
-          <div className="mb-4 grid grid-cols-4 gap-3">
+          <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
             <div className="rounded-lg bg-muted/50 p-3 text-center">
-              <p className="text-xl font-bold text-foreground">{stats.totalPosts}</p>
+              <p className="kpi-value text-xl text-foreground">{stats.totalPosts}</p>
               <p className="text-xs text-muted-foreground">Posts</p>
             </div>
             <div className="rounded-lg bg-muted/50 p-3 text-center">
-              <p className="text-xl font-bold text-foreground">{stats.totalComments.toLocaleString()}</p>
+              <p className="kpi-value text-xl text-foreground">{stats.totalComments.toLocaleString()}</p>
               <p className="text-xs text-muted-foreground">Comments</p>
             </div>
             <div className="rounded-lg bg-positive/10 p-3 text-center">
-              <p className="text-xl font-bold text-positive">{stats.avgPositive}%</p>
+              <p className="kpi-value text-xl text-positive">{stats.avgPositive}%</p>
               <p className="text-xs text-muted-foreground">Positive</p>
             </div>
             <div className="rounded-lg bg-negative/10 p-3 text-center">
-              <p className="text-xl font-bold text-negative">{stats.avgNegative}%</p>
+              <p className="kpi-value text-xl text-negative">{stats.avgNegative}%</p>
               <p className="text-xs text-muted-foreground">Negative</p>
             </div>
           </div>
@@ -443,7 +443,7 @@ export function LastWeekPosts({ platformFilter, dateRange }: LastWeekPostsProps)
             {posts.length} posts with activity
             {timeRange === "all" ? " (all time)" : ` in the last ${timeRange} days`}
           </div>
-          <ScrollArea className="h-[400px] pr-4">
+          <ScrollArea className="nice-scroll h-[400px] pr-4">
             <div className="flex flex-col gap-3">
               {posts.length > 0 ? (
                 posts.map((post, index) => (

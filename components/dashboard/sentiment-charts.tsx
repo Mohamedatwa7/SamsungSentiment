@@ -73,7 +73,7 @@ export function SentimentTrendChart({ platformFilter, dateRange }: SentimentChar
   const commentMetrics = useMemo(() => getCommentMetrics(commentPlatformFilter, dateRange, segmentation), [getCommentMetrics, commentPlatformFilter, dateRange, segmentation])
 
   return (
-    <Card className="border-0 shadow-sm h-full">
+    <Card className="h-full animate-in fade-in slide-in-from-bottom-2 duration-500">
       <CardHeader className="pb-2">
         <CardTitle className="text-lg font-semibold">Sentiment Analysis</CardTitle>
         <CardDescription>Based on {commentMetrics.total.toLocaleString()} analyzed comments</CardDescription>
@@ -171,7 +171,7 @@ export function PhoneModelsSentimentChart({ platformFilter }: SentimentChartProp
   )
   
   return (
-    <Card className="border-0 shadow-sm">
+    <Card className="animate-in fade-in slide-in-from-bottom-2 duration-500">
       <CardHeader className="pb-2">
         <CardTitle className="text-lg font-semibold">Sentiment by Product</CardTitle>
         <CardDescription>Based on comment analysis</CardDescription>
@@ -179,7 +179,7 @@ export function PhoneModelsSentimentChart({ platformFilter }: SentimentChartProp
       <CardContent className="pt-0">
         <ChartContainer config={phoneModelsChartConfig} className="h-[300px] w-full">
           <BarChart data={phoneModelsSentimentData} layout="vertical" margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" horizontal={true} vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={true} vertical={false} />
             <XAxis
               type="number"
               tickLine={false}
@@ -197,9 +197,9 @@ export function PhoneModelsSentimentChart({ platformFilter }: SentimentChartProp
               width={120}
             />
             <ChartTooltip content={<ChartTooltipContent />} />
-            <Bar dataKey="positive" fill="oklch(0.65 0.18 150)" radius={[0, 4, 4, 0]} stackId="a" />
-            <Bar dataKey="neutral" fill="oklch(0.6 0.02 250)" radius={0} stackId="a" />
-            <Bar dataKey="negative" fill="oklch(0.6 0.2 30)" radius={[0, 4, 4, 0]} stackId="a" />
+            <Bar dataKey="positive" fill="oklch(0.65 0.18 150)" radius={[0, 4, 4, 0]} stackId="a" maxBarSize={48} />
+            <Bar dataKey="neutral" fill="oklch(0.6 0.02 250)" radius={0} stackId="a" maxBarSize={48} />
+            <Bar dataKey="negative" fill="oklch(0.6 0.2 30)" radius={[0, 4, 4, 0]} stackId="a" maxBarSize={48} />
             <ChartLegend content={<ChartLegendContent />} />
           </BarChart>
         </ChartContainer>
@@ -224,7 +224,7 @@ export function SentimentDistributionChart({ platformFilter }: SentimentChartPro
   ], [commentMetrics])
   
   return (
-    <Card className="border-0 shadow-sm">
+    <Card className="animate-in fade-in slide-in-from-bottom-2 duration-500">
       <CardHeader className="pb-2">
         <CardTitle className="text-lg font-semibold">Overall Sentiment</CardTitle>
         <CardDescription>Based on {commentMetrics.total} comments</CardDescription>
@@ -240,9 +240,10 @@ export function SentimentDistributionChart({ platformFilter }: SentimentChartPro
               innerRadius={60}
               outerRadius={100}
               paddingAngle={2}
+              cornerRadius={4}
               dataKey="value"
               nameKey="name"
-              strokeWidth={0}
+              stroke="none"
             >
               {distributionData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.fill} />
@@ -297,7 +298,7 @@ export function PlatformEngagementChart({ platformFilter, dateRange }: Sentiment
   const totalEngagement = platformData.reduce((sum, p) => sum + p.engagement, 0)
   
   return (
-    <Card className="border-0 shadow-sm h-full">
+    <Card className="h-full animate-in fade-in slide-in-from-bottom-2 duration-500">
       <CardHeader className="pb-2">
         <CardTitle className="text-lg font-semibold">Platform Breakdown</CardTitle>
         <CardDescription>{totalEngagement.toLocaleString()} total engagements</CardDescription>

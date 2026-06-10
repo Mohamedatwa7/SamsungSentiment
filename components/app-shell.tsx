@@ -83,7 +83,7 @@ function TopNav() {
     // Sign out from Supabase
     const supabase = createClient()
     await supabase.auth.signOut()
-    router.push('/auth/login')
+    router.push('/')
   }
 
   return (
@@ -173,7 +173,10 @@ function AppSidebar() {
 
       <SidebarFooter className="border-t border-sidebar-border p-4">
         <div className="flex items-center gap-3 group-data-[collapsible=icon]:justify-center">
-          <div className="flex h-2 w-2 rounded-full bg-positive" />
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-positive opacity-60" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-positive" />
+          </span>
           <span className="text-xs text-sidebar-foreground/60 group-data-[collapsible=icon]:hidden">
             System Online
           </span>

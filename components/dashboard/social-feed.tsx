@@ -91,7 +91,7 @@ function SocialPostCard({ post }: { post: SocialPost }) {
   }
 
   return (
-    <div className="group rounded-xl border border-border/50 bg-card p-4 transition-all duration-200 hover:border-border hover:shadow-sm">
+    <div className="group rounded-xl border border-border/50 bg-card p-4 transition-all duration-200 hover:border-border hover:bg-muted/40 hover:shadow-sm">
       <div className="flex items-start gap-3">
         <PlatformIcon platform={post.platform} />
         <div className="min-w-0 flex-1">
@@ -228,7 +228,7 @@ export function SocialFeed({ platformFilter, dateRange }: SocialFeedProps) {
   }
 
   return (
-    <Card className="border-0 shadow-sm">
+    <Card className="animate-in fade-in slide-in-from-bottom-2 duration-500">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <div>
           <CardTitle className="text-lg font-semibold">Samsung Gulf Social Feed</CardTitle>
@@ -282,7 +282,7 @@ export function SocialFeed({ platformFilter, dateRange }: SocialFeedProps) {
               {platformCounts.facebook}
             </TabsTrigger>
           </TabsList>
-          <ScrollArea className="h-[550px] pr-4">
+          <ScrollArea className="nice-scroll h-[550px] pr-4">
             <div className="flex flex-col gap-3">
               {filteredPosts.map((post) => (
                 <SocialPostCard key={post.id} post={post as SocialPost} />

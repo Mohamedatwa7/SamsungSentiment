@@ -146,7 +146,7 @@ export function TopComments({ platformFilter, dateRange }: TopCommentsProps) {
   const avgLikes = topComments.length > 0 ? Math.round(totalLikesFromTop / topComments.length) : 0
 
   return (
-    <Card className="border-0 shadow-sm">
+    <Card className="animate-in fade-in slide-in-from-bottom-2 duration-500">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <div>
@@ -189,15 +189,15 @@ export function TopComments({ platformFilter, dateRange }: TopCommentsProps) {
           {/* Quick Stats */}
           <div className="mb-4 grid grid-cols-3 gap-3">
             <div className="rounded-lg bg-muted/50 p-3 text-center">
-              <p className="text-xl font-bold text-foreground">{topComments.length}</p>
+              <p className="kpi-value text-xl text-foreground">{topComments.length}</p>
               <p className="text-xs text-muted-foreground">Top TikTok</p>
             </div>
             <div className="rounded-lg bg-positive/10 p-3 text-center">
-              <p className="text-xl font-bold text-positive">{topPositive.length}</p>
+              <p className="kpi-value text-xl text-positive">{topPositive.length}</p>
               <p className="text-xs text-muted-foreground">Top Positive</p>
             </div>
             <div className="rounded-lg bg-negative/10 p-3 text-center">
-              <p className="text-xl font-bold text-negative">{topNegative.length}</p>
+              <p className="kpi-value text-xl text-negative">{topNegative.length}</p>
               <p className="text-xs text-muted-foreground">Top Negative</p>
             </div>
           </div>
@@ -224,7 +224,7 @@ export function TopComments({ platformFilter, dateRange }: TopCommentsProps) {
           <div className="mb-2 text-xs text-muted-foreground">
             Showing {displayedComments.length} top TikTok comments by likes
           </div>
-          <ScrollArea className="h-[550px] pr-4">
+          <ScrollArea className="nice-scroll h-[550px] pr-4">
             <div className="flex flex-col gap-4">
               {displayedComments.length > 0 ? (
                 displayedComments.map((comment, index) => (

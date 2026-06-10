@@ -87,7 +87,7 @@ export function ThemeAnalysis({ themes, reviews }: ThemeAnalysisProps) {
               const percentOfReviews = totalReviews > 0 ? ((feature.mentions / totalReviews) * 100).toFixed(1) : 0
               
               return (
-                <div key={feature.name} className="flex items-center gap-4 rounded-lg border bg-background p-4">
+                <div key={feature.name} className="flex items-center gap-4 rounded-lg border bg-background p-4 transition-colors hover:bg-muted/40">
                   <div className={`flex h-12 w-12 items-center justify-center rounded-full ${feature.bgColor}`}>
                     <Icon className={`h-6 w-6 ${feature.color}`} />
                   </div>
@@ -95,7 +95,7 @@ export function ThemeAnalysis({ themes, reviews }: ThemeAnalysisProps) {
                     <p className="font-semibold">{feature.name}</p>
                     <p className="text-xs text-muted-foreground">{feature.description}</p>
                     <div className="mt-1 flex items-baseline gap-2">
-                      <span className="text-2xl font-bold">{feature.mentions}</span>
+                      <span className="kpi-value text-2xl">{feature.mentions}</span>
                       <span className="text-xs text-muted-foreground">mentions</span>
                     </div>
                     <div className="mt-2 space-y-1">
@@ -103,8 +103,8 @@ export function ThemeAnalysis({ themes, reviews }: ThemeAnalysisProps) {
                         <span className="text-muted-foreground">{feature.positiveRate}% positive</span>
                       </div>
                       <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                        <div 
-                          className="h-full rounded-full bg-positive transition-all"
+                        <div
+                          className="h-full rounded-full bg-positive transition-all duration-500 ease-out"
                           style={{ width: `${feature.positiveRate}%` }}
                         />
                       </div>
@@ -124,7 +124,7 @@ export function ThemeAnalysis({ themes, reviews }: ThemeAnalysisProps) {
           const positivePercent = Math.round((theme.positive / theme.count) * 100)
           
           return (
-            <Card key={theme.theme}>
+            <Card key={theme.theme} className="hover-lift">
               <CardContent className="p-4">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2">
@@ -142,16 +142,16 @@ export function ThemeAnalysis({ themes, reviews }: ThemeAnalysisProps) {
                 </div>
                 <div className="mt-3">
                   <div className="flex gap-1 h-2">
-                    <div 
-                      className="bg-positive rounded-l"
+                    <div
+                      className="bg-positive rounded-l-full transition-all duration-500 ease-out"
                       style={{ width: `${(theme.positive / theme.count) * 100}%` }}
                     />
-                    <div 
-                      className="bg-muted-foreground/50"
+                    <div
+                      className="bg-muted-foreground/50 transition-all duration-500 ease-out"
                       style={{ width: `${(theme.neutral / theme.count) * 100}%` }}
                     />
-                    <div 
-                      className="bg-negative rounded-r"
+                    <div
+                      className="bg-negative rounded-r-full transition-all duration-500 ease-out"
                       style={{ width: `${(theme.negative / theme.count) * 100}%` }}
                     />
                   </div>
@@ -193,8 +193,8 @@ export function ThemeAnalysis({ themes, reviews }: ThemeAnalysisProps) {
                         <span className="text-sm text-positive font-medium">{positivePercent}% positive</span>
                       </div>
                       <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
-                        <div 
-                          className="h-full bg-positive rounded-full"
+                        <div
+                          className="h-full bg-positive rounded-full transition-all duration-500 ease-out"
                           style={{ width: `${positivePercent}%` }}
                         />
                       </div>
@@ -235,8 +235,8 @@ export function ThemeAnalysis({ themes, reviews }: ThemeAnalysisProps) {
                         <span className="text-sm text-negative font-medium">{negativePercent}% negative</span>
                       </div>
                       <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
-                        <div 
-                          className="h-full bg-negative rounded-full"
+                        <div
+                          className="h-full bg-negative rounded-full transition-all duration-500 ease-out"
                           style={{ width: `${negativePercent}%` }}
                         />
                       </div>
@@ -258,8 +258,8 @@ export function ThemeAnalysis({ themes, reviews }: ThemeAnalysisProps) {
           <CardDescription>All detected themes with detailed sentiment breakdown</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto nice-scroll">
+            <table className="w-full text-sm tabular-nums">
               <thead>
                 <tr className="border-b">
                   <th className="pb-3 text-left font-medium">Theme</th>
@@ -277,7 +277,7 @@ export function ThemeAnalysis({ themes, reviews }: ThemeAnalysisProps) {
                   const percentOfReviews = totalReviews > 0 ? Math.round((theme.count / totalReviews) * 100) : 0
                   
                   return (
-                    <tr key={theme.theme} className="border-b last:border-0">
+                    <tr key={theme.theme} className="border-b last:border-0 transition-colors hover:bg-muted/40">
                       <td className="py-3">
                         <div className="flex items-center gap-2">
                           <Icon className="h-4 w-4 text-muted-foreground" />

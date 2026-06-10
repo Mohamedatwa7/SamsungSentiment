@@ -20,7 +20,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b border-border/50 bg-background/80 backdrop-blur-xl">
+      <header className="sticky top-0 z-10 border-b border-border/50 bg-background/80 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-6">
           <div className="flex items-center gap-3">
             <Image 
@@ -42,7 +42,7 @@ export default function HomePage() {
               variant="ghost"
               size="icon"
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="rounded-full"
+              className="rounded-full transition-colors hover:bg-muted"
             >
               {theme === "dark" ? (
                 <Sun className="h-5 w-5" />
@@ -57,8 +57,8 @@ export default function HomePage() {
 
       {/* Main Content */}
       <main className="mx-auto max-w-5xl px-6 py-16">
-        <div className="mb-12 text-center">
-          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
+        <div className="mb-12 text-center animate-in fade-in slide-in-from-bottom-2 duration-500">
+          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl bg-gradient-to-r from-primary to-chart-2 bg-clip-text text-transparent">
             Customer Sentiment Intelligence
           </h1>
           <p className="mt-4 text-lg text-muted-foreground">
@@ -68,8 +68,8 @@ export default function HomePage() {
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {/* Dashboard Card */}
-          <Link href="/dashboard" className="group">
-            <Card className="h-full border-2 border-transparent transition-all duration-200 hover:border-primary hover:shadow-lg">
+          <Link href="/dashboard" className="group animate-in fade-in slide-in-from-bottom-2 duration-500 fill-mode-backwards">
+            <Card className="h-full card-elevated hover-lift transition-all duration-200 group-hover:border-primary/50">
               <CardHeader>
                 <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 text-primary transition-transform group-hover:scale-110">
                   <LayoutDashboard className="h-7 w-7" />
@@ -93,8 +93,8 @@ export default function HomePage() {
           </Link>
 
           {/* Marketplace Reviews Card */}
-          <Link href="/marketplace" className="group">
-            <Card className="h-full border-2 border-transparent transition-all duration-200 hover:border-primary hover:shadow-lg">
+          <Link href="/marketplace" className="group animate-in fade-in slide-in-from-bottom-2 duration-500 delay-100 fill-mode-backwards">
+            <Card className="h-full card-elevated hover-lift transition-all duration-200 group-hover:border-primary/50">
               <CardHeader>
                 <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 text-primary transition-transform group-hover:scale-110">
                   <ShoppingCart className="h-7 w-7" />
@@ -118,8 +118,8 @@ export default function HomePage() {
           </Link>
 
           {/* S.com Reviews Card */}
-          <Link href="/reviews" className="group">
-            <Card className="h-full border-2 border-transparent transition-all duration-200 hover:border-primary hover:shadow-lg">
+          <Link href="/reviews" className="group animate-in fade-in slide-in-from-bottom-2 duration-500 delay-200 fill-mode-backwards">
+            <Card className="h-full card-elevated hover-lift transition-all duration-200 group-hover:border-primary/50">
               <CardHeader>
                 <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 text-primary transition-transform group-hover:scale-110">
                   <Star className="h-7 w-7" />
@@ -143,8 +143,8 @@ export default function HomePage() {
           </Link>
 
           {/* AI Chatbot Card */}
-          <Link href="/chatbot" className="group">
-            <Card className="h-full border-2 border-transparent transition-all duration-200 hover:border-primary hover:shadow-lg">
+          <Link href="/chatbot" className="group animate-in fade-in slide-in-from-bottom-2 duration-500 delay-300 fill-mode-backwards">
+            <Card className="h-full card-elevated hover-lift transition-all duration-200 group-hover:border-primary/50">
               <CardHeader>
                 <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 text-primary transition-transform group-hover:scale-110">
                   <MessageSquareText className="h-7 w-7" />
@@ -169,7 +169,7 @@ export default function HomePage() {
         </div>
 
         {/* Footer Info */}
-        <div className="mt-16 text-center">
+        <div className="mt-16 border-t border-border/50 pt-8 text-center animate-in fade-in duration-700 delay-300 fill-mode-backwards">
           <p className="text-sm text-muted-foreground">
             Data sourced from @samsunggulf social media channels across UAE, Kuwait, Qatar, Bahrain, and Oman
           </p>

@@ -97,7 +97,7 @@ function ConversationSidebar({
             </Button>
           </div>
         </div>
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1 nice-scroll">
           <div className="flex flex-col gap-1 p-2">
             {conversations.map((conv) => (
               <div
@@ -116,10 +116,10 @@ function ConversationSidebar({
                   }
                 }}
                 className={cn(
-                  "group flex w-full cursor-pointer flex-col gap-1 rounded-lg p-3 text-left transition-colors",
+                  "group flex w-full cursor-pointer flex-col gap-1 rounded-lg p-3 text-left transition-colors duration-200",
                   activeId === conv.id
                     ? "bg-primary/10 text-foreground"
-                    : "hover:bg-muted/50"
+                    : "hover:bg-muted/60"
                 )}
               >
                 <div className="flex items-center justify-between">
@@ -186,12 +186,7 @@ function ChatMessage({ message }: { message: UIMessage }) {
   const content = getMessageText(message)
 
   return (
-    <div
-      className={cn(
-        "flex gap-3 px-4 py-6 sm:gap-4",
-        isUser ? "bg-transparent" : "bg-muted/30"
-      )}
-    >
+    <div className="flex gap-3 px-4 py-3 sm:gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
       <Avatar className="h-8 w-8 shrink-0">
         <AvatarFallback
           className={cn(
@@ -204,7 +199,14 @@ function ChatMessage({ message }: { message: UIMessage }) {
           {isUser ? "You" : "AI"}
         </AvatarFallback>
       </Avatar>
-      <div className="min-w-0 flex-1 space-y-2">
+      <div
+        className={cn(
+          "min-w-0 flex-1 space-y-2 rounded-2xl px-4 py-3 shadow-sm",
+          isUser
+            ? "bg-primary text-primary-foreground"
+            : "bg-muted"
+        )}
+      >
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium">
             {isUser ? "You" : "Samsung AI Assistant"}
@@ -238,7 +240,7 @@ function ChatMessage({ message }: { message: UIMessage }) {
             }
             if (line.startsWith("- ") || line.match(/^\d+\./)) {
               return (
-                <li key={i} className="ml-4 text-foreground/90">
+                <li key={i} className="ml-4 opacity-90">
                   {line.replace(/^[-\d.]+\s*/, "").replace(/\*\*/g, "")}
                 </li>
               )
@@ -247,7 +249,7 @@ function ChatMessage({ message }: { message: UIMessage }) {
               return <br key={i} />
             }
             return (
-              <p key={i} className="text-foreground/90">
+              <p key={i} className="opacity-90">
                 {line.replace(/\*\*/g, "")}
               </p>
             )
@@ -260,7 +262,7 @@ function ChatMessage({ message }: { message: UIMessage }) {
 
 function EmptyState({ onPromptClick }: { onPromptClick: (prompt: string) => void }) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center px-4 py-8">
+    <div className="flex flex-1 flex-col items-center justify-center px-4 py-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
       <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 sm:mb-8">
         <Sparkles className="h-8 w-8 text-primary" />
       </div>
@@ -272,7 +274,7 @@ function EmptyState({ onPromptClick }: { onPromptClick: (prompt: string) => void
         {suggestedPrompts.map((prompt) => (
           <Card
             key={prompt}
-            className="cursor-pointer border-border/50 p-3 transition-all hover:border-primary/50 hover:shadow-sm sm:p-4"
+            className="cursor-pointer hover-lift p-3 transition-all hover:border-primary/50 sm:p-4"
             onClick={() => onPromptClick(prompt)}
           >
             <p className="text-xs text-foreground/90 sm:text-sm">{prompt}</p>
@@ -355,19 +357,19 @@ function ChatInterface({
       {messages.length === 0 ? (
         <EmptyState onPromptClick={handlePromptClick} />
       ) : (
-        <div ref={scrollContainerRef} className="flex-1 overflow-auto">
-          <div className="mx-auto max-w-3xl">
+        <div ref={scrollContainerRef} className="flex-1 overflow-auto nice-scroll">
+          <div className="mx-auto max-w-3xl space-y-1 py-3">
             {messages.map((message) => (
               <ChatMessage key={message.id} message={message} />
             ))}
             {isLoading && (
-              <div className="flex gap-3 bg-muted/30 px-4 py-6 sm:gap-4">
+              <div className="flex gap-3 px-4 py-3 sm:gap-4 animate-in fade-in duration-300">
                 <Avatar className="h-8 w-8 shrink-0">
                   <AvatarFallback className="bg-accent text-accent-foreground text-xs">
                     AI
                   </AvatarFallback>
                 </Avatar>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 rounded-2xl bg-muted px-4 py-3 shadow-sm">
                   <div className="h-2 w-2 animate-bounce rounded-full bg-primary [animation-delay:-0.3s]" />
                   <div className="h-2 w-2 animate-bounce rounded-full bg-primary [animation-delay:-0.15s]" />
                   <div className="h-2 w-2 animate-bounce rounded-full bg-primary" />

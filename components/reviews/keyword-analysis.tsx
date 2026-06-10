@@ -170,18 +170,21 @@ export function KeywordAnalysis({ reviews }: KeywordAnalysisProps) {
             <div className="h-[280px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={aspectChartData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
-                  <XAxis type="number" />
-                  <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 12 }} />
-                  <Tooltip 
+                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="var(--border)" />
+                  <XAxis type="number" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
+                  <YAxis type="category" dataKey="name" width={90} tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
+                  <Tooltip
                     formatter={(value: number, name: string) => [value, "Mentions"]}
                     contentStyle={{
-                      backgroundColor: "var(--background)",
+                      backgroundColor: "var(--popover)",
                       border: "1px solid var(--border)",
-                      borderRadius: "8px"
+                      borderRadius: "8px",
+                      color: "var(--popover-foreground)",
+                      fontSize: "12px",
+                      boxShadow: "0 4px 12px rgb(0 0 0 / 0.1)"
                     }}
                   />
-                  <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                  <Bar dataKey="count" radius={[0, 6, 6, 0]} maxBarSize={48}>
                     {aspectChartData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.fill} />
                     ))}
@@ -202,18 +205,21 @@ export function KeywordAnalysis({ reviews }: KeywordAnalysisProps) {
             <div className="h-[280px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={intentChartData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
-                  <XAxis type="number" />
-                  <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 12 }} />
-                  <Tooltip 
+                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="var(--border)" />
+                  <XAxis type="number" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
+                  <YAxis type="category" dataKey="name" width={110} tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
+                  <Tooltip
                     formatter={(value: number) => [value, "Mentions"]}
                     contentStyle={{
-                      backgroundColor: "var(--background)",
+                      backgroundColor: "var(--popover)",
                       border: "1px solid var(--border)",
-                      borderRadius: "8px"
+                      borderRadius: "8px",
+                      color: "var(--popover-foreground)",
+                      fontSize: "12px",
+                      boxShadow: "0 4px 12px rgb(0 0 0 / 0.1)"
                     }}
                   />
-                  <Bar dataKey="count" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="count" fill="#8b5cf6" radius={[0, 6, 6, 0]} maxBarSize={48} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -307,7 +313,12 @@ export function KeywordAnalysis({ reviews }: KeywordAnalysisProps) {
               <KeywordBadge key={`${keyword.phrase}-${idx}`} keyword={keyword} />
             ))}
             {filteredKeywords.length === 0 && (
-              <p className="text-sm text-muted-foreground py-4">No keywords match the current filters</p>
+              <div className="flex w-full flex-col items-center justify-center py-8 text-center">
+                <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                  <Search className="h-5 w-5 text-muted-foreground/70" />
+                </div>
+                <p className="text-sm text-muted-foreground">No keywords match the current filters</p>
+              </div>
             )}
           </div>
         </CardContent>
@@ -319,7 +330,7 @@ export function KeywordAnalysis({ reviews }: KeywordAnalysisProps) {
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
-              <ThumbsUp className="h-4 w-4 text-emerald-600" />
+              <ThumbsUp className="h-4 w-4 text-positive" />
               <CardTitle className="text-base">Most Praised</CardTitle>
             </div>
             <CardDescription>Phrases with highest positive sentiment</CardDescription>
@@ -348,7 +359,7 @@ export function KeywordAnalysis({ reviews }: KeywordAnalysisProps) {
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
-              <ThumbsDown className="h-4 w-4 text-rose-600" />
+              <ThumbsDown className="h-4 w-4 text-negative" />
               <CardTitle className="text-base">Top Complaints</CardTitle>
             </div>
             <CardDescription>Phrases with highest negative sentiment</CardDescription>
@@ -377,7 +388,7 @@ export function KeywordAnalysis({ reviews }: KeywordAnalysisProps) {
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-amber-600" />
+              <TrendingUp className="h-4 w-4 text-amber-500" />
               <CardTitle className="text-base">Feature Requests</CardTitle>
             </div>
             <CardDescription>What customers are asking for</CardDescription>
@@ -408,18 +419,18 @@ export function KeywordAnalysis({ reviews }: KeywordAnalysisProps) {
 
 // Individual keyword badge component
 function KeywordBadge({ keyword }: { keyword: ExtractedKeyword }) {
-  const sentimentColor = keyword.sentiment === "positive" 
-    ? "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800"
+  const sentimentColor = keyword.sentiment === "positive"
+    ? "bg-positive/10 text-positive border-positive/20"
     : keyword.sentiment === "negative"
-    ? "bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800"
-    : "bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700"
-  
+    ? "bg-negative/10 text-negative border-negative/20"
+    : "bg-muted text-muted-foreground border-border"
+
   const Icon = aspectIcons[keyword.aspect]
-  
+
   return (
-    <div 
+    <div
       className={cn(
-        "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm border",
+        "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm border transition-colors hover:bg-muted/40",
         sentimentColor
       )}
       title={`${keyword.count} mentions | ${intentLabels[keyword.intent]} | ${aspectLabels[keyword.aspect]}`}

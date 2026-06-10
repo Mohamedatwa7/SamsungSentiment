@@ -20,7 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 // Loading skeletons
 function KPISkeleton() {
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {[...Array(4)].map((_, i) => (
         <Skeleton key={i} className="h-32 rounded-xl" />
       ))}
@@ -43,9 +43,10 @@ export default function MarketplacePage() {
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between animate-in fade-in slide-in-from-bottom-2 duration-500">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Marketplace Reviews</h1>
+          <p className="section-label">Amazon &amp; Noon · Marketplace</p>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Marketplace Reviews</h1>
           <p className="text-muted-foreground">
             Sentiment analysis from Amazon and Noon marketplace reviews
           </p>

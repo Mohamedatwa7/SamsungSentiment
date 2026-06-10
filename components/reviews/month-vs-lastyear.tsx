@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { CountUp } from "@/components/ui/count-up"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
@@ -184,49 +185,53 @@ export function MonthVsLastYear({ allReviews }: MonthVsLastYearProps) {
       </Card>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="accent-top hover-lift animate-in fade-in slide-in-from-bottom-2 duration-500">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">{s26Label} Total</p>
-                <p className="text-2xl font-bold">{totalS26.toLocaleString()}</p>
+                <p className="section-label">{s26Label} Total</p>
+                <CountUp value={totalS26} className="kpi-value text-3xl" />
               </div>
               <Badge className="bg-primary">2026</Badge>
             </div>
           </CardContent>
         </Card>
-        
-        <Card>
+
+        <Card className="accent-top hover-lift animate-in fade-in slide-in-from-bottom-2 duration-500">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">{s25Label} Total</p>
-                <p className="text-2xl font-bold">{totalS25.toLocaleString()}</p>
+                <p className="section-label">{s25Label} Total</p>
+                <CountUp value={totalS25} className="kpi-value text-3xl" />
               </div>
               <Badge variant="secondary">2025</Badge>
             </div>
           </CardContent>
         </Card>
-        
-        <Card>
+
+        <Card className="accent-top hover-lift animate-in fade-in slide-in-from-bottom-2 duration-500">
           <CardContent className="p-4">
             <div className="flex flex-col gap-1">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Volume Change</p>
+              <p className="section-label">Volume Change</p>
               <div className="flex items-center gap-2">
-                <p className="text-2xl font-bold">{totalS26 - totalS25 > 0 ? "+" : ""}{(totalS26 - totalS25).toLocaleString()}</p>
+                <CountUp
+                  value={totalS26 - totalS25}
+                  format={(v) => `${v > 0 ? "+" : ""}${Math.round(v).toLocaleString()}`}
+                  className="kpi-value text-3xl"
+                />
                 <ChangeIndicator value={totalS25 > 0 ? ((totalS26 - totalS25) / totalS25) * 100 : 0} />
               </div>
             </div>
           </CardContent>
         </Card>
-        
-        <Card>
+
+        <Card className="accent-top hover-lift animate-in fade-in slide-in-from-bottom-2 duration-500">
           <CardContent className="p-4">
             <div className="flex flex-col gap-1">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Avg Positive Change</p>
+              <p className="section-label">Avg Positive Change</p>
               <div className="flex items-center gap-2">
-                <p className="text-2xl font-bold">{avgS26Positive.toFixed(1)}%</p>
+                <CountUp value={avgS26Positive} format={(v) => `${v.toFixed(1)}%`} className="kpi-value text-3xl" />
                 <ChangeIndicator value={avgS26Positive - avgS25Positive} />
               </div>
             </div>
@@ -249,28 +254,33 @@ export function MonthVsLastYear({ allReviews }: MonthVsLastYearProps) {
           <div className="h-[350px]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis 
-                  dataKey="month" 
-                  tick={{ fontSize: 12 }}
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                <XAxis
+                  dataKey="month"
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fontSize: 11 }}
                   tickFormatter={(value) => value}
                 />
-                <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
-                <Tooltip 
+                <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
+                <Tooltip
                   formatter={(value: number, name: string) => [
-                    `${value}%`, 
+                    `${value}%`,
                     name
                   ]}
                   labelFormatter={(label) => `${label}`}
                   contentStyle={{
-                    backgroundColor: "var(--background)",
+                    backgroundColor: "var(--popover)",
                     border: "1px solid var(--border)",
-                    borderRadius: "8px"
+                    borderRadius: "8px",
+                    color: "var(--popover-foreground)",
+                    fontSize: "12px",
+                    boxShadow: "0 4px 12px rgb(0 0 0 / 0.1)"
                   }}
                 />
                 <Legend />
-                <Line type="monotone" dataKey="s26Positive" name={`${s26Label} (2026)`} stroke="#3b82f6" strokeWidth={2} dot={{ fill: "#3b82f6", strokeWidth: 2, r: 4 }} />
-                <Line type="monotone" dataKey="s25Positive" name={`${s25Label} (2025)`} stroke="#94a3b8" strokeWidth={2} dot={{ fill: "#94a3b8", strokeWidth: 2, r: 4 }} />
+                <Line type="monotone" dataKey="s26Positive" name={`${s26Label} (2026)`} stroke="#3b82f6" strokeWidth={2.5} dot={false} activeDot={{ r: 4, strokeWidth: 0 }} />
+                <Line type="monotone" dataKey="s25Positive" name={`${s25Label} (2025)`} stroke="#94a3b8" strokeWidth={2.5} dot={false} activeDot={{ r: 4, strokeWidth: 0 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -323,7 +333,7 @@ export function MonthVsLastYear({ allReviews }: MonthVsLastYearProps) {
                     </div>
                   </div>
                 </div>
-                <div className="max-h-[250px] overflow-y-auto p-2">
+                <div className="max-h-[250px] overflow-y-auto nice-scroll p-2">
                   {monthOptions
                     .filter(m => availableMonths.includes(m.value))
                     .map(month => (
@@ -368,26 +378,31 @@ export function MonthVsLastYear({ allReviews }: MonthVsLastYearProps) {
             <div className="h-[350px]">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={weekChartData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis 
-                    dataKey="week" 
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                  <XAxis
+                    dataKey="week"
+                    tickLine={false}
+                    axisLine={false}
                     tick={{ fontSize: 11 }}
                     angle={-45}
                     textAnchor="end"
                     height={60}
                   />
-                  <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
-                  <Tooltip 
+                  <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
+                  <Tooltip
                     formatter={(value: number, name: string) => [`${value}%`, name]}
                     contentStyle={{
-                      backgroundColor: "var(--background)",
+                      backgroundColor: "var(--popover)",
                       border: "1px solid var(--border)",
-                      borderRadius: "8px"
+                      borderRadius: "8px",
+                      color: "var(--popover-foreground)",
+                      fontSize: "12px",
+                      boxShadow: "0 4px 12px rgb(0 0 0 / 0.1)"
                     }}
                   />
                   <Legend />
-                  <Line type="monotone" dataKey="s26Positive" name={`${s26Label} (2026)`} stroke="#3b82f6" strokeWidth={2} dot={{ fill: "#3b82f6", strokeWidth: 2, r: 3 }} />
-                  <Line type="monotone" dataKey="s25Positive" name={`${s25Label} (2025)`} stroke="#94a3b8" strokeWidth={2} dot={{ fill: "#94a3b8", strokeWidth: 2, r: 3 }} />
+                  <Line type="monotone" dataKey="s26Positive" name={`${s26Label} (2026)`} stroke="#3b82f6" strokeWidth={2.5} dot={false} activeDot={{ r: 4, strokeWidth: 0 }} />
+                  <Line type="monotone" dataKey="s25Positive" name={`${s25Label} (2025)`} stroke="#94a3b8" strokeWidth={2.5} dot={false} activeDot={{ r: 4, strokeWidth: 0 }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -441,7 +456,7 @@ export function MonthVsLastYear({ allReviews }: MonthVsLastYearProps) {
                     </div>
                   </div>
                 </div>
-                <div className="max-h-[250px] overflow-y-auto p-2">
+                <div className="max-h-[250px] overflow-y-auto nice-scroll p-2">
                   {monthOptions
                     .filter(m => availableMonths.includes(m.value))
                     .map(month => (
@@ -477,8 +492,8 @@ export function MonthVsLastYear({ allReviews }: MonthVsLastYearProps) {
           )}
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto nice-scroll">
+            <table className="w-full text-sm tabular-nums">
               <thead>
                 <tr className="border-b">
                   <th className="pb-3 text-left font-medium">Week</th>
@@ -509,7 +524,7 @@ export function MonthVsLastYear({ allReviews }: MonthVsLastYearProps) {
                   </tr>
                 ) : (
                   weekComparisons.map((w, idx) => (
-                    <tr key={`${w.month}-${w.week}-${idx}`} className="border-b last:border-0 hover:bg-muted/50">
+                    <tr key={`${w.month}-${w.week}-${idx}`} className="border-b last:border-0 transition-colors hover:bg-muted/40">
                       <td className="py-3 font-medium">
                         {w.monthName} Week {w.week}
                       </td>
@@ -544,8 +559,8 @@ export function MonthVsLastYear({ allReviews }: MonthVsLastYearProps) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto nice-scroll">
+            <table className="w-full text-sm tabular-nums">
               <thead>
                 <tr className="border-b">
                   <th className="pb-3 text-left font-medium">Month Comparison</th>
@@ -567,7 +582,7 @@ export function MonthVsLastYear({ allReviews }: MonthVsLastYearProps) {
               </thead>
               <tbody>
                 {comparisons.map((c) => (
-                  <tr key={c.month} className="border-b last:border-0 hover:bg-muted/50">
+                  <tr key={c.month} className="border-b last:border-0 transition-colors hover:bg-muted/40">
                     <td className="py-3 font-medium">
                       {c.monthName} 2026 vs {c.monthName} 2025
                     </td>

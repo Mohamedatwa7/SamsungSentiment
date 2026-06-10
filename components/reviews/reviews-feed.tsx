@@ -27,7 +27,7 @@ function StarRating({ rating }: { rating: string }) {
       {[1, 2, 3, 4, 5].map((i) => (
         <Star 
           key={i} 
-          className={`h-3 w-3 ${i <= stars ? "fill-warning text-warning" : "text-muted-foreground/30"}`}
+          className={`h-3 w-3 ${i <= stars ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30"}`}
         />
       ))}
     </div>
@@ -49,7 +49,7 @@ function ReviewCard({ review }: { review: AnalyzedReview }) {
   })
   
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden transition-colors hover:bg-muted/40">
       <CardContent className="p-4">
         <div className="flex flex-col gap-3">
           {/* Header */}
@@ -252,9 +252,11 @@ export function ReviewsFeed({ reviews }: ReviewsFeedProps) {
           )}
         </>
       ) : (
-        <Card>
-          <CardContent className="p-8 text-center">
-            <Search className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+        <Card className="animate-in fade-in duration-500">
+          <CardContent className="flex flex-col items-center justify-center p-12 text-center">
+            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+              <Search className="h-6 w-6 text-muted-foreground/70" />
+            </div>
             <h3 className="font-semibold mb-2">No reviews found</h3>
             <p className="text-sm text-muted-foreground">
               Try adjusting your search or filters to find reviews.

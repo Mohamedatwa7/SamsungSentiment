@@ -99,13 +99,13 @@ export default function AdminPage() {
     switch (status) {
       case "completed":
       case "SUCCEEDED":
-        return <Badge className="bg-emerald-500"><CheckCircle className="h-3 w-3 mr-1" /> Completed</Badge>
+        return <Badge variant="outline" className="bg-positive/10 text-positive border-positive/30"><CheckCircle className="h-3 w-3 mr-1" /> Completed</Badge>
       case "failed":
       case "FAILED":
-        return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" /> Failed</Badge>
+        return <Badge variant="outline" className="bg-negative/10 text-negative border-negative/30"><XCircle className="h-3 w-3 mr-1" /> Failed</Badge>
       case "started":
       case "RUNNING":
-        return <Badge className="bg-amber-500"><Clock className="h-3 w-3 mr-1" /> Running</Badge>
+        return <Badge variant="outline" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30"><Clock className="h-3 w-3 mr-1" /> Running</Badge>
       default:
         return <Badge variant="outline">{status}</Badge>
     }
@@ -121,7 +121,7 @@ export default function AdminPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between animate-in fade-in slide-in-from-bottom-2 duration-500">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Admin - Apify Integration</h1>
           <p className="text-muted-foreground">
@@ -149,39 +149,39 @@ export default function AdminPage() {
       )}
 
       {syncResult && (
-        <Card className="border-emerald-500 bg-emerald-500/10">
+        <Card className="border-positive/40 bg-positive/10 animate-in fade-in slide-in-from-bottom-2 duration-500">
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg text-emerald-600">Sync Completed</CardTitle>
+            <CardTitle className="text-lg text-positive">Sync Completed</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-4 gap-4 mb-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
               {Object.entries(syncResult.results || {}).map(([platform, result]: [string, any]) => (
                 <div key={platform} className="text-center">
                   <div className="font-semibold capitalize">{platform}</div>
-                  <div className="text-2xl font-bold">{result.inserted || 0}</div>
+                  <div className="text-2xl font-bold tabular-nums">{result.inserted || 0}</div>
                   <div className="text-xs text-muted-foreground">of {result.total || 0} processed</div>
                 </div>
               ))}
             </div>
             {syncResult.dashboard && (
               <div className="border-t pt-4">
-                <p className="text-sm font-medium mb-2 text-emerald-600">Dashboard Updated</p>
-                <div className="grid grid-cols-4 gap-4 text-sm">
+                <p className="text-sm font-medium mb-2 text-positive">Dashboard Updated</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
                   <div className="text-center">
                     <div className="font-semibold">New Posts</div>
-                    <div className="text-xl font-bold">{syncResult.dashboard.newPosts}</div>
+                    <div className="text-xl font-bold tabular-nums">{syncResult.dashboard.newPosts}</div>
                   </div>
                   <div className="text-center">
                     <div className="font-semibold">New Comments</div>
-                    <div className="text-xl font-bold">{syncResult.dashboard.newComments}</div>
+                    <div className="text-xl font-bold tabular-nums">{syncResult.dashboard.newComments}</div>
                   </div>
                   <div className="text-center">
                     <div className="font-semibold">Total Posts</div>
-                    <div className="text-xl font-bold">{syncResult.dashboard.totalPosts}</div>
+                    <div className="text-xl font-bold tabular-nums">{syncResult.dashboard.totalPosts}</div>
                   </div>
                   <div className="text-center">
                     <div className="font-semibold">Total Comments</div>
-                    <div className="text-xl font-bold">{syncResult.dashboard.totalComments}</div>
+                    <div className="text-xl font-bold tabular-nums">{syncResult.dashboard.totalComments}</div>
                   </div>
                 </div>
               </div>
@@ -199,14 +199,14 @@ export default function AdminPage() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+            <Card className="hover-lift">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Posts</CardTitle>
                 <Database className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{totalPosts}</div>
+                <div className="kpi-value text-2xl">{totalPosts}</div>
                 <p className="text-xs text-muted-foreground">
                   Across all platforms in Supabase
                 </p>
@@ -214,13 +214,13 @@ export default function AdminPage() {
             </Card>
             
             {PLATFORMS.map((platform) => (
-              <Card key={platform.id}>
+              <Card key={platform.id} className="hover-lift">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">{platform.name}</CardTitle>
-                  <div className={cn("h-3 w-3 rounded-full", platform.color)} />
+                  <div className={cn("h-3 w-3 rounded-full ring-2 ring-background", platform.color)} />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">
+                  <div className="kpi-value text-2xl">
                     {status?.postCounts?.[platform.id] || 0}
                   </div>
                   <p className="text-xs text-muted-foreground">posts synced</p>
@@ -245,7 +245,7 @@ export default function AdminPage() {
                   {status?.apifyRuns?.[platform.id]?.length ? (
                     <div className="space-y-3">
                       {status.apifyRuns[platform.id].slice(0, 3).map((run) => (
-                        <div key={run.id} className="flex items-center justify-between text-sm border-b pb-2">
+                        <div key={run.id} className="flex items-center justify-between text-sm border-b last:border-0 pb-2 rounded-md px-2 -mx-2 transition-colors odd:bg-muted/30 hover:bg-muted/50">
                           <div>
                             <div className="font-mono text-xs text-muted-foreground">{run.id}</div>
                             <div className="text-xs">{formatDate(run.startedAt)}</div>
@@ -273,7 +273,7 @@ export default function AdminPage() {
               {status?.syncLogs?.length ? (
                 <div className="space-y-3">
                   {status.syncLogs.map((log) => (
-                    <div key={log.id} className="flex items-center justify-between border-b pb-3">
+                    <div key={log.id} className="flex items-center justify-between border-b last:border-0 pb-3 rounded-md px-2 -mx-2 transition-colors odd:bg-muted/30 hover:bg-muted/50">
                       <div>
                         <div className="font-medium capitalize">{log.platform} - {log.scraper_type}</div>
                         <div className="text-sm text-muted-foreground">

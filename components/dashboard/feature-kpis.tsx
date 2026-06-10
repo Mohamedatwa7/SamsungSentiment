@@ -104,7 +104,7 @@ export function FeatureKPIs({ platformFilter, dateRange, segmentation }: Feature
           "text-amber-600 dark:text-amber-500"
 
         return (
-          <Card key={cfg.feature} className="relative overflow-hidden border-0 shadow-sm">
+          <Card key={cfg.feature} className="relative overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-500">
             <div
               className={cn(
                 "absolute inset-x-0 top-0 h-1",
@@ -129,7 +129,7 @@ export function FeatureKPIs({ platformFilter, dateRange, segmentation }: Feature
               <div className="flex items-end justify-between">
                 <div>
                   <div className="flex items-baseline gap-1.5">
-                    <span className={cn("text-3xl font-bold tabular-nums", scoreColor)}>
+                    <span className={cn("kpi-value text-3xl", scoreColor)}>
                       {m.totalComments > 0 ? `${m.positivePercentage}%` : "—"}
                     </span>
                     <span className="text-xs text-muted-foreground">positive</span>

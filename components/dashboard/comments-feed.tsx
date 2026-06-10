@@ -300,7 +300,7 @@ export function CommentsFeed({ platformFilter, dateRange }: CommentsFeedProps) {
   }
 
   return (
-    <Card className="border-0 shadow-sm">
+    <Card className="animate-in fade-in slide-in-from-bottom-2 duration-500">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <div>
           <CardTitle className="text-lg font-semibold flex items-center gap-2">
@@ -394,7 +394,7 @@ export function CommentsFeed({ platformFilter, dateRange }: CommentsFeedProps) {
         </div>
         
         {/* Platform Filter */}
-        <div className="mb-4 flex gap-2">
+        <div className="mb-4 flex flex-wrap gap-2">
           <Button
             variant={activePlatform === "all" ? "default" : "outline"}
             size="sm"
@@ -435,15 +435,15 @@ export function CommentsFeed({ platformFilter, dateRange }: CommentsFeedProps) {
         {/* Sentiment Summary */}
         <div className="mb-4 grid grid-cols-3 gap-3">
           <div className="rounded-lg bg-positive/10 p-3 text-center">
-            <p className="text-2xl font-bold text-positive">{displayMetrics.positivePercentage}%</p>
+            <p className="kpi-value text-2xl text-positive">{displayMetrics.positivePercentage}%</p>
             <p className="text-xs text-muted-foreground">Positive ({displayMetrics.positiveCount})</p>
           </div>
           <div className="rounded-lg bg-amber-500/10 p-3 text-center">
-            <p className="text-2xl font-bold text-amber-600">{displayMetrics.neutralPercentage}%</p>
+            <p className="kpi-value text-2xl text-amber-600">{displayMetrics.neutralPercentage}%</p>
             <p className="text-xs text-muted-foreground">Neutral ({displayMetrics.neutralCount})</p>
           </div>
           <div className="rounded-lg bg-negative/10 p-3 text-center">
-            <p className="text-2xl font-bold text-negative">{displayMetrics.negativePercentage}%</p>
+            <p className="kpi-value text-2xl text-negative">{displayMetrics.negativePercentage}%</p>
             <p className="text-xs text-muted-foreground">Negative ({displayMetrics.negativeCount})</p>
           </div>
         </div>
@@ -473,7 +473,7 @@ export function CommentsFeed({ platformFilter, dateRange }: CommentsFeedProps) {
           </span>
           <span>Page {validPage} of {totalPages}</span>
         </div>
-        <ScrollArea className="h-[600px] pr-4">
+        <ScrollArea className="nice-scroll h-[600px] pr-4">
           <div className="flex flex-col gap-3">
             {paginatedComments.map((comment) => (
               <CommentCard key={comment.id} comment={comment} />
@@ -574,7 +574,7 @@ export function CommentsSentimentSummary({ platformFilter, dateRange }: Comments
   }
 
   return (
-    <Card className="border-0 shadow-sm">
+    <Card className="animate-in fade-in slide-in-from-bottom-2 duration-500">
       <CardHeader className="pb-2">
         <CardTitle className="text-lg font-semibold">Comment Sentiment</CardTitle>
         <CardDescription>Instagram, TikTok + Facebook analysis</CardDescription>

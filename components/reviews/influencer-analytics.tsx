@@ -77,8 +77,8 @@ export function InfluencerKPIs() {
       title: "Avg Comment Health",
       value: avgHealth,
       icon: TrendingUp,
-      color: avgHealth >= 70 ? "text-positive" : avgHealth >= 50 ? "text-warning" : "text-negative",
-      bgColor: avgHealth >= 70 ? "bg-positive/10" : avgHealth >= 50 ? "bg-warning/10" : "bg-negative/10"
+      color: avgHealth >= 70 ? "text-positive" : avgHealth >= 50 ? "text-amber-500" : "text-negative",
+      bgColor: avgHealth >= 70 ? "bg-positive/10" : avgHealth >= 50 ? "bg-amber-500/10" : "bg-negative/10"
     },
     {
       title: "Top Performer",
@@ -106,17 +106,17 @@ export function InfluencerKPIs() {
   ]
   
   return (
-    <div className="grid gap-4 grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
       {kpis.map((kpi, idx) => (
-        <Card key={idx}>
+        <Card key={idx} className="accent-top hover-lift animate-in fade-in slide-in-from-bottom-2 duration-500">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${kpi.bgColor}`}>
+              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${kpi.bgColor}`}>
                 <kpi.icon className={`h-5 w-5 ${kpi.color}`} />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-xs text-muted-foreground truncate">{kpi.title}</p>
-                <p className="text-lg font-bold">{kpi.value}</p>
+                <p className="section-label truncate">{kpi.title}</p>
+                <p className="kpi-value text-xl truncate">{kpi.value}</p>
                 {kpi.subValue && <p className="text-xs text-muted-foreground">{kpi.subValue}</p>}
               </div>
             </div>
@@ -156,24 +156,24 @@ function InfluencerCard({
       <CardContent className="space-y-4">
         {/* Key Metrics */}
         <div className="grid grid-cols-3 gap-3">
-          <div className="rounded-lg border p-2.5 text-center">
+          <div className="rounded-lg border bg-positive/5 p-2.5 text-center">
             <div className="flex items-center justify-center gap-1 text-positive">
               <ThumbsUp className="h-3.5 w-3.5" />
-              <span className="text-lg font-bold">{metrics.positivePercent}%</span>
+              <span className="kpi-value text-lg">{metrics.positivePercent}%</span>
             </div>
             <p className="text-[10px] text-muted-foreground">Positive</p>
           </div>
-          <div className="rounded-lg border p-2.5 text-center">
+          <div className="rounded-lg border bg-muted/40 p-2.5 text-center">
             <div className="flex items-center justify-center gap-1 text-muted-foreground">
               <Minus className="h-3.5 w-3.5" />
-              <span className="text-lg font-bold">{metrics.neutralPercent}%</span>
+              <span className="kpi-value text-lg">{metrics.neutralPercent}%</span>
             </div>
             <p className="text-[10px] text-muted-foreground">Neutral</p>
           </div>
-          <div className="rounded-lg border p-2.5 text-center">
+          <div className="rounded-lg border bg-negative/5 p-2.5 text-center">
             <div className="flex items-center justify-center gap-1 text-negative">
               <ThumbsDown className="h-3.5 w-3.5" />
-              <span className="text-lg font-bold">{metrics.negativePercent}%</span>
+              <span className="kpi-value text-lg">{metrics.negativePercent}%</span>
             </div>
             <p className="text-[10px] text-muted-foreground">Negative</p>
           </div>
@@ -203,14 +203,14 @@ function InfluencerCard({
                 onClick={() => onInsightClick(insight)}
                 className={`flex w-full items-center justify-between rounded-md border p-2 text-left text-xs transition-colors hover:bg-muted/50 ${
                   insight.type === "success" ? "border-positive/30 bg-positive/5" :
-                  insight.type === "warning" ? "border-warning/30 bg-warning/5" :
+                  insight.type === "warning" ? "border-amber-500/30 bg-amber-500/5" :
                   insight.type === "danger" ? "border-negative/30 bg-negative/5" :
                   "border-muted"
                 }`}
               >
                 <div className="flex items-center gap-2">
                   {insight.type === "success" && <CheckCircle2 className="h-3.5 w-3.5 text-positive" />}
-                  {insight.type === "warning" && <AlertTriangle className="h-3.5 w-3.5 text-warning" />}
+                  {insight.type === "warning" && <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />}
                   {insight.type === "danger" && <AlertTriangle className="h-3.5 w-3.5 text-negative" />}
                   {insight.type === "info" && <Info className="h-3.5 w-3.5 text-primary" />}
                   <span className="font-medium">{insight.title}</span>
@@ -245,20 +245,23 @@ function ComparisonChart() {
         <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} barGap={0} barCategoryGap="15%">
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-              <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
-              <Tooltip 
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+              <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
+              <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
+              <Tooltip
                 contentStyle={{
-                  backgroundColor: "var(--background)",
+                  backgroundColor: "var(--popover)",
                   border: "1px solid var(--border)",
-                  borderRadius: "8px"
+                  borderRadius: "8px",
+                  color: "var(--popover-foreground)",
+                  fontSize: "12px",
+                  boxShadow: "0 4px 12px rgb(0 0 0 / 0.1)"
                 }}
                 formatter={(value: number, name: string) => [`${value}%`, name.charAt(0).toUpperCase() + name.slice(1)]}
               />
               <Legend />
-              <Bar dataKey="positive" name="Positive" fill="#22c55e" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="negative" name="Negative" fill="#ef4444" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="positive" name="Positive" fill="#22c55e" radius={[6, 6, 0, 0]} maxBarSize={48} />
+              <Bar dataKey="negative" name="Negative" fill="#ef4444" radius={[6, 6, 0, 0]} maxBarSize={48} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -292,18 +295,21 @@ function CommentHealthComparison() {
         <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} layout="vertical" barCategoryGap="20%">
-              <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
-              <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}`} />
-              <YAxis dataKey="name" type="category" tick={{ fontSize: 11 }} width={100} />
-              <Tooltip 
+              <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="var(--border)" />
+              <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}`} tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
+              <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} width={100} />
+              <Tooltip
                 contentStyle={{
-                  backgroundColor: "var(--background)",
+                  backgroundColor: "var(--popover)",
                   border: "1px solid var(--border)",
-                  borderRadius: "8px"
+                  borderRadius: "8px",
+                  color: "var(--popover-foreground)",
+                  fontSize: "12px",
+                  boxShadow: "0 4px 12px rgb(0 0 0 / 0.1)"
                 }}
                 formatter={(value: number) => [`${value}/100`, "Comment Health"]}
               />
-              <Bar dataKey="health" radius={[0, 4, 4, 0]}>
+              <Bar dataKey="health" radius={[0, 6, 6, 0]} maxBarSize={48}>
                 {chartData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={getHealthColor(entry.health)} />
                 ))}
@@ -334,14 +340,14 @@ function CombinedInsightsSection({ onInsightClick }: { onInsightClick: (insight:
               onClick={() => onInsightClick(insight)}
               className={`flex flex-col items-start gap-2 rounded-lg border p-4 text-left transition-colors hover:bg-muted/50 ${
                 insight.type === "success" ? "border-positive/30 bg-positive/5" :
-                insight.type === "warning" ? "border-warning/30 bg-warning/5" :
+                insight.type === "warning" ? "border-amber-500/30 bg-amber-500/5" :
                 insight.type === "danger" ? "border-negative/30 bg-negative/5" :
                 "border-muted"
               }`}
             >
               <div className="flex items-center gap-2">
                 {insight.type === "success" && <CheckCircle2 className="h-4 w-4 text-positive" />}
-                {insight.type === "warning" && <AlertTriangle className="h-4 w-4 text-warning" />}
+                {insight.type === "warning" && <AlertTriangle className="h-4 w-4 text-amber-500" />}
                 {insight.type === "danger" && <AlertTriangle className="h-4 w-4 text-negative" />}
                 {insight.type === "info" && <Info className="h-4 w-4 text-primary" />}
                 <span className="font-semibold text-sm">{insight.title}</span>
@@ -399,7 +405,7 @@ function TranslatableComment({ comment, idx }: { comment: InfluencerComment; idx
   
   return (
     <div
-      className={`rounded-lg border p-3 ${
+      className={`rounded-lg border p-3 transition-colors hover:bg-muted/40 ${
         comment.sentiment === "positive" ? "border-positive/20 bg-positive/5" :
         comment.sentiment === "negative" ? "border-negative/20 bg-negative/5" :
         "border-muted bg-muted/20"
@@ -469,7 +475,7 @@ function CommentDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {insight.type === "success" && <CheckCircle2 className="h-5 w-5 text-positive" />}
-            {insight.type === "warning" && <AlertTriangle className="h-5 w-5 text-warning" />}
+            {insight.type === "warning" && <AlertTriangle className="h-5 w-5 text-amber-500" />}
             {insight.type === "danger" && <AlertTriangle className="h-5 w-5 text-negative" />}
             {insight.type === "info" && <Info className="h-5 w-5 text-primary" />}
             {insight.title}
@@ -481,7 +487,7 @@ function CommentDialog({
           </DialogDescription>
         </DialogHeader>
         
-        <div className="flex-1 overflow-y-auto space-y-3 pr-2 mt-4">
+        <div className="flex-1 overflow-y-auto nice-scroll space-y-3 pr-2 mt-4">
           {insight.comments.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <p className="text-sm text-muted-foreground">No comments found for this insight</p>

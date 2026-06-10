@@ -34,6 +34,8 @@ export function SentimentCharts({ metrics }: SentimentChartsProps) {
                 innerRadius={60}
                 outerRadius={100}
                 paddingAngle={2}
+                cornerRadius={4}
+                stroke="none"
                 dataKey="value"
                 label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                 labelLine={false}
@@ -45,9 +47,12 @@ export function SentimentCharts({ metrics }: SentimentChartsProps) {
               <Tooltip 
                 formatter={(value: number) => [value.toLocaleString(), "Reviews"]}
                 contentStyle={{
-                  backgroundColor: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: "8px"
+                  backgroundColor: "var(--popover)",
+                  border: "1px solid var(--border)",
+                  borderRadius: "8px",
+                  color: "var(--popover-foreground)",
+                  fontSize: "12px",
+                  boxShadow: "0 4px 12px rgb(0 0 0 / 0.1)"
                 }}
               />
               <Legend />
@@ -58,16 +63,16 @@ export function SentimentCharts({ metrics }: SentimentChartsProps) {
         {/* Summary Stats */}
         <div className="mt-4 grid grid-cols-3 gap-4 border-t pt-4">
           <div className="text-center">
-            <div className="text-2xl font-bold text-positive">{metrics.positivePercent.toFixed(1)}%</div>
-            <div className="text-xs text-muted-foreground">Positive</div>
+            <div className="kpi-value text-2xl text-positive">{metrics.positivePercent.toFixed(1)}%</div>
+            <div className="section-label">Positive</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-muted-foreground">{metrics.neutralPercent.toFixed(1)}%</div>
-            <div className="text-xs text-muted-foreground">Neutral</div>
+            <div className="kpi-value text-2xl text-muted-foreground">{metrics.neutralPercent.toFixed(1)}%</div>
+            <div className="section-label">Neutral</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-negative">{metrics.negativePercent.toFixed(1)}%</div>
-            <div className="text-xs text-muted-foreground">Negative</div>
+            <div className="kpi-value text-2xl text-negative">{metrics.negativePercent.toFixed(1)}%</div>
+            <div className="section-label">Negative</div>
           </div>
         </div>
       </CardContent>

@@ -125,20 +125,23 @@ export function TrendCharts({ allReviews }: TrendChartsProps) {
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={quarterlyChartData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="quarter" tick={{ fontSize: 12 }} />
-                <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
-                <Tooltip 
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                <XAxis dataKey="quarter" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
+                <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
+                <Tooltip
                   formatter={(value: number, name: string) => [`${value}%`, name]}
                   contentStyle={{
-                    backgroundColor: "var(--background)",
+                    backgroundColor: "var(--popover)",
                     border: "1px solid var(--border)",
-                    borderRadius: "8px"
+                    borderRadius: "8px",
+                    color: "var(--popover-foreground)",
+                    fontSize: "12px",
+                    boxShadow: "0 4px 12px rgb(0 0 0 / 0.1)"
                   }}
                 />
                 <Legend />
-                <Line type="monotone" dataKey="s26Positive" name={`${s26Label} (2026)`} stroke="#3b82f6" strokeWidth={2} dot={{ fill: "#3b82f6", strokeWidth: 2, r: 4 }} />
-                <Line type="monotone" dataKey="s25Positive" name={`${s25Label} (2025)`} stroke="#94a3b8" strokeWidth={2} dot={{ fill: "#94a3b8", strokeWidth: 2, r: 4 }} />
+                <Line type="monotone" dataKey="s26Positive" name={`${s26Label} (2026)`} stroke="#3b82f6" strokeWidth={2.5} dot={false} activeDot={{ r: 4, strokeWidth: 0 }} />
+                <Line type="monotone" dataKey="s25Positive" name={`${s25Label} (2025)`} stroke="#94a3b8" strokeWidth={2.5} dot={false} activeDot={{ r: 4, strokeWidth: 0 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -152,8 +155,8 @@ export function TrendCharts({ allReviews }: TrendChartsProps) {
           <CardDescription>Same quarter comparison (e.g., Q1 2026 vs Q1 2025)</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto nice-scroll">
+            <table className="w-full text-sm tabular-nums">
               <thead>
                 <tr className="border-b">
                   <th className="pb-3 text-left font-medium">Quarter</th>
@@ -175,7 +178,7 @@ export function TrendCharts({ allReviews }: TrendChartsProps) {
               </thead>
               <tbody>
                 {quarterComparisons.map((c) => (
-                  <tr key={c.quarter} className="border-b last:border-0">
+                  <tr key={c.quarter} className="border-b last:border-0 transition-colors hover:bg-muted/40">
                     <td className="py-3 font-medium">{c.quarterName} 2026 vs {c.quarterName} 2025</td>
                     <td className="py-3 text-center">{c.s26.total.toLocaleString()}</td>
                     <td className="py-3 text-center text-muted-foreground">{c.s25.total.toLocaleString()}</td>

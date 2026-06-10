@@ -4,6 +4,7 @@ import { useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
+import { CountUp } from "@/components/ui/count-up"
 import { 
   Star, 
   TrendingUp, 
@@ -43,28 +44,32 @@ export function MarketplaceKPIs({ marketplaceFilter, dateRange }: MarketplaceMet
   const metrics = [
     {
       label: "Total Reviews",
-      value: kpis.totalReviews.toLocaleString(),
+      value: kpis.totalReviews,
+      format: (v: number) => Math.round(v).toLocaleString(),
       subValue: `${kpis.weekOverWeekChange >= 0 ? "+" : ""}${kpis.weekOverWeekChange}% WoW`,
       icon: ShoppingBag,
       trend: kpis.weekOverWeekChange >= 0 ? "up" : "down",
     },
     {
       label: "Average Rating",
-      value: kpis.averageRating.toFixed(1),
+      value: kpis.averageRating,
+      format: (v: number) => v.toFixed(1),
       subValue: "out of 5 stars",
       icon: Star,
       trend: kpis.averageRating >= 4 ? "up" : kpis.averageRating >= 3 ? "neutral" : "down",
     },
     {
       label: "Positive Sentiment",
-      value: `${kpis.positivePercentage}%`,
+      value: kpis.positivePercentage,
+      format: (v: number) => `${Math.round(v)}%`,
       subValue: `${kpis.negativePercentage}% negative`,
       icon: ThumbsUp,
       trend: kpis.positivePercentage >= 50 ? "up" : "down",
     },
     {
       label: "Verified Purchases",
-      value: `${kpis.verifiedPurchaseRate}%`,
+      value: kpis.verifiedPurchaseRate,
+      format: (v: number) => `${Math.round(v)}%`,
       subValue: "authenticity rate",
       icon: CheckCircle2,
       trend: kpis.verifiedPurchaseRate >= 80 ? "up" : "neutral",
@@ -72,29 +77,31 @@ export function MarketplaceKPIs({ marketplaceFilter, dateRange }: MarketplaceMet
   ]
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
       {metrics.map((metric) => (
-        <Card key={metric.label} className="border-0 shadow-sm">
+        <Card key={metric.label} className="accent-top hover-lift">
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">{metric.label}</p>
-                <p className="mt-1 text-3xl font-bold">{metric.value}</p>
+                <p className="section-label">{metric.label}</p>
+                <p className="mt-1 text-3xl">
+                  <CountUp value={metric.value} format={metric.format} className="kpi-value" />
+                </p>
                 <div className="mt-1 flex items-center gap-1 text-xs">
-                  {metric.trend === "up" && <TrendingUp className="h-3 w-3 text-emerald-500" />}
-                  {metric.trend === "down" && <TrendingDown className="h-3 w-3 text-rose-500" />}
+                  {metric.trend === "up" && <TrendingUp className="h-3 w-3 text-positive" />}
+                  {metric.trend === "down" && <TrendingDown className="h-3 w-3 text-negative" />}
                   <span className={cn(
-                    metric.trend === "up" ? "text-emerald-600" : 
-                    metric.trend === "down" ? "text-rose-600" : "text-muted-foreground"
+                    metric.trend === "up" ? "text-positive" :
+                    metric.trend === "down" ? "text-negative" : "text-muted-foreground"
                   )}>
                     {metric.subValue}
                   </span>
                 </div>
               </div>
               <div className={cn(
-                "flex h-10 w-10 items-center justify-center rounded-lg",
-                metric.trend === "up" ? "bg-emerald-100 text-emerald-600" :
-                metric.trend === "down" ? "bg-rose-100 text-rose-600" :
+                "flex h-10 w-10 items-center justify-center rounded-lg transition-colors",
+                metric.trend === "up" ? "bg-positive/10 text-positive" :
+                metric.trend === "down" ? "bg-negative/10 text-negative" :
                 "bg-muted text-muted-foreground"
               )}>
                 <metric.icon className="h-5 w-5" />
@@ -113,13 +120,13 @@ export function StarRatingDistribution({ marketplaceFilter, dateRange }: Marketp
   const distribution = useMemo(() => getStarDistribution(marketplaceFilter, dateRange), [marketplaceFilter, dateRange])
   
   const getBarColor = (rating: number) => {
-    if (rating >= 4) return "bg-emerald-500"
+    if (rating >= 4) return "bg-positive"
     if (rating === 3) return "bg-amber-500"
-    return "bg-rose-500"
+    return "bg-negative"
   }
 
   return (
-    <Card className="border-0 shadow-sm">
+    <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-lg font-semibold flex items-center gap-2">
           <Star className="h-5 w-5 text-amber-500" />
@@ -137,8 +144,8 @@ export function StarRatingDistribution({ marketplaceFilter, dateRange }: Marketp
             </div>
             <div className="flex-1">
               <div className="h-3 w-full overflow-hidden rounded-full bg-muted">
-                <div 
-                  className={cn("h-full rounded-full transition-all", getBarColor(item.rating))}
+                <div
+                  className={cn("h-full rounded-full transition-all duration-500", getBarColor(item.rating))}
                   style={{ width: `${item.percentage}%` }}
                 />
               </div>
@@ -159,7 +166,7 @@ export function MarketplaceComparison({ dateRange }: { dateRange?: DateRange }) 
   const comparison = useMemo(() => getMarketplaceComparison(dateRange), [dateRange])
 
   return (
-    <Card className="border-0 shadow-sm">
+    <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-lg font-semibold flex items-center gap-2">
           <BarChart3 className="h-5 w-5 text-primary" />
@@ -172,7 +179,7 @@ export function MarketplaceComparison({ dateRange }: { dateRange?: DateRange }) 
       <CardContent>
         <div className="grid grid-cols-2 gap-4">
           {comparison.map((mp) => (
-            <div key={mp.marketplace} className="rounded-lg border p-4">
+            <div key={mp.marketplace} className="rounded-xl border p-4 transition-colors hover:bg-muted/30">
               <div className="flex items-center justify-between mb-3">
                 <span className="font-semibold capitalize text-lg">{mp.marketplace}</span>
                 <Badge variant="outline">{mp.totalReviews} reviews</Badge>
@@ -190,7 +197,7 @@ export function MarketplaceComparison({ dateRange }: { dateRange?: DateRange }) 
                 <div>
                   <div className="flex justify-between text-sm mb-1">
                     <span className="text-muted-foreground">Positive Rate</span>
-                    <span className="font-medium text-emerald-600">{mp.positiveRate}%</span>
+                    <span className="font-medium text-positive">{mp.positiveRate}%</span>
                   </div>
                   <Progress value={mp.positiveRate} className="h-2" />
                 </div>
@@ -216,7 +223,7 @@ export function ProductPerformanceTable({ marketplaceFilter, dateRange }: Market
   const products = useMemo(() => getProductPerformance(marketplaceFilter, dateRange), [marketplaceFilter, dateRange])
 
   return (
-    <Card className="border-0 shadow-sm">
+    <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-lg font-semibold flex items-center gap-2">
           <Target className="h-5 w-5 text-primary" />
@@ -241,7 +248,7 @@ export function ProductPerformanceTable({ marketplaceFilter, dateRange }: Market
             </thead>
             <tbody>
               {products.map((product) => (
-                <tr key={product.productLine} className="border-b last:border-0">
+                <tr key={product.productLine} className="border-b last:border-0 odd:bg-muted/30 transition-colors hover:bg-muted/50">
                   <td className="py-3 font-medium">{product.productLine}</td>
                   <td className="py-3 text-center">{product.totalReviews}</td>
                   <td className="py-3 text-center">
@@ -251,21 +258,21 @@ export function ProductPerformanceTable({ marketplaceFilter, dateRange }: Market
                   </td>
                   <td className="py-3 text-center">
                     <span className={cn(
-                      "font-medium",
-                      product.positiveRate >= 60 ? "text-emerald-600" :
-                      product.positiveRate >= 40 ? "text-amber-600" : "text-rose-600"
+                      "font-medium tabular-nums",
+                      product.positiveRate >= 60 ? "text-positive" :
+                      product.positiveRate >= 40 ? "text-amber-600 dark:text-amber-400" : "text-negative"
                     )}>
                       {product.positiveRate}%
                     </span>
                   </td>
                   <td className="py-3">
-                    <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+                    <Badge variant="outline" className="bg-positive/10 text-positive border-positive/20">
                       <ThumbsUp className="h-3 w-3 mr-1" />
                       {product.topFeature}
                     </Badge>
                   </td>
                   <td className="py-3">
-                    <Badge variant="outline" className="bg-rose-50 text-rose-700 border-rose-200">
+                    <Badge variant="outline" className="bg-negative/10 text-negative border-negative/20">
                       <AlertTriangle className="h-3 w-3 mr-1" />
                       {product.topIssue}
                     </Badge>
@@ -290,7 +297,7 @@ export function CompetitorAnalysis({ marketplaceFilter, dateRange }: Marketplace
   }
 
   return (
-    <Card className="border-0 shadow-sm">
+    <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-lg font-semibold">Competitor Mentions</CardTitle>
         <CardDescription>
@@ -309,25 +316,25 @@ export function CompetitorAnalysis({ marketplaceFilter, dateRange }: Marketplace
                   <span className="text-sm text-muted-foreground">{comp.mentions} mentions</span>
                 </div>
                 <div className="flex h-3 overflow-hidden rounded-full">
-                  <div 
-                    className="bg-emerald-500" 
+                  <div
+                    className="bg-positive transition-all duration-500"
                     style={{ width: `${(comp.positiveContext / comp.mentions) * 100}%` }}
                     title={`${comp.positiveContext} positive`}
                   />
-                  <div 
-                    className="bg-muted" 
+                  <div
+                    className="bg-muted transition-all duration-500"
                     style={{ width: `${(neutralContext / comp.mentions) * 100}%` }}
                     title={`${neutralContext} neutral`}
                   />
-                  <div 
-                    className="bg-rose-500" 
+                  <div
+                    className="bg-negative transition-all duration-500"
                     style={{ width: `${(comp.negativeContext / comp.mentions) * 100}%` }}
                     title={`${comp.negativeContext} negative`}
                   />
                 </div>
                 <div className="flex justify-between text-xs text-muted-foreground">
-                  <span className="text-emerald-600">Samsung preferred: {comp.positiveContext}</span>
-                  <span className="text-rose-600">Competitor preferred: {comp.negativeContext}</span>
+                  <span className="text-positive">Samsung preferred: {comp.positiveContext}</span>
+                  <span className="text-negative">Competitor preferred: {comp.negativeContext}</span>
                 </div>
               </div>
             )
@@ -344,7 +351,7 @@ export function FeatureSentimentGrid({ marketplaceFilter, dateRange }: Marketpla
   const features = useMemo(() => getFeatureSentiment(marketplaceFilter, dateRange), [marketplaceFilter, dateRange])
 
   return (
-    <Card className="border-0 shadow-sm">
+    <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-lg font-semibold">Feature Sentiment Analysis</CardTitle>
         <CardDescription>
@@ -354,20 +361,20 @@ export function FeatureSentimentGrid({ marketplaceFilter, dateRange }: Marketpla
       <CardContent>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {features.slice(0, 10).map((feature) => (
-            <div 
-              key={feature.feature} 
+            <div
+              key={feature.feature}
               className={cn(
-                "rounded-lg border p-3 text-center",
-                feature.positiveRate >= 70 ? "bg-emerald-50 border-emerald-200" :
-                feature.positiveRate >= 50 ? "bg-amber-50 border-amber-200" :
-                "bg-rose-50 border-rose-200"
+                "rounded-xl border p-3 text-center transition-colors",
+                feature.positiveRate >= 70 ? "bg-positive/10 border-positive/20" :
+                feature.positiveRate >= 50 ? "bg-amber-500/10 border-amber-500/20" :
+                "bg-negative/10 border-negative/20"
               )}
             >
               <p className="text-sm font-medium capitalize mb-1">{feature.feature}</p>
               <p className={cn(
-                "text-lg font-bold",
-                feature.positiveRate >= 70 ? "text-emerald-700" :
-                feature.positiveRate >= 50 ? "text-amber-700" : "text-rose-700"
+                "text-lg font-bold tabular-nums",
+                feature.positiveRate >= 70 ? "text-positive" :
+                feature.positiveRate >= 50 ? "text-amber-600 dark:text-amber-400" : "text-negative"
               )}>
                 {feature.positiveRate}%
               </p>
@@ -386,7 +393,7 @@ export function PriceValueCard({ marketplaceFilter, dateRange }: MarketplaceMetr
   const priceMetrics = useMemo(() => getPriceValuePerception(marketplaceFilter, dateRange), [marketplaceFilter, dateRange])
 
   return (
-    <Card className="border-0 shadow-sm">
+    <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-lg font-semibold flex items-center gap-2">
           <DollarSign className="h-5 w-5 text-primary" />
@@ -398,20 +405,20 @@ export function PriceValueCard({ marketplaceFilter, dateRange }: MarketplaceMetr
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          <div className="text-center p-4 bg-muted/50 rounded-lg">
-            <p className="text-3xl font-bold">{priceMetrics.totalPriceMentions}</p>
+          <div className="text-center p-4 bg-muted/50 rounded-xl">
+            <p className="kpi-value text-3xl">{priceMetrics.totalPriceMentions}</p>
             <p className="text-sm text-muted-foreground">
               Reviews mentioning price ({priceMetrics.percentageOfReviews}% of total)
             </p>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div className="text-center p-3 rounded-lg bg-emerald-50 border border-emerald-200">
-              <p className="text-2xl font-bold text-emerald-700">{priceMetrics.positiveValuePerception}%</p>
-              <p className="text-xs text-emerald-600">Worth the price</p>
+            <div className="text-center p-3 rounded-xl bg-positive/10 border border-positive/20 transition-colors">
+              <p className="text-2xl font-bold tabular-nums text-positive">{priceMetrics.positiveValuePerception}%</p>
+              <p className="text-xs text-positive">Worth the price</p>
             </div>
-            <div className="text-center p-3 rounded-lg bg-rose-50 border border-rose-200">
-              <p className="text-2xl font-bold text-rose-700">{priceMetrics.negativeValuePerception}%</p>
-              <p className="text-xs text-rose-600">Overpriced</p>
+            <div className="text-center p-3 rounded-xl bg-negative/10 border border-negative/20 transition-colors">
+              <p className="text-2xl font-bold tabular-nums text-negative">{priceMetrics.negativeValuePerception}%</p>
+              <p className="text-xs text-negative">Overpriced</p>
             </div>
           </div>
         </div>
