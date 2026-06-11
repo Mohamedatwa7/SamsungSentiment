@@ -3,6 +3,7 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { analyzeComments } from "@/lib/sentiment"
+import { instagramShortcodeToId, instagramShortcodeFromUrl } from "@/lib/instagram-id"
 
 const APIFY_TOKEN = process.env.APIFY_API_TOKEN
 
@@ -446,16 +447,26 @@ export async function syncInstagramComments(runCount = RUNS_TO_SYNC) {
     const commentTimestamp = (rawComment.commentTimestamp as string) || (rawComment.timestamp as string)
     const commentatorUsername = (rawComment.commentatorUserName as string) || (rawComment.ownerUsername as string) || "unknown"
     
-    // Get post ID from postInfo or direct fields
-    const postId = postInfo?.shortCode || postInfo?.id || rawComment.postId || rawComment.shortCode
-    const postIdFromUrl = rawComment.postUrl ? String(rawComment.postUrl).match(/\/p\/([^\/]+)/)?.[1] : undefined
-    const externalPostId = String(postId || postIdFromUrl || "unknown")
+    // Post reference in the legacy precedence (shortCode first) — this exact
+    // string feeds the synthetic comment id below, so it must never change
+    // encoding or every already-synced comment would get a new id (= dupes).
+    const legacyPostRef = String(
+      postInfo?.shortCode || postInfo?.id || rawComment.postId || rawComment.shortCode ||
+      (rawComment.postUrl ? instagramShortcodeFromUrl(String(rawComment.postUrl)) : "") ||
+      "",
+    )
+    // Instagram POSTS are keyed by numeric media id, so normalize shortcodes to
+    // the numeric id (same number, two encodings) or the post join fails.
+    const externalPostId = /^\d+$/.test(legacyPostRef)
+      ? legacyPostRef
+      : instagramShortcodeToId(legacyPostRef) || legacyPostRef || "unknown"
     
     // Generate unique comment ID: combine post shortcode + username + timestamp
     // (Instagram Comments actor doesn't provide one). The fallback must be
     // STABLE across syncs — Date.now() would mint a fresh id every run and
-    // re-insert the same comment as a duplicate each day.
-    const uniqueKey = `${externalPostId}_${commentatorUsername}_${commentTimestamp || commentText.slice(0, 40)}`
+    // re-insert the same comment as a duplicate each day. Uses legacyPostRef
+    // (shortcode form), NOT externalPostId, to match ids already in the table.
+    const uniqueKey = `${legacyPostRef || "unknown"}_${commentatorUsername}_${commentTimestamp || commentText.slice(0, 40)}`
     const commentId = rawComment.id || rawComment.pk || rawComment.cid || uniqueKey
     
     if (!commentId) {

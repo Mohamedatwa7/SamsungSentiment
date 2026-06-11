@@ -88,17 +88,19 @@ function TopCommentCard({ comment, rank }: { comment: Comment; rank: number }) {
             <Badge variant="outline" className="text-xs font-normal">
               {comment.product}
             </Badge>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2 opacity-0 transition-opacity group-hover:opacity-100"
-              asChild
-            >
-              <a href={comment.postUrl} target="_blank" rel="noopener noreferrer">
-                <ExternalLink className="h-3.5 w-3.5 mr-1" />
-                View Post
-              </a>
-            </Button>
+            {comment.postUrl ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 opacity-0 transition-opacity group-hover:opacity-100"
+                asChild
+              >
+                <a href={comment.postUrl} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="h-3.5 w-3.5 mr-1" />
+                  View Post
+                </a>
+              </Button>
+            ) : null}
           </div>
         </div>
       </div>
@@ -121,11 +123,12 @@ export function TopComments({ platformFilter, dateRange }: TopCommentsProps) {
   )
   const { segmentation } = useSegmentation()
 
-  // Filter to TikTok only and limit to 10
-  const tiktokFilter: ("tiktok")[] = ["tiktok"]
-  const topComments = getTopComments(10, tiktokFilter, dateRange, segmentation)
-  const topPositive = getTopPositiveReviews(10, tiktokFilter, dateRange, segmentation)
-  const topNegative = getTopNegativeReviews(10, tiktokFilter, dateRange, segmentation)
+  // Honor the page-level platform filter; default to all comment platforms.
+  const effectiveFilter: ("instagram" | "tiktok" | "facebook")[] =
+    commentFilter && commentFilter.length > 0 ? commentFilter : ["instagram", "tiktok", "facebook"]
+  const topComments = getTopComments(10, effectiveFilter, dateRange, segmentation)
+  const topPositive = getTopPositiveReviews(10, effectiveFilter, dateRange, segmentation)
+  const topNegative = getTopNegativeReviews(10, effectiveFilter, dateRange, segmentation)
   
   const displayedComments = activeTab === "all" 
     ? topComments 
@@ -144,10 +147,11 @@ export function TopComments({ platformFilter, dateRange }: TopCommentsProps) {
           <div>
             <CardTitle className="flex items-center gap-2">
               <Trophy className="h-4 w-4 text-muted-foreground" />
-              Top 10 TikTok Comments
+              Top 10 Comments
             </CardTitle>
             <CardDescription>
-              Most engaging TikTok comments ranked by likes
+              Most engaging comments ranked by likes
+              {effectiveFilter.length < 3 && <> · {effectiveFilter.join(", ")}</>}
             </CardDescription>
           </div>
           <div className="flex items-center gap-3 text-sm">

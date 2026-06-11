@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
+import { useSWRConfig } from "swr"
 import { Facebook, Instagram, ThumbsUp, MessageCircle, Share2, ExternalLink, RefreshCw, Eye, Play, Calendar } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -105,7 +106,13 @@ function SocialPostCard({ post }: { post: SocialPost }) {
             </div>
             <span className="shrink-0 text-xs text-muted-foreground">{formatDate(post.publishDate)}</span>
           </div>
-          <p className="mt-1.5 text-sm leading-relaxed text-foreground/90 line-clamp-3">{post.content}</p>
+          {post.content?.trim() ? (
+            <p className="mt-1.5 text-sm leading-relaxed text-foreground/90 line-clamp-3">{post.content}</p>
+          ) : (
+            <p className="mt-1.5 text-sm italic text-muted-foreground">
+              {post.platform === "tiktok" ? "Video post (no caption)" : "Post without caption"}
+            </p>
+          )}
           <div className="mt-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -158,6 +165,7 @@ interface SocialFeedProps {
 type FeedDateRange = "7" | "30" | "90" | "365" | "all"
 
 export function SocialFeed({ platformFilter, dateRange }: SocialFeedProps) {
+  const { mutate } = useSWRConfig()
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [activeTab, setActiveTab] = useState<"all" | Platform>("all")
   const [localDateRange, setLocalDateRange] = useState<FeedDateRange>("all")
@@ -190,6 +198,10 @@ export function SocialFeed({ platformFilter, dateRange }: SocialFeedProps) {
         product: post.productModel || post.productCategory || "Samsung",
         publishDate: post.timestamp,
       }))
+      // Hide placeholder rows that have neither content nor any engagement —
+      // e.g. TikTok stub posts synthesized from comments before the real video
+      // data was synced. A caption-less post with real stats still shows.
+      .filter((p) => p.content?.trim() || p.likes > 0 || p.views > 0 || p.comments > 0)
       .sort((a, b) => new Date(b.publishDate).getTime() - new Date(a.publishDate).getTime())
   }, [getFilteredPosts, platformFilter, commentCountByUrl])
 
@@ -214,9 +226,13 @@ export function SocialFeed({ platformFilter, dateRange }: SocialFeedProps) {
     : allPosts.filter(post => post.platform === activeTab)
   ).slice(0, 50)
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setIsRefreshing(true)
-    setTimeout(() => setIsRefreshing(false), 1000)
+    try {
+      await mutate("/api/comments")
+    } finally {
+      setIsRefreshing(false)
+    }
   }
 
   const platformCounts = {

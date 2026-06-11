@@ -369,7 +369,8 @@ export function BrandHealthGauge({ platformFilter, dateRange }: ExecutiveMetrics
       <CardHeader>
         <CardTitle>Comment Health Index</CardTitle>
         <CardDescription>
-          Weighted by department strategy (MX 70% / VD 20% / HA 10%) and statistical confidence
+          Product health (dept-weighted MX 70% / VD 20% / HA 10%) blended with brand-level
+          sentiment by attribution share
         </CardDescription>
       </CardHeader>
       <CardContent className="pt-0">
@@ -401,6 +402,10 @@ export function BrandHealthGauge({ platformFilter, dateRange }: ExecutiveMetrics
 
           <p className="mt-1 text-xs font-medium text-muted-foreground tabular-nums">
             {"± "}{brandHealth.margin} margin of error
+          </p>
+          <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
+            {brandHealth.attributedShare}% of comments product-attributed
+            {brandHealth.attributedShare < 100 && <> · brand sentiment {brandHealth.brandSentiment}/100</>}
           </p>
 
           <div className="stat-rail divide-none rule-t rule-b mt-4 grid w-full grid-cols-3 text-center text-xs">

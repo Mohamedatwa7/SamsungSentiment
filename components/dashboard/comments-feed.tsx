@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
+import { useSWRConfig } from "swr"
 import { Instagram, ThumbsUp, ThumbsDown, Minus, ExternalLink, RefreshCw, MessageCircle, Music2, Facebook, Sparkles, Search, X, AlertTriangle, DollarSign, ShoppingCart, Swords, CircleAlert } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -131,17 +132,19 @@ function CommentCard({ comment }: { comment: Comment }) {
               <Badge variant="outline" className="text-xs font-normal">
                 {comment.product}
               </Badge>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 px-2 opacity-0 transition-opacity group-hover:opacity-100"
-                asChild
-              >
-                <a href={comment.postUrl} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="h-3.5 w-3.5 mr-1" />
-                  View Post
-                </a>
-              </Button>
+              {comment.postUrl ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 opacity-0 transition-opacity group-hover:opacity-100"
+                  asChild
+                >
+                  <a href={comment.postUrl} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-3.5 w-3.5 mr-1" />
+                    View Post
+                  </a>
+                </Button>
+              ) : null}
             </div>
           </div>
         </div>
@@ -158,6 +161,7 @@ interface CommentsFeedProps {
 const PAGE_SIZE = 50
 
 export function CommentsFeed({ platformFilter, dateRange }: CommentsFeedProps) {
+  const { mutate } = useSWRConfig()
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analysisStatus, setAnalysisStatus] = useState<string | null>(null)
@@ -210,8 +214,9 @@ export function CommentsFeed({ platformFilter, dateRange }: CommentsFeedProps) {
       
       if (data.success) {
         setAnalysisStatus(`Analysis complete! Positive: ${data.positivePercent}%, Negative: ${data.negativePercent}%, Neutral: ${data.neutralPercent}%`)
-        // Reload the page to refresh data
-        setTimeout(() => window.location.reload(), 2000)
+        // Revalidate the data in place — a full page reload would lose the
+        // user's filters, search and scroll position.
+        await mutate("/api/comments")
       } else {
         setAnalysisStatus(`Error: ${data.error}`)
       }
@@ -277,9 +282,10 @@ export function CommentsFeed({ platformFilter, dateRange }: CommentsFeedProps) {
     let neutralPercentage = 0
     
     if (total > 0) {
-      positivePercentage = Math.floor((positiveCount / total) * 100)
-      negativePercentage = Math.floor((negativeCount / total) * 100)
-      neutralPercentage = 100 - positivePercentage - negativePercentage
+      // Round (not floor) pos/neg so the error pushed into neutral is ≤1pt.
+      positivePercentage = Math.round((positiveCount / total) * 100)
+      negativePercentage = Math.round((negativeCount / total) * 100)
+      neutralPercentage = Math.max(0, 100 - positivePercentage - negativePercentage)
     }
     
     return {
@@ -293,9 +299,13 @@ export function CommentsFeed({ platformFilter, dateRange }: CommentsFeedProps) {
     }
   }, [searchFiltered])
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setIsRefreshing(true)
-    setTimeout(() => setIsRefreshing(false), 1000)
+    try {
+      await mutate("/api/comments")
+    } finally {
+      setIsRefreshing(false)
+    }
   }
 
   return (

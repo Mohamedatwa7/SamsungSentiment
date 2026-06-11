@@ -154,8 +154,8 @@ export function DateFilter({ dateRange, onDateChange, onCustomRangeChange, onCle
               { label: "Last 60 days", days: 60 },
               { label: "Last 90 days", days: 90 },
               { label: "Last 180 days", days: 180 },
-              { label: "Last 270 days", days: 270 },
               { label: "Last 365 days", days: 365 },
+              { label: "All time", days: -1 },
             ].map((preset) => (
               <Button
                 key={preset.label}
@@ -170,6 +170,8 @@ export function DateFilter({ dateRange, onDateChange, onCustomRangeChange, onCle
                       onCustomRangeChange(today, today)
                     }
                     setOpen(false)
+                  } else if (preset.days === -1) {
+                    handleClear()
                   } else {
                     handlePreset(preset.days)
                   }
@@ -180,29 +182,39 @@ export function DateFilter({ dateRange, onDateChange, onCustomRangeChange, onCle
             ))}
             
             <div className="border-t my-2 pt-2">
-              <p className="text-xs font-medium text-muted-foreground mb-2">Quarters</p>
+              <p className="text-xs font-medium text-muted-foreground mb-2">Periods</p>
               {(() => {
-                const currentYear = new Date().getFullYear()
-                const quarters = [
-                  { label: "Q1", start: new Date(currentYear, 0, 1), end: new Date(currentYear, 2, 31) },
-                  { label: "Q2", start: new Date(currentYear, 3, 1), end: new Date(currentYear, 5, 30) },
-                  { label: "Q3", start: new Date(currentYear, 6, 1), end: new Date(currentYear, 8, 30) },
-                  { label: "Q4", start: new Date(currentYear, 9, 1), end: new Date(currentYear, 11, 31) },
-                ]
-                return quarters.map((q) => (
+                const now = new Date()
+                const currentYear = now.getFullYear()
+                // Quarters for this year and last year (history goes back to
+                // Jan of the previous year); future quarters are skipped.
+                const periods: { label: string; start: Date; end: Date }[] = []
+                for (const year of [currentYear, currentYear - 1]) {
+                  periods.push({ label: `FY ${year}`, start: new Date(year, 0, 1), end: new Date(year, 11, 31) })
+                  for (let q = 0; q < 4; q++) {
+                    const start = new Date(year, q * 3, 1)
+                    if (start > now) continue
+                    periods.push({
+                      label: `Q${q + 1} ${year}`,
+                      start,
+                      end: new Date(year, q * 3 + 3, 0),
+                    })
+                  }
+                }
+                return periods.map((p) => (
                   <Button
-                    key={q.label}
+                    key={p.label}
                     variant="ghost"
                     size="sm"
                     className="w-full justify-start text-xs h-7"
                     onClick={() => {
                       if (onCustomRangeChange) {
-                        onCustomRangeChange(q.start, q.end > new Date() ? new Date() : q.end)
+                        onCustomRangeChange(p.start, p.end > now ? now : p.end)
                       }
                       setOpen(false)
                     }}
                   >
-                    {q.label} {currentYear}
+                    {p.label}
                   </Button>
                 ))
               })()}

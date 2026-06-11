@@ -1,17 +1,29 @@
 /**
  * Comment Health Index (CHI)
  *
- * Formula: CHI = ( Σ(βᵢ · cᵢ · Sᵢ) / Σ(βᵢ · cᵢ) ) · 100
+ * Two layers, blended by attribution coverage:
  *
- * Where, per product i (n = pos + neg + neu):
- *   Sᵢ      = (pos + 0.5·neu) / n          — sentiment score, 0–1 (neutral counts half)
- *   pSmooth = (pos + 1) / (n + 2)          — Laplace-smoothed positive proportion
- *   SEᵢ     = sqrt( pSmooth·(1 - pSmooth) / n ) — standard error
- *   cᵢ      = max(0, 1 - 1.96·SEᵢ)         — statistical confidence weight (floored at 0)
- *   βᵢ      = DEPT_WEIGHTS[dept] · (n / deptVolume) — strategic weight, split by volume
+ *   CHI = α · ProductCHI + (1 − α) · BrandSentiment
  *
- * Margin of error: SE_CHI = ( sqrt( Σ( (βᵢ·cᵢ)² · SEᵢ² ) ) / Σ(βᵢ·cᵢ) ) · 100
- * Displayed as ± round(1.96 · SE_CHI).
+ *   α              = share of comments attributed to a specific product
+ *   BrandSentiment = 100 · (pos + 0.5·neu) / n over UNATTRIBUTED comments
+ *
+ * ProductCHI = ( Σ(βᵢ · cᵢ · Sᵢ) / Σ(βᵢ · cᵢ) ) · 100, per product i:
+ *   Sᵢ  = (pos + 0.5·neu) / n              — sentiment score, 0–1 (neutral counts half)
+ *   cᵢ  = nᵢ / (nᵢ + 20)                   — sample-size confidence: a product needs
+ *         ~20 comments to earn full weight. Deliberately independent of the
+ *         sentiment split — the earlier 1−1.96·SE weight shrank for products
+ *         with MIXED sentiment, silently down-weighting contested products and
+ *         biasing the index upward.
+ *   βᵢ  = DEPT_WEIGHTS[dept] · (n / deptVolume) — strategic weight, split by volume
+ *
+ * Rationale for the blend: the majority of social comments cannot be tied to a
+ * specific product. An "overall comment health" number that ignores them would
+ * describe only a small attributed minority, so unattributed comments enter as
+ * a brand-level sentiment component weighted by their actual share of volume.
+ *
+ * Margin of error: per-layer binomial SEs combined as
+ *   ± 1.96 · sqrt( α²·SE_product² + (1−α)²·SE_brand² ) · 100
  */
 
 import type { Comment } from "./comments-data"
@@ -113,7 +125,9 @@ export function computeCHI(products: CHIProduct[]): CHIResult {
     const S = (p.pos + 0.5 * p.neu) / n // 0–1
     const pSmooth = (p.pos + 1) / (n + 2)
     const SE = Math.sqrt((pSmooth * (1 - pSmooth)) / n)
-    const c = Math.max(0, 1 - 1.96 * SE)
+    // Sample-size confidence only — must not depend on the sentiment split,
+    // or contested products get silently down-weighted (upward bias).
+    const c = n / (n + 20)
     const dv = deptVolume[p.department] ?? 0
     // Guard against deptVolume = 0 (cannot happen for a valid product, but be safe).
     const beta = dv > 0 ? DEPT_WEIGHTS[p.department] * (n / dv) : 0
@@ -164,6 +178,8 @@ export interface BrandHealthResult {
   margin: number // ± margin of error
   topContributors: ProductContribution[] // sorted by contribution weight desc
   productCount: number // products with data
+  attributedShare: number // % of comments tied to a specific product (α · 100)
+  brandSentiment: number // 0-100 sentiment of unattributed comments
 }
 
 /**
@@ -253,13 +269,25 @@ export function calculateWeeklyBrandHealth(comments: Comment[]): WeeklyBrandHeal
  */
 export function calculateBrandHealthScore(comments: Comment[]): BrandHealthResult {
   if (comments.length === 0) {
-    return { score: DEFAULT_SCORE, margin: 0, topContributors: [], productCount: 0 }
+    return { score: DEFAULT_SCORE, margin: 0, topContributors: [], productCount: 0, attributedShare: 0, brandSentiment: DEFAULT_SCORE }
   }
 
-  // Group comments by product into CHI inputs (skip unattributed "General").
+  // Split into product-attributed comments (feed the dept-weighted ProductCHI)
+  // and unattributed ones (feed the brand-level sentiment component).
   const grouped: Record<string, CHIProduct> = {}
+  let brandPos = 0
+  let brandNeg = 0
+  let brandNeu = 0
+  let attributed = 0
+
   for (const c of comments) {
-    if (!c.product || c.product === "General") continue
+    if (!c.product || c.product === "General") {
+      if (c.sentiment === "positive") brandPos++
+      else if (c.sentiment === "negative") brandNeg++
+      else brandNeu++
+      continue
+    }
+    attributed++
     if (!grouped[c.product]) {
       // Prefer the comment's stored department (MX/VD/DA), normalising DA → HA
       // to match DEPT_WEIGHTS; fall back to deriving it from the product name.
@@ -278,7 +306,21 @@ export function calculateBrandHealthScore(comments: Comment[]): BrandHealthResul
     else bucket.neu++
   }
 
-  const { chi, margin, drivers } = computeCHI(Object.values(grouped))
+  const { chi, margin: productMargin, drivers } = computeCHI(Object.values(grouped))
+
+  // Brand-level sentiment over unattributed comments (same S definition).
+  const brandN = brandPos + brandNeg + brandNeu
+  const brandSentiment = brandN > 0 ? ((brandPos + 0.5 * brandNeu) / brandN) * 100 : DEFAULT_SCORE
+  const brandPSmooth = (brandPos + 1) / (brandN + 2)
+  const brandSE = brandN > 0 ? Math.sqrt((brandPSmooth * (1 - brandPSmooth)) / brandN) : 0
+
+  // Blend by attribution coverage: with no attributed comments the index is
+  // pure brand sentiment; as attribution improves, product health takes over.
+  const alpha = comments.length > 0 ? attributed / comments.length : 0
+  const score = alpha * chi + (1 - alpha) * brandSentiment
+  const margin = Math.round(
+    Math.sqrt((alpha * productMargin) ** 2 + ((1 - alpha) * 1.96 * brandSE * 100) ** 2),
+  )
 
   const topContributors: ProductContribution[] = drivers.map((d) => ({
     product: d.product,
@@ -290,9 +332,11 @@ export function calculateBrandHealthScore(comments: Comment[]): BrandHealthResul
   }))
 
   return {
-    score: chi,
+    score: Math.max(0, Math.min(100, Math.round(score))),
     margin,
     topContributors,
     productCount: topContributors.length,
+    attributedShare: Math.round(alpha * 100),
+    brandSentiment: Math.round(brandSentiment),
   }
 }

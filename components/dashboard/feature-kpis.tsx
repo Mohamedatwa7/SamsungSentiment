@@ -83,8 +83,8 @@ export function FeatureKPIs({ platformFilter, dateRange, segmentation }: Feature
   return (
     <div className="space-y-4 animate-in fade-in duration-500">
       <div>
-        <h2 className="display-title text-xl">S26 Keywords</h2>
-        <p className="text-sm text-muted-foreground">Sentiment analysis for key Samsung Galaxy S26 features</p>
+        <h2 className="display-title text-xl">Feature Sentiment</h2>
+        <p className="text-sm text-muted-foreground">How customers talk about flagship features across all comments</p>
       </div>
       <div className="stat-rail divide-none grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {metrics.map(({ cfg, m, posChangeVsLW }) => {
