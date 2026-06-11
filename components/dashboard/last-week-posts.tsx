@@ -266,19 +266,22 @@ export function LastWeekPosts({ platformFilter, dateRange }: LastWeekPostsProps)
           sampleComments,
         }
       })
-      // Zero-comment posts stay in the list (their latestCommentDate falls
-      // back to the publish date) — "activity" includes posting itself, and
-      // platforms with thin reply volume (X) would otherwise look empty.
-      .sort((a, b) => new Date(b.latestCommentDate).getTime() - new Date(a.latestCommentDate).getTime())
+      // Zero-comment posts stay in the list — "activity" includes posting
+      // itself, and platforms with thin reply volume (X) would otherwise look
+      // empty. Newest post first.
+      .sort((a, b) => new Date(b.postDate).getTime() - new Date(a.postDate).getTime())
   }, [getFilteredPosts, platformFilter, commentsByUrl])
 
-  // Anchor the rolling window to the most recent comment date in the data
+  // Rolling window over POST PUBLISH DATE — "last 7 days" means posts
+  // published in the last 7 days, not old posts that received a new comment.
+  // Anchored to the newest post in the data so a stale dataset never renders
+  // an empty list.
   const effectiveDateRange = useMemo((): DateRange | undefined => {
     if (timeRange === "all" || postsWithSentiment.length === 0) return undefined
 
     let maxDate = new Date(0)
     for (const post of postsWithSentiment) {
-      const d = new Date(post.latestCommentDate)
+      const d = new Date(post.postDate)
       if (d > maxDate) maxDate = d
     }
 
@@ -292,7 +295,7 @@ export function LastWeekPosts({ platformFilter, dateRange }: LastWeekPostsProps)
     if (timeRange === "all" || !effectiveDateRange?.from) return postsWithSentiment
     const cutoff = effectiveDateRange.from.getTime()
     return postsWithSentiment.filter((p) => {
-      const t = new Date(p.latestCommentDate).getTime()
+      const t = new Date(p.postDate).getTime()
       return !Number.isNaN(t) && t >= cutoff
     })
   }, [postsWithSentiment, timeRange, effectiveDateRange])
