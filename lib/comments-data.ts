@@ -448,6 +448,23 @@ export function getCommentsByProduct(
   return byProduct
 }
 
+// Collapse near-identical texts (residual cross-source duplicates from the
+// static import era), keeping the highest-engagement copy.
+function dedupeByText(comments: Comment[]): Comment[] {
+  const seen = new Map<string, Comment>()
+  for (const c of comments) {
+    const key = (c.text || "")
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}]+/gu, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 120)
+    const prev = seen.get(key)
+    if (!prev || (c.likes || 0) > (prev.likes || 0)) seen.set(key, c)
+  }
+  return [...seen.values()]
+}
+
 export function getTopComments(
   limit: number = 10,
   platformFilter?: CommentPlatform[],
@@ -455,8 +472,7 @@ export function getTopComments(
   segmentation?: Segmentation,
 ): Comment[] {
   const comments = getComments(platformFilter, dateRange, segmentation)
-  return comments
-    .filter((c) => c.text.length > 10)
+  return dedupeByText(comments.filter((c) => c.text.length > 10))
     .sort((a, b) => b.likes - a.likes)
     .slice(0, limit)
 }
@@ -476,8 +492,7 @@ export function getTopPositiveReviews(
   segmentation?: Segmentation,
 ): Comment[] {
   const comments = getComments(platformFilter, dateRange, segmentation)
-  return comments
-    .filter((c) => c.sentiment === "positive" && c.text.length > 20)
+  return dedupeByText(comments.filter((c) => c.sentiment === "positive" && c.text.length > 20))
     .sort((a, b) => b.likes - a.likes)
     .slice(0, limit)
 }
@@ -489,8 +504,7 @@ export function getTopNegativeReviews(
   segmentation?: Segmentation,
 ): Comment[] {
   const comments = getComments(platformFilter, dateRange, segmentation)
-  return comments
-    .filter((c) => c.sentiment === "negative" && c.text.length > 20)
+  return dedupeByText(comments.filter((c) => c.sentiment === "negative" && c.text.length > 20))
     .sort((a, b) => b.likes - a.likes)
     .slice(0, limit)
 }

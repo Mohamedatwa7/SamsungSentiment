@@ -62,29 +62,38 @@ function fallbackSentiment(text: string): "positive" | "negative" | "neutral" {
 }
 
 // Classify a post by department/product for segmentation when not stored.
+// Word-boundary patterns, NOT substring matches: a football caption saying
+// "watch the match" must not classify as Galaxy Watch, "the frame of the
+// shot" must not become a TV, etc.
 function classifyContent(text: string): { department: string; category: string; model: string } {
-  const lowerText = (text || "").toLowerCase()
-  if (lowerText.includes("galaxy s") || lowerText.includes("fold") || lowerText.includes("flip") || lowerText.includes("phone") || lowerText.includes("a5")) {
-    if (lowerText.includes("s24") || lowerText.includes("s25") || lowerText.includes("s26")) {
-      return { department: "MX", category: "Smartphone", model: lowerText.includes("ultra") ? "Galaxy S Series Ultra" : "Galaxy S Series" }
-    }
-    if (lowerText.includes("fold")) return { department: "MX", category: "Smartphone", model: "Galaxy Z Fold" }
-    if (lowerText.includes("flip")) return { department: "MX", category: "Smartphone", model: "Galaxy Z Flip" }
-    if (lowerText.includes("a5")) return { department: "MX", category: "Smartphone", model: "Galaxy A Series" }
+  const t = (text || "").toLowerCase()
+
+  // Specific devices first (most precise signals win)
+  if (/galaxy\s?watch|watch\s?\d|smartwatch/.test(t))
+    return { department: "MX", category: "Wearable", model: "Galaxy Watch" }
+  if (/\bbuds\b|galaxy\s?buds/.test(t))
+    return { department: "MX", category: "Wearable", model: "Galaxy Buds" }
+  if (/galaxy\s?ring/.test(t))
+    return { department: "MX", category: "Wearable", model: "Galaxy Ring" }
+  if (/galaxy\s?tab|\btab\s?s\d/.test(t))
+    return { department: "MX", category: "Tablet", model: "Galaxy Tab" }
+
+  if (/\bs2[4-6]\b|galaxy\s?s2[4-6]/.test(t)) {
+    return { department: "MX", category: "Smartphone", model: /ultra/.test(t) ? "Galaxy S Series Ultra" : "Galaxy S Series" }
+  }
+  if (/\bz?\s?fold\b|trifold/.test(t)) return { department: "MX", category: "Smartphone", model: "Galaxy Z Fold" }
+  if (/\bz?\s?flip\b/.test(t)) return { department: "MX", category: "Smartphone", model: "Galaxy Z Flip" }
+  if (/galaxy\s?a\d{2}\b|\bgalaxya\d{2}\b|#galaxya\b|galaxy\s?a\b/.test(t))
+    return { department: "MX", category: "Smartphone", model: "Galaxy A Series" }
+  if (/galaxy\s?s\b|\bphone\b|smartphone/.test(t))
     return { department: "MX", category: "Smartphone", model: "Galaxy Smartphone" }
-  }
-  if (lowerText.includes("watch") || lowerText.includes("buds") || lowerText.includes("ring")) {
-    if (lowerText.includes("watch")) return { department: "MX", category: "Wearable", model: "Galaxy Watch" }
-    if (lowerText.includes("buds")) return { department: "MX", category: "Wearable", model: "Galaxy Buds" }
-    if (lowerText.includes("ring")) return { department: "MX", category: "Wearable", model: "Galaxy Ring" }
-    return { department: "MX", category: "Wearable", model: "Galaxy Wearable" }
-  }
-  if (lowerText.includes("tv") || lowerText.includes("neo qled") || lowerText.includes("oled") || lowerText.includes("frame")) {
+
+  if (/\btv\b|neo\s?qled|\bqled\b|\boled\b|the\s?frame\b|micro\s?(led|rgb)|soundbar|crystal\s?uhd/.test(t))
     return { department: "VD", category: "TV", model: "Samsung TV" }
-  }
-  if (lowerText.includes("fridge") || lowerText.includes("washer") || lowerText.includes("bespoke") || lowerText.includes("refrigerator")) {
+
+  if (/fridge|refrigerator|washer|washing\s?machine|dishwasher|\bbespoke\b|air\s?conditioner|vacuum/.test(t))
     return { department: "DA", category: "Home Appliance", model: "Bespoke Appliance" }
-  }
+
   return { department: "Brand", category: "Other", model: "General" }
 }
 
