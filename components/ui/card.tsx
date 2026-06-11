@@ -3,13 +3,13 @@ import * as React from 'react'
 import { cn } from '@/lib/utils'
 
 function Card({ className, ...props }: React.ComponentProps<'div'>) {
-  // Executive Minimal: sections are unboxed — no background, border or shadow.
-  // A hairline rule above each section does the structural work.
+  // Signal Dark: every section is a translucent glass panel floating over the
+  // ambient background — hairline border, inner highlight, soft glow on hover.
   return (
     <div
       data-slot="card"
       className={cn(
-        'text-card-foreground rule-t flex flex-col gap-6 bg-transparent py-8',
+        'text-card-foreground glass-panel flex flex-col gap-6 py-6',
         className,
       )}
       {...props}
@@ -22,7 +22,7 @@ function CardHeader({ className, ...props }: React.ComponentProps<'div'>) {
     <div
       data-slot="card-header"
       className={cn(
-        '@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-2 px-0 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6',
+        '@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-2 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6',
         className,
       )}
       {...props}
@@ -34,7 +34,7 @@ function CardTitle({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
       data-slot="card-title"
-      className={cn('display-title text-xl leading-none', className)}
+      className={cn('text-base font-semibold tracking-tight leading-none', className)}
       {...props}
     />
   )
@@ -67,7 +67,7 @@ function CardContent({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
       data-slot="card-content"
-      className={cn('px-0', className)}
+      className={cn('px-6', className)}
       {...props}
     />
   )
@@ -77,7 +77,7 @@ function CardFooter({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
       data-slot="card-footer"
-      className={cn('flex items-center px-0 [.border-t]:pt-6', className)}
+      className={cn('flex items-center px-6 [.border-t]:pt-6', className)}
       {...props}
     />
   )

@@ -2,31 +2,20 @@
 
 import Link from "next/link"
 import Image from "next/image"
-import { LayoutDashboard, MessageSquareText, ArrowRight, Star, ShoppingCart } from "lucide-react"
+import { LayoutDashboard, MessageSquareText, ArrowRight, Star } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { useTheme } from "next-themes"
-import { useEffect, useState } from "react"
-import { Moon, Sun } from "lucide-react"
 
 export default function HomePage() {
-  const { theme, setTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       {/* Header */}
-      <header className="sticky top-0 z-10 border-b border-border bg-background">
+      <header className="sticky top-0 z-10 border-b border-white/[0.06] bg-background/70 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-6">
           <div className="flex items-center gap-3">
-            <Image 
-              src="/images/samsung-logo.jpg" 
-              alt="Samsung" 
-              width={120} 
+            <Image
+              src="/images/samsung-logo.jpg"
+              alt="Samsung"
+              width={120}
               height={24}
               className="dark:invert"
               style={{ width: 'auto', height: '24px' }}
@@ -37,21 +26,6 @@ export default function HomePage() {
               </span>
             </div>
           </div>
-          {mounted && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="rounded-full transition-colors hover:bg-muted"
-            >
-              {theme === "dark" ? (
-                <Sun className="h-5 w-5" />
-              ) : (
-                <Moon className="h-5 w-5" />
-              )}
-              <span className="sr-only">Toggle theme</span>
-            </Button>
-          )}
         </div>
       </header>
 
@@ -59,8 +33,9 @@ export default function HomePage() {
       <main className="mx-auto max-w-5xl px-6 py-20">
         <div className="accent-top rule-b mb-14 pb-12 pt-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
           <p className="section-label mb-4">Sentiment AI</p>
-          <h1 className="display-title text-4xl md:text-6xl text-foreground">
-            Customer Sentiment Intelligence
+          <h1 className="display-title text-4xl md:text-6xl">
+            <span className="text-gradient">Customer Sentiment</span>{" "}
+            <span className="text-foreground">Intelligence</span>
           </h1>
           <p className="mt-5 max-w-2xl text-lg text-muted-foreground">
             Analyze customer feedback from Samsung Gulf social media channels

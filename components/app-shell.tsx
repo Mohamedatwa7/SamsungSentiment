@@ -8,14 +8,9 @@ import {
   LayoutDashboard,
   MessageSquareText,
   Home,
-  Moon,
-  Sun,
   Star,
-  ShoppingCart,
-  Settings,
   LogOut,
 } from "lucide-react"
-import { useTheme } from "next-themes"
 
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
@@ -59,13 +54,7 @@ const navItems = [
 ]
 
 function TopNav() {
-  const { theme, setTheme } = useTheme()
-  const [mounted, setMounted] = React.useState(false)
   const router = useRouter()
-
-  React.useEffect(() => {
-    setMounted(true)
-  }, [])
 
   const handleLogout = async () => {
     // Clear bypass cookie for hardcoded users
@@ -77,36 +66,26 @@ function TopNav() {
   }
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b border-border bg-background px-4">
+    <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b border-white/[0.06] bg-background/70 px-4 backdrop-blur-xl">
       <SidebarTrigger className="-ml-1" />
-      
+
       <div className="flex items-center gap-2">
-        {mounted && (
-          <>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="rounded-full"
-            >
-              {theme === "dark" ? (
-                <Sun className="h-5 w-5" />
-              ) : (
-                <Moon className="h-5 w-5" />
-              )}
-              <span className="sr-only">Toggle theme</span>
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleLogout}
-              className="rounded-full text-muted-foreground hover:text-foreground"
-            >
-              <LogOut className="h-5 w-5" />
-              <span className="sr-only">Logout</span>
-            </Button>
-          </>
-        )}
+        <span className="hidden items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-1 text-[11px] font-medium tracking-wide text-muted-foreground sm:flex">
+          <span className="relative flex h-1.5 w-1.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-positive opacity-60" />
+            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-positive" />
+          </span>
+          LIVE DATA
+        </span>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleLogout}
+          className="rounded-full text-muted-foreground hover:text-foreground"
+        >
+          <LogOut className="h-5 w-5" />
+          <span className="sr-only">Logout</span>
+        </Button>
       </div>
     </header>
   )
@@ -180,7 +159,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset className="bg-background">
+      {/* Transparent so the body's ambient aurora gradient shows through */}
+      <SidebarInset className="bg-transparent">
         <TopNav />
         <main className="flex-1 overflow-auto">
           {children}

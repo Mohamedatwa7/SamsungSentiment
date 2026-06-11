@@ -58,7 +58,7 @@ function DashboardContent() {
       {/* Editorial masthead */}
       <div className="animate-in fade-in slide-in-from-bottom-2 pt-4 duration-500">
         <p className="section-label">Samsung Gulf · Social Intelligence</p>
-        <h1 className="display-title mt-2 text-3xl md:text-4xl">Social Reviews Dashboard</h1>
+        <h1 className="display-title text-gradient mt-2 text-3xl md:text-4xl">Social Reviews Dashboard</h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground md:text-base">
           Instagram, TikTok, Facebook &amp; X comments segmented by department, product and feature
         </p>
@@ -66,7 +66,7 @@ function DashboardContent() {
 
       {/* Slim hairline toolbar — pins below the top nav on scroll */}
       {activeTab === "overview" && (
-        <div className="sticky top-14 z-20 -mx-4 border-y border-border bg-background px-4 py-2.5 md:-mx-6 md:px-6">
+        <div className="sticky top-14 z-20 -mx-4 border-y border-white/[0.06] bg-background/70 px-4 py-2.5 backdrop-blur-xl md:-mx-6 md:px-6">
           <div className="flex flex-wrap items-center gap-2 md:gap-3">
             <SegmentationFilter value={segmentation} onChange={setSegmentation} />
             <DateFilter

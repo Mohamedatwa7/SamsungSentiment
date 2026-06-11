@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter, Geist_Mono, Source_Serif_4 } from 'next/font/google'
+import { Inter, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { ThemeProvider } from '@/components/theme-provider'
 import './globals.css'
@@ -9,12 +9,6 @@ const inter = Inter({
   variable: '--font-inter'
 });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
-// Editorial display face for headlines and large numerals (board-report look).
-const sourceSerif = Source_Serif_4({
-  subsets: ["latin"],
-  variable: '--font-source-serif',
-  axes: ['opsz'],
-});
 
 export const metadata: Metadata = {
   title: 'Samsung Customer Sentiment Intelligence',
@@ -23,10 +17,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#1428a0' },
-    { media: '(prefers-color-scheme: dark)', color: '#0a1628' },
-  ],
+  themeColor: '#0a0c13',
 }
 
 export default function RootLayout({
@@ -35,12 +26,15 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} ${sourceSerif.variable} font-sans antialiased`}>
+    <html lang="en" className="dark" suppressHydrationWarning>
+      <body className={`${inter.variable} font-sans antialiased`}>
+        {/* Dark-only design system — the palette is identical for :root and
+            .dark, and the provider is pinned so no toggle can flip it. */}
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
-          enableSystem
+          defaultTheme="dark"
+          enableSystem={false}
+          forcedTheme="dark"
           disableTransitionOnChange
         >
           {children}
