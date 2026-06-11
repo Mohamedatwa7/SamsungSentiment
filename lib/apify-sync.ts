@@ -10,10 +10,13 @@ const APIFY_TOKEN = process.env.APIFY_API_TOKEN
 const SCHEDULED_ACTORS = {
   twitter: "Fo9GoU5wC270BgcBr",        // Twitter/X scraper for @samsunggulf
   facebook: "KoJrdxJCTtpon81KY",       // Facebook scraper for SamsungGulf
-  tiktok: "Zk4NL09KuDccV11Z4",         // TikTok scraper for @samsunggulf
+  tiktok: "Zk4NL09KuDccV11Z4",         // TikTok COMMENTS scraper for @samsunggulf
+  tiktokPosts: "GdWCkxBtKWOsKjdch",    // TikTok posts/videos scraper for @samsunggulf
   instagramComments: "dIKFJ95TN8YclK2no", // Instagram comments scraper
   instagram: "nH2AHrwxeTRJoN5hX",      // Instagram posts scraper for samsunggulf
 }
+
+const SCHEDULE_ID = "AzNWcc9ZQxFcie6el"
 
 interface ApifyRun {
   id: string
@@ -119,15 +122,25 @@ export async function getDatasetItems<T>(datasetId: string, maxItems = 50000): P
   return all
 }
 
+// How many recent runs to ingest per sync. Each daily Apify run only contains
+// that day's scrape, so reading several runs back-fills any days missed
+// between syncs (the upsert dedupes overlap).
+const RUNS_TO_SYNC = 7
+
+// Items from the last `runCount` succeeded runs, oldest run first so that when
+// the same item appears in several runs, the newest scrape wins the upsert.
+async function getRecentRunsItems<T>(actorId: string, runCount = RUNS_TO_SYNC): Promise<T[]> {
+  const runs = await getLatestRuns(actorId, runCount)
+  const all: T[] = []
+  for (const run of runs.reverse()) {
+    all.push(...(await getDatasetItems<T>(run.defaultDatasetId)))
+  }
+  return all
+}
+
 export async function syncTwitterPosts() {
   const supabase = await createClient()
-  const runs = await getLatestRuns(SCHEDULED_ACTORS.twitter, 1)
-  
-  console.log("[v0] Twitter runs:", runs.length, runs[0]?.defaultDatasetId)
-  
-  if (runs.length === 0) return { inserted: 0, updated: 0, total: 0 }
-  
-  const posts = await getDatasetItems<TwitterPost>(runs[0].defaultDatasetId)
+  const posts = await getRecentRunsItems<TwitterPost>(SCHEDULED_ACTORS.twitter)
   let inserted = 0, updated = 0
   const errors: string[] = []
   
@@ -202,11 +215,7 @@ export async function syncTwitterPosts() {
 
 export async function syncInstagramPosts() {
   const supabase = await createClient()
-  const runs = await getLatestRuns(SCHEDULED_ACTORS.instagram, 1)
-  
-  if (runs.length === 0) return { inserted: 0, updated: 0 }
-  
-  const posts = await getDatasetItems<InstagramPost>(runs[0].defaultDatasetId)
+  const posts = await getRecentRunsItems<InstagramPost>(SCHEDULED_ACTORS.instagram)
   let inserted = 0
   
   for (const post of posts) {
@@ -236,12 +245,9 @@ export async function syncInstagramPosts() {
 // TikTok actor returns COMMENTS, not posts
 export async function syncTikTokPosts() {
   const supabase = await createClient()
-  const runs = await getLatestRuns(SCHEDULED_ACTORS.tiktok, 1)
-  
-  if (runs.length === 0) return { inserted: 0, updated: 0 }
-  
+
   // The TikTok actor scrapes comments, not posts
-  const comments = await getDatasetItems<{
+  const rawComments = await getRecentRunsItems<{
     video_url: string
     comment_id: string
     comment: string
@@ -251,8 +257,16 @@ export async function syncTikTokPosts() {
     author_username: string
     author_display_name: string
     comment_language: string
-  }>(runs[0].defaultDatasetId)
-  
+  }>(SCHEDULED_ACTORS.tiktok)
+
+  // Consecutive runs re-scrape the same recent videos, so dedupe by comment id
+  // (newest scrape wins) before hitting Supabase.
+  const byId = new Map<string, (typeof rawComments)[number]>()
+  for (const c of rawComments) {
+    if (c.comment_id) byId.set(c.comment_id, c)
+  }
+  const comments = [...byId.values()]
+
   let inserted = 0
   const errors: string[] = []
   
@@ -324,13 +338,54 @@ export async function syncTikTokPosts() {
   return { inserted, total: comments.length }
 }
 
+// TikTok posts scraper (clockworks/tiktok-scraper) — real video data (caption,
+// plays, likes) that overwrites the stub rows synthesized from comments.
+export async function syncTikTokVideos() {
+  const supabase = await createClient()
+  const posts = await getRecentRunsItems<TikTokPost>(SCHEDULED_ACTORS.tiktokPosts)
+  let inserted = 0
+  const errors: string[] = []
+
+  for (const post of posts) {
+    const p = post as any
+    if (!post.id) continue
+
+    const { error } = await supabase
+      .from("social_posts")
+      .upsert({
+        platform: "tiktok",
+        external_id: String(post.id),
+        post_url: post.webVideoUrl || `https://www.tiktok.com/@${p.authorMeta?.name || "samsunggulf"}/video/${post.id}`,
+        caption: post.text || "",
+        media_type: "video",
+        media_url: p.videoMeta?.coverUrl || undefined,
+        likes_count: post.diggCount || 0,
+        comments_count: post.commentCount || 0,
+        shares_count: post.shareCount || 0,
+        views_count: post.playCount || 0,
+        published_at: p.createTimeISO
+          ? new Date(p.createTimeISO).toISOString()
+          : post.createTime
+            ? new Date(post.createTime * 1000).toISOString()
+            : new Date().toISOString(),
+        scraped_at: new Date().toISOString(),
+        raw_data: post,
+      }, { onConflict: "platform,external_id" })
+
+    if (error) errors.push(error.message)
+    else inserted++
+  }
+
+  if (errors.length > 0) {
+    console.log("[v0] TikTok videos sync errors (first 5):", errors.slice(0, 5))
+  }
+
+  return { inserted, total: posts.length }
+}
+
 export async function syncFacebookPosts() {
   const supabase = await createClient()
-  const runs = await getLatestRuns(SCHEDULED_ACTORS.facebook, 1)
-  
-  if (runs.length === 0) return { inserted: 0, updated: 0 }
-  
-  const posts = await getDatasetItems<FacebookPost>(runs[0].defaultDatasetId)
+  const posts = await getRecentRunsItems<FacebookPost>(SCHEDULED_ACTORS.facebook)
   let inserted = 0
   
   for (const post of posts) {
@@ -358,13 +413,7 @@ export async function syncFacebookPosts() {
 
 export async function syncInstagramComments() {
   const supabase = await createClient()
-  const runs = await getLatestRuns(SCHEDULED_ACTORS.instagramComments, 1)
-  
-  console.log("[v0] Instagram Comments runs:", runs.length, runs[0]?.defaultDatasetId)
-  
-  if (runs.length === 0) return { inserted: 0, updated: 0, total: 0 }
-  
-  const comments = await getDatasetItems<{
+  const comments = await getRecentRunsItems<{
     id: string
     text: string
     ownerUsername: string
@@ -372,8 +421,8 @@ export async function syncInstagramComments() {
     likesCount: number
     postUrl: string
     postId?: string
-  }>(runs[0].defaultDatasetId)
-  
+  }>(SCHEDULED_ACTORS.instagramComments)
+
   console.log("[v0] Instagram Comments fetched:", comments.length)
   if (comments.length > 0) {
     console.log("[v0] Instagram Comments first item keys:", Object.keys(comments[0]))
@@ -382,8 +431,12 @@ export async function syncInstagramComments() {
   
   let inserted = 0
   const errors: string[] = []
-  
-  for (const comment of comments) {
+
+  // Consecutive runs re-scrape the same recent posts; iterate newest run first
+  // and skip ids already handled so each comment is upserted once per sync.
+  const seenIds = new Set<string>()
+
+  for (const comment of [...comments].reverse()) {
     // Instagram Comments actor has nested structure with postInfo
     const rawComment = comment as Record<string, unknown>
     const postInfo = rawComment.postInfo as Record<string, unknown> | undefined
@@ -407,7 +460,10 @@ export async function syncInstagramComments() {
       errors.push("No comment id found: " + JSON.stringify(Object.keys(comment)))
       continue
     }
-    
+    if (seenIds.has(String(commentId))) continue
+    seenIds.add(String(commentId))
+
+
     const { error } = await supabase
       .from("social_comments")
       .upsert({
@@ -444,6 +500,8 @@ export async function syncAllPlatforms() {
     instagram: await syncInstagramPosts(),
     instagramComments: await syncInstagramComments(),
     tiktok: await syncTikTokPosts(),
+    // After comments, so real video data overwrites the comment-derived stubs.
+    tiktokVideos: await syncTikTokVideos(),
     facebook: await syncFacebookPosts(),
   }
 
@@ -526,11 +584,39 @@ export async function getAllScheduledRuns() {
   return allRuns
 }
 
-// Trigger a manual run of the schedule
+// Trigger a manual run of every actor in the schedule. Apify has no
+// "run schedule now" endpoint, so start each actor with the input (and charge
+// cap) stored on the schedule's actions.
 export async function triggerScheduleRun() {
-  const response = await fetch(
-    `https://api.apify.com/v2/schedules/AzNWcc9ZQxFcie6el/run?token=${APIFY_TOKEN}`,
-    { method: "POST" }
-  )
-  return response.json()
+  const schedRes = await fetch(`https://api.apify.com/v2/schedules/${SCHEDULE_ID}?token=${APIFY_TOKEN}`)
+  const sched = await schedRes.json()
+  const actions: Array<{
+    actorId: string
+    runInput?: { body: string; contentType: string }
+    runOptions?: { maxTotalChargeUsd?: number; timeoutSecs?: number }
+  }> = sched.data?.actions || []
+
+  const started: Array<{ actorId: string; runId?: string; error?: string }> = []
+  for (const action of actions) {
+    const params = new URLSearchParams({ token: APIFY_TOKEN || "" })
+    if (action.runOptions?.maxTotalChargeUsd) {
+      params.set("maxTotalChargeUsd", String(action.runOptions.maxTotalChargeUsd))
+    }
+    try {
+      const res = await fetch(`https://api.apify.com/v2/acts/${action.actorId}/runs?${params}`, {
+        method: "POST",
+        headers: { "Content-Type": action.runInput?.contentType || "application/json" },
+        body: action.runInput?.body || "{}",
+      })
+      const out = await res.json()
+      started.push(
+        res.ok
+          ? { actorId: action.actorId, runId: out.data?.id }
+          : { actorId: action.actorId, error: out.error?.message || `HTTP ${res.status}` },
+      )
+    } catch (e) {
+      started.push({ actorId: action.actorId, error: e instanceof Error ? e.message : String(e) })
+    }
+  }
+  return { started }
 }

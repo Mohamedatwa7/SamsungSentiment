@@ -213,8 +213,11 @@ export async function processAndNormalizeData(): Promise<{
       features: features,
     })
     
-    // Process comments from raw_data if available (Instagram posts often have comments embedded)
-    const embeddedComments = post.raw_data?.latestComments || post.raw_data?.comments || []
+    // Process comments from raw_data if available (Instagram posts often have
+    // comments embedded). On Facebook posts `raw_data.comments` is a count
+    // (number), not an array, so only accept array shapes.
+    const rawEmbedded = post.raw_data?.latestComments || post.raw_data?.comments
+    const embeddedComments = Array.isArray(rawEmbedded) ? rawEmbedded : []
     for (const comment of embeddedComments) {
       const sentimentResult = analyzeSentiment(comment.text || "")
       const commentFeatures = extractFeatures(comment.text || "")

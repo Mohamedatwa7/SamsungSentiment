@@ -159,7 +159,13 @@ export async function POST(request: NextRequest) {
 //    Cron requests are identified by the x-vercel-cron header / CRON_SECRET bearer.
 // 2. The admin page -> return sync status and recent runs.
 export async function GET(request: NextRequest) {
-  const isVercelCron = request.headers.get("x-vercel-cron") === "1"
+  // Vercel cron requests carry the x-vercel-cron-schedule header and a
+  // vercel-cron/* user agent; if CRON_SECRET is set, Vercel also sends it as a
+  // bearer token. (There is no `x-vercel-cron` header — the old check never
+  // matched, so the daily cron silently returned status instead of syncing.)
+  const isVercelCron =
+    request.headers.get("x-vercel-cron-schedule") !== null ||
+    (request.headers.get("user-agent") || "").startsWith("vercel-cron")
   const cronSecret = process.env.CRON_SECRET
   const hasCronSecret =
     !!cronSecret && request.headers.get("authorization") === `Bearer ${cronSecret}`
