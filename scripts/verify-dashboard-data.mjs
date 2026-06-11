@@ -1,7 +1,8 @@
 // Hit /api/comments like the dashboard does and verify the joins that feed
 // "Recent Activity" (posts with comments per platform) and link integrity.
-// Run with dev server up: node scripts/verify-dashboard-data.mjs
-const res = await fetch("http://localhost:3000/api/comments")
+// Run: node scripts/verify-dashboard-data.mjs [baseUrl]  (default localhost:3000)
+const base = process.argv[2] || "http://localhost:3000"
+const res = await fetch(`${base}/api/comments`)
 const { posts, comments, meta } = await res.json()
 
 console.log(`posts: ${posts.length}  comments: ${comments.length}`)
