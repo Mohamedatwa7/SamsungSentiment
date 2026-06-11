@@ -19,7 +19,8 @@ import { PlatformFilter, usePlatformFilter } from "@/components/dashboard/platfo
 import { DateFilter, useDateFilter } from "@/components/dashboard/date-filter"
 import { DashboardExportButton } from "@/components/dashboard/export-button"
 import { SegmentationFilter, SegmentationProvider, useSegmentation } from "@/components/dashboard/segmentation-filter"
-import { DashboardDataProvider } from "@/contexts/dashboard-data-context"
+import { DashboardDataProvider, useDashboardData } from "@/contexts/dashboard-data-context"
+import { LoadingScreen } from "@/components/dashboard/loading-screen"
 
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -38,6 +39,13 @@ function DashboardContent() {
   // Default to last 60 days
   const { dateRange, setDays, setCustomRange, clearDateRange } = useDateFilter(60)
   const { segmentation, setSegmentation } = useSegmentation()
+  const { isLoading } = useDashboardData()
+
+  // The full corpus takes a while on a cold cache — show a branded loading
+  // experience instead of a page of empty zero-value charts.
+  if (isLoading) {
+    return <LoadingScreen />
+  }
 
   // Convert null to undefined for components that expect DateRange | undefined.
   const dateRangeProp = dateRange ?? undefined

@@ -3,7 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import {
   LayoutDashboard,
   MessageSquareText,
@@ -14,44 +14,81 @@ import {
 
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
-import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarHeader,
-  SidebarInset,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar"
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+
 const navItems = [
-  {
-    title: "Home",
-    href: "/",
-    icon: Home,
-  },
-  {
-    title: "Social Reviews Dashboard",
-    href: "/dashboard",
-    icon: LayoutDashboard,
-  },
-  {
-    title: "S.com Reviews",
-    href: "/reviews",
-    icon: Star,
-  },
-  {
-    title: "AI Chatbot",
-    href: "/chatbot",
-    icon: MessageSquareText,
-  },
+  { title: "Home", href: "/", icon: Home },
+  { title: "Social Reviews Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { title: "S.com Reviews", href: "/reviews", icon: Star },
+  { title: "AI Chatbot", href: "/chatbot", icon: MessageSquareText },
 ]
+
+/* Floating glass dock — vertical rail on desktop (left, vertically centered),
+   horizontal pill docked to the bottom on mobile. Replaces the conventional
+   sidebar entirely. */
+function FloatingDock() {
+  const pathname = usePathname()
+
+  return (
+    <TooltipProvider delayDuration={150}>
+      <nav
+        className={cn(
+          "fixed z-40 flex items-center gap-1.5 border border-white/[0.08] bg-card/70 p-2 backdrop-blur-xl",
+          "shadow-[0_8px_32px_-8px_rgba(0,0,0,0.6)]",
+          // mobile: bottom-centered horizontal pill
+          "bottom-4 left-1/2 -translate-x-1/2 flex-row rounded-2xl",
+          // desktop: left-centered vertical rail
+          "lg:bottom-auto lg:left-4 lg:top-1/2 lg:-translate-x-0 lg:-translate-y-1/2 lg:flex-col lg:rounded-3xl",
+        )}
+      >
+        <Link
+          href="/"
+          className="mb-0 mr-1.5 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-accent text-sm font-black tracking-tighter text-white shadow-[0_0_18px_var(--glow-primary)] lg:mb-1.5 lg:mr-0"
+          aria-label="Samsung Sentiment AI"
+        >
+          S
+        </Link>
+        <div className="h-6 w-px bg-white/[0.08] lg:h-px lg:w-6" />
+        {navItems.map((item) => {
+          const active = pathname === item.href
+          return (
+            <Tooltip key={item.href}>
+              <TooltipTrigger asChild>
+                <Link
+                  href={item.href}
+                  aria-label={item.title}
+                  className={cn(
+                    "relative flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200",
+                    active
+                      ? "bg-primary/20 text-foreground shadow-[0_0_16px_var(--glow-primary)]"
+                      : "text-muted-foreground hover:bg-white/[0.06] hover:text-foreground",
+                  )}
+                >
+                  <item.icon className="h-[18px] w-[18px]" />
+                  {active && (
+                    <span className="absolute -left-2 hidden h-5 w-[3px] rounded-full bg-gradient-to-b from-primary to-accent lg:block" />
+                  )}
+                  {active && (
+                    <span className="absolute -bottom-2 block h-[3px] w-5 rounded-full bg-gradient-to-r from-primary to-accent lg:hidden" />
+                  )}
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="right" sideOffset={10} className="hidden lg:block">
+                {item.title}
+              </TooltipContent>
+            </Tooltip>
+          )
+        })}
+      </nav>
+    </TooltipProvider>
+  )
+}
 
 function TopNav() {
   const router = useRouter()
@@ -59,15 +96,24 @@ function TopNav() {
   const handleLogout = async () => {
     // Clear bypass cookie for hardcoded users
     document.cookie = 'samsung_auth_bypass=;path=/;max-age=0'
-    // Sign out from Supabase
     const supabase = createClient()
     await supabase.auth.signOut()
     router.push('/')
   }
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b border-white/[0.06] bg-background/70 px-4 backdrop-blur-xl">
-      <SidebarTrigger className="-ml-1" />
+    <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b border-white/[0.06] bg-background/70 px-4 backdrop-blur-xl lg:pl-24">
+      <Link href="/" className="flex items-center gap-3">
+        <Image
+          src="/images/samsung-logo.jpg"
+          alt="Samsung"
+          width={100}
+          height={20}
+          className="dark:invert"
+          style={{ width: 'auto', height: '18px' }}
+        />
+        <span className="section-label hidden sm:inline">Sentiment AI</span>
+      </Link>
 
       <div className="flex items-center gap-2">
         <span className="hidden items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-1 text-[11px] font-medium tracking-wide text-muted-foreground sm:flex">
@@ -91,81 +137,15 @@ function TopNav() {
   )
 }
 
-function AppSidebar() {
-  const pathname = usePathname()
-
-  return (
-    <Sidebar collapsible="icon" className="border-r-0">
-      <SidebarHeader className="border-b border-sidebar-border px-4 py-4">
-        <Link href="/" className="flex items-center gap-3">
-          <div className="flex h-9 w-auto items-center justify-center group-data-[collapsible=icon]:w-9">
-            <Image 
-              src="/images/samsung-logo.jpg" 
-              alt="Samsung" 
-              width={120} 
-              height={24}
-              className="dark:invert"
-              style={{ width: 'auto', height: 'auto' }}
-            />
-          </div>
-          <div className="flex flex-col group-data-[collapsible=icon]:hidden">
-            <span className="text-[10px] text-sidebar-foreground/60 uppercase tracking-wider">
-              Sentiment AI
-            </span>
-          </div>
-        </Link>
-      </SidebarHeader>
-
-      <SidebarContent className="px-2 py-4">
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {navItems.map((item) => (
-                <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname === item.href}
-                    tooltip={item.title}
-                    className="h-11 gap-3"
-                  >
-                    <Link href={item.href}>
-                      <item.icon className="h-5 w-5" />
-                      <span className="font-medium">{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </SidebarContent>
-
-      <SidebarFooter className="border-t border-sidebar-border p-4">
-        <div className="flex items-center gap-3 group-data-[collapsible=icon]:justify-center">
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-positive opacity-60" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-positive" />
-          </span>
-          <span className="text-xs text-sidebar-foreground/60 group-data-[collapsible=icon]:hidden">
-            System Online
-          </span>
-        </div>
-      </SidebarFooter>
-    </Sidebar>
-  )
-}
-
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      {/* Transparent so the body's ambient aurora gradient shows through */}
-      <SidebarInset className="bg-transparent">
-        <TopNav />
-        <main className="flex-1 overflow-auto">
-          {children}
-        </main>
-      </SidebarInset>
-    </SidebarProvider>
+    <div className="min-h-screen">
+      <FloatingDock />
+      <TopNav />
+      {/* Left padding clears the dock on desktop; bottom padding clears it on mobile */}
+      <main className="pb-24 lg:pb-0 lg:pl-24 lg:pr-4">
+        {children}
+      </main>
+    </div>
   )
 }

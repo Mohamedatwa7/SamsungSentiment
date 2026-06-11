@@ -198,16 +198,26 @@ export async function GET(_request: NextRequest) {
 
     const analyzed = supabaseComments.filter((c: any) => c.sentiment_analyzed_at).length
 
-    return NextResponse.json({
-      posts,
-      comments,
-      meta: {
-        totalPosts: posts.length,
-        totalComments: comments.length,
-        analyzedComments: analyzed,
-        unanalyzedComments: comments.length - analyzed,
+    return NextResponse.json(
+      {
+        posts,
+        comments,
+        meta: {
+          totalPosts: posts.length,
+          totalComments: comments.length,
+          analyzedComments: analyzed,
+          unanalyzedComments: comments.length - analyzed,
+        },
       },
-    })
+      {
+        headers: {
+          // Vercel edge cache: data only changes on the nightly sync, so serve
+          // cached responses for 5 min and stale-while-revalidate for an hour.
+          // Only the first visitor after expiry pays the full ~15s DB read.
+          "Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600",
+        },
+      },
+    )
   } catch (error) {
     console.error("[v0] Error fetching comments:", error)
     return NextResponse.json({ error: "Failed to fetch data" }, { status: 500 })
