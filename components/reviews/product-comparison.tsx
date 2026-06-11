@@ -137,8 +137,8 @@ export function ProductComparison({ s26Metrics, s25Metrics, allReviews }: Produc
   return (
     <div className="grid gap-6">
       {/* Filters Section */}
-      <Card className="border-2 border-primary/20 bg-primary/5">
-        <CardContent className="p-4">
+      <Card className="py-6">
+        <CardContent>
           <div className="flex flex-col gap-4">
             {/* Model Variant Filter */}
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -147,7 +147,7 @@ export function ProductComparison({ s26Metrics, s25Metrics, allReviews }: Produc
                 <p className="text-sm text-muted-foreground">Select specific S26 vs S25 model comparison</p>
               </div>
               <Select value={selectedVariant} onValueChange={setSelectedVariant}>
-                <SelectTrigger className="w-[200px] border-2 border-primary/50 bg-background">
+                <SelectTrigger className="w-[200px]">
                   <SelectValue placeholder="Select comparison" />
                 </SelectTrigger>
                 <SelectContent>
@@ -341,54 +341,38 @@ export function ProductComparison({ s26Metrics, s25Metrics, allReviews }: Produc
       </Card>
 
       {/* YoY Summary Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="accent-top hover-lift animate-in fade-in slide-in-from-bottom-2 duration-500">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="section-label">{s26Label} Reviews</p>
-                <CountUp value={currentMetrics.total} className="kpi-value text-3xl" />
-              </div>
-              <Badge className="bg-primary">2026</Badge>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="rule-t stat-rail grid grid-cols-1 gap-y-8 pt-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="flex flex-col gap-1.5 px-5 first:pl-0 animate-in fade-in slide-in-from-bottom-2 duration-500">
+          <p className="section-label flex items-center justify-between gap-2">
+            {s26Label} Reviews
+            <Badge className="bg-primary">2026</Badge>
+          </p>
+          <CountUp value={currentMetrics.total} className="kpi-value text-4xl" />
+        </div>
 
-        <Card className="accent-top hover-lift animate-in fade-in slide-in-from-bottom-2 duration-500">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="section-label">{s25Label} Reviews</p>
-                <CountUp value={previousMetrics.total} className="kpi-value text-3xl" />
-              </div>
-              <Badge variant="secondary">2025</Badge>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex flex-col gap-1.5 px-5 first:pl-0 animate-in fade-in slide-in-from-bottom-2 duration-500">
+          <p className="section-label flex items-center justify-between gap-2">
+            {s25Label} Reviews
+            <Badge variant="outline">2025</Badge>
+          </p>
+          <CountUp value={previousMetrics.total} className="kpi-value text-4xl" />
+        </div>
 
-        <Card className="accent-top hover-lift animate-in fade-in slide-in-from-bottom-2 duration-500">
-          <CardContent className="p-4">
-            <div className="flex flex-col gap-1">
-              <p className="section-label">Brand Health Change</p>
-              <div className="flex items-center gap-2">
-                <CountUp value={currentMetrics.brandHealthScore} format={(v) => `${Math.round(v)}`} className="kpi-value text-3xl" />
-                <ChangeIndicator value={changes.brandHealth} suffix=" pts" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex flex-col gap-1.5 px-5 first:pl-0 animate-in fade-in slide-in-from-bottom-2 duration-500">
+          <p className="section-label">Brand Health Change</p>
+          <div className="flex items-baseline gap-2">
+            <CountUp value={currentMetrics.brandHealthScore} format={(v) => `${Math.round(v)}`} className="kpi-value text-4xl" />
+            <ChangeIndicator value={changes.brandHealth} suffix=" pts" />
+          </div>
+        </div>
 
-        <Card className="accent-top hover-lift animate-in fade-in slide-in-from-bottom-2 duration-500">
-          <CardContent className="p-4">
-            <div className="flex flex-col gap-1">
-              <p className="section-label">Rating Change</p>
-              <div className="flex items-center gap-2">
-                <CountUp value={currentMetrics.averageRating} format={(v) => v.toFixed(1)} className="kpi-value text-3xl" />
-                <ChangeIndicator value={changes.avgRating} suffix="" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex flex-col gap-1.5 px-5 first:pl-0 animate-in fade-in slide-in-from-bottom-2 duration-500">
+          <p className="section-label">Rating Change</p>
+          <div className="flex items-baseline gap-2">
+            <CountUp value={currentMetrics.averageRating} format={(v) => v.toFixed(1)} className="kpi-value text-4xl" />
+            <ChangeIndicator value={changes.avgRating} suffix="" />
+          </div>
+        </div>
       </div>
       
       {/* Detailed Comparison */}
@@ -403,7 +387,7 @@ export function ProductComparison({ s26Metrics, s25Metrics, allReviews }: Produc
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="var(--border)" />
+                  <CartesianGrid horizontal={true} vertical={false} stroke="var(--border)" />
                   <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
                   <YAxis type="category" dataKey="name" width={80} tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
                   <Tooltip
@@ -411,16 +395,17 @@ export function ProductComparison({ s26Metrics, s25Metrics, allReviews }: Produc
                     contentStyle={{
                       backgroundColor: "var(--popover)",
                       border: "1px solid var(--border)",
-                      borderRadius: "8px",
+                      borderRadius: "6px",
                       color: "var(--popover-foreground)",
                       fontSize: "12px",
-                      boxShadow: "0 4px 12px rgb(0 0 0 / 0.1)"
+                      padding: "8px 12px",
+                      boxShadow: "none"
                     }}
                   />
-                  <Legend />
-                  <Bar dataKey="Positive" stackId="a" fill="#22c55e" maxBarSize={48} />
-                  <Bar dataKey="Neutral" stackId="a" fill="#6b7280" maxBarSize={48} />
-                  <Bar dataKey="Negative" stackId="a" fill="#ef4444" maxBarSize={48} radius={[0, 4, 4, 0]} />
+                  <Legend iconSize={8} wrapperStyle={{ fontSize: "12px", color: "var(--muted-foreground)" }} />
+                  <Bar dataKey="Positive" stackId="a" fill="var(--positive)" maxBarSize={36} />
+                  <Bar dataKey="Neutral" stackId="a" fill="var(--neutral)" maxBarSize={36} />
+                  <Bar dataKey="Negative" stackId="a" fill="var(--negative)" maxBarSize={36} radius={[0, 2, 2, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -434,17 +419,17 @@ export function ProductComparison({ s26Metrics, s25Metrics, allReviews }: Produc
             <CardDescription>{s26Label} vs {s25Label} performance metrics</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <div className="grid grid-cols-4 gap-4 border-b pb-2 text-sm font-medium text-muted-foreground">
+            <div className="space-y-0 tabular-nums">
+              <div className="section-label grid grid-cols-4 gap-4 border-b pb-2">
                 <div>Metric</div>
                 <div className="text-center">{s26Label.replace(" Series", "")}</div>
                 <div className="text-center">{s25Label.replace(" Series", "")}</div>
                 <div className="text-center">Change</div>
               </div>
-              
-              <div className="grid grid-cols-4 gap-4 items-center">
+
+              <div className="grid grid-cols-4 gap-4 items-center border-b border-border/70 py-3 transition-colors hover:bg-muted/40">
                 <div className="flex items-center gap-2">
-                  <ThumbsUp className="h-4 w-4 text-positive" />
+                  <ThumbsUp className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm">Positive</span>
                 </div>
                 <div className="text-center font-medium">{currentMetrics.positivePercent.toFixed(1)}%</div>
@@ -453,8 +438,8 @@ export function ProductComparison({ s26Metrics, s25Metrics, allReviews }: Produc
                   <ChangeIndicator value={changes.positive} />
                 </div>
               </div>
-              
-              <div className="grid grid-cols-4 gap-4 items-center">
+
+              <div className="grid grid-cols-4 gap-4 items-center border-b border-border/70 py-3 transition-colors hover:bg-muted/40">
                 <div className="flex items-center gap-2">
                   <Minus className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm">Neutral</span>
@@ -465,10 +450,10 @@ export function ProductComparison({ s26Metrics, s25Metrics, allReviews }: Produc
                   <ChangeIndicator value={changes.neutral} />
                 </div>
               </div>
-              
-              <div className="grid grid-cols-4 gap-4 items-center">
+
+              <div className="grid grid-cols-4 gap-4 items-center border-b border-border/70 py-3 transition-colors hover:bg-muted/40">
                 <div className="flex items-center gap-2">
-                  <ThumbsDown className="h-4 w-4 text-negative" />
+                  <ThumbsDown className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm">Negative</span>
                 </div>
                 <div className="text-center font-medium">{currentMetrics.negativePercent.toFixed(1)}%</div>
@@ -477,10 +462,10 @@ export function ProductComparison({ s26Metrics, s25Metrics, allReviews }: Produc
                   <ChangeIndicator value={changes.negative} />
                 </div>
               </div>
-              
-              <div className="grid grid-cols-4 gap-4 items-center border-t pt-4">
+
+              <div className="grid grid-cols-4 gap-4 items-center border-b border-border/70 py-3 transition-colors hover:bg-muted/40">
                 <div className="flex items-center gap-2">
-                  <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+                  <Star className="h-4 w-4 fill-amber-500/90 text-amber-500/90" />
                   <span className="text-sm">Avg Rating</span>
                 </div>
                 <div className="text-center font-medium">{currentMetrics.averageRating.toFixed(2)}</div>
@@ -489,10 +474,10 @@ export function ProductComparison({ s26Metrics, s25Metrics, allReviews }: Produc
                   <ChangeIndicator value={changes.avgRating} suffix="" />
                 </div>
               </div>
-              
-              <div className="grid grid-cols-4 gap-4 items-center">
+
+              <div className="grid grid-cols-4 gap-4 items-center py-3 transition-colors hover:bg-muted/40">
                 <div className="flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-primary" />
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm">Brand Health</span>
                 </div>
                 <div className="text-center font-medium">{currentMetrics.brandHealthScore}</div>
@@ -517,13 +502,13 @@ export function ProductComparison({ s26Metrics, s25Metrics, allReviews }: Produc
             <table className="w-full text-sm tabular-nums">
               <thead>
                 <tr className="border-b">
-                  <th className="pb-3 text-left font-medium">Model</th>
-                  <th className="pb-3 text-center font-medium">Reviews</th>
-                  <th className="pb-3 text-center font-medium">Positive</th>
-                  <th className="pb-3 text-center font-medium">Neutral</th>
-                  <th className="pb-3 text-center font-medium">Negative</th>
-                  <th className="pb-3 text-center font-medium">Avg Rating</th>
-                  <th className="pb-3 text-center font-medium">Brand Health</th>
+                  <th className="section-label pb-3 text-left">Model</th>
+                  <th className="section-label pb-3 text-center">Reviews</th>
+                  <th className="section-label pb-3 text-center">Positive</th>
+                  <th className="section-label pb-3 text-center">Neutral</th>
+                  <th className="section-label pb-3 text-center">Negative</th>
+                  <th className="section-label pb-3 text-center">Avg Rating</th>
+                  <th className="section-label pb-3 text-center">Brand Health</th>
                 </tr>
               </thead>
               <tbody>

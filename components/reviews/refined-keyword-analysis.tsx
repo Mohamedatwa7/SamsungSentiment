@@ -46,39 +46,39 @@ interface RefinedKeywordAnalysisProps {
 
 // Type labels and colors
 const typeConfig: Record<KeywordType, { label: string; color: string; icon: React.ElementType; description: string }> = {
-  feature: { 
-    label: "Feature", 
-    color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-800",
+  feature: {
+    label: "Feature",
+    color: "bg-transparent text-primary border-primary/30",
     icon: Lightbulb,
     description: "Product features and capabilities"
   },
-  pain_point: { 
-    label: "Pain Point", 
-    color: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 border-rose-200 dark:border-rose-800",
+  pain_point: {
+    label: "Pain Point",
+    color: "bg-transparent text-negative border-negative/30",
     icon: AlertTriangle,
     description: "Issues and negative experiences"
   },
-  comparison: { 
-    label: "Comparison", 
-    color: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400 border-violet-200 dark:border-violet-800",
+  comparison: {
+    label: "Comparison",
+    color: "bg-transparent text-foreground/80 border-border",
     icon: Scale,
     description: "Competitor and model comparisons"
   },
-  purchase_intent: { 
-    label: "Purchase Intent", 
-    color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800",
+  purchase_intent: {
+    label: "Purchase Intent",
+    color: "bg-transparent text-positive border-positive/30",
     icon: ShoppingCart,
     description: "Buying decisions and value assessment"
   },
-  use_case: { 
-    label: "Use Case", 
-    color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800",
+  use_case: {
+    label: "Use Case",
+    color: "bg-transparent text-muted-foreground border-border",
     icon: Target,
     description: "How customers use the product"
   },
-  perception: { 
-    label: "Perception", 
-    color: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400 border-cyan-200 dark:border-cyan-800",
+  perception: {
+    label: "Perception",
+    color: "bg-transparent text-muted-foreground border-border",
     icon: Heart,
     description: "Brand and product sentiment"
   },
@@ -116,29 +116,27 @@ function KeywordCard({ keyword, index }: { keyword: CanonicalKeyword; index: num
     ? "text-negative"
     : "text-muted-foreground"
 
-  const sentimentBg = keyword.sentiment === "positive"
-    ? "bg-positive/5"
+  const sentimentRail = keyword.sentiment === "positive"
+    ? "border-l-positive/60"
     : keyword.sentiment === "negative"
-    ? "bg-negative/5"
-    : "bg-muted/30"
-  
+    ? "border-l-negative/60"
+    : "border-l-border"
+
   return (
     <div className={cn(
-      "border rounded-lg p-4 transition-all",
-      sentimentBg,
-      "hover:shadow-md hover:bg-muted/40"
+      "border-b border-b-border/70 border-l-2 py-4 pl-4 transition-colors",
+      sentimentRail,
+      "hover:bg-muted/40"
     )}>
       {/* Header */}
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-background border shrink-0">
-              <AspectIcon className="h-4 w-4 text-muted-foreground" />
-            </div>
+            <AspectIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
             <h3 className="font-semibold text-base capitalize">{keyword.canonical}</h3>
           </div>
           <div className="text-right">
-            <div className="kpi-value text-xl">{keyword.totalMentions}</div>
+            <div className="kpi-value text-2xl">{keyword.totalMentions}</div>
             <div className="text-xs text-muted-foreground">reviews</div>
           </div>
         </div>
@@ -196,9 +194,9 @@ function KeywordCard({ keyword, index }: { keyword: CanonicalKeyword; index: num
               <p className="text-xs font-medium text-muted-foreground mb-2">Grouped Variants</p>
               <div className="flex flex-wrap gap-1.5">
                 {keyword.variants.slice(0, 8).map((variant, i) => (
-                  <span 
-                    key={i} 
-                    className="text-xs px-2 py-1 rounded bg-background border"
+                  <span
+                    key={i}
+                    className="text-xs px-2 py-1 border border-border/70 bg-transparent text-muted-foreground"
                   >
                     {variant}
                   </span>
@@ -218,7 +216,7 @@ function KeywordCard({ keyword, index }: { keyword: CanonicalKeyword; index: num
               <p className="text-xs font-medium text-muted-foreground mb-2">Sample Review Excerpts</p>
               <div className="space-y-2">
                 {keyword.sampleContexts.map((context, i) => (
-                  <p key={i} className="text-xs text-muted-foreground bg-background p-2 rounded border italic">
+                  <p key={i} className="text-xs text-muted-foreground border-l-2 border-border pl-3 py-1 italic">
                     &quot;{context}&quot;
                   </p>
                 ))}
@@ -262,28 +260,28 @@ export function RefinedKeywordAnalysis({ reviews }: RefinedKeywordAnalysisProps)
   return (
     <div className="space-y-6">
       {/* Type Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="rule-t stat-rail grid grid-cols-2 gap-y-8 pt-6 md:grid-cols-3 lg:grid-cols-6">
         {(Object.entries(typeConfig) as [KeywordType, typeof typeConfig[KeywordType]][]).map(([type, config]) => {
           const Icon = config.icon
           const count = keywordsByType[type].length
           const isSelected = selectedType === type
-          
+
           return (
             <button
               key={type}
               onClick={() => setSelectedType(isSelected ? "all" : type)}
               className={cn(
-                "p-3 rounded-lg border bg-card text-left transition-all hover-lift",
+                "px-5 first:pl-0 pb-1 text-left transition-colors border-b-2",
                 isSelected
-                  ? "ring-2 ring-primary bg-primary/5"
-                  : "hover:bg-muted/50",
+                  ? "border-b-primary"
+                  : "border-b-transparent hover:bg-muted/40",
               )}
             >
-              <div className="flex items-center gap-2 mb-1">
-                <Icon className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">{config.label}</span>
+              <div className="section-label flex items-center gap-1.5 mb-1">
+                <Icon className="h-3.5 w-3.5 text-muted-foreground/70" />
+                <span>{config.label}</span>
               </div>
-              <div className="kpi-value text-2xl">{count}</div>
+              <div className="kpi-value text-3xl">{count}</div>
               <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{config.description}</p>
             </button>
           )
@@ -292,7 +290,7 @@ export function RefinedKeywordAnalysis({ reviews }: RefinedKeywordAnalysisProps)
       
       {/* Filter indicator */}
       {selectedType !== "all" && (
-        <div className="flex items-center justify-between bg-muted/30 px-4 py-2 rounded-lg">
+        <div className="flex items-center justify-between border-b border-border/70 pb-2">
           <span className="text-sm">
             Showing <strong>{filteredKeywords.length}</strong> {typeConfig[selectedType].label.toLowerCase()} keywords
           </span>
@@ -303,7 +301,7 @@ export function RefinedKeywordAnalysis({ reviews }: RefinedKeywordAnalysisProps)
       )}
       
       {/* Keywords Grid */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="rule-t grid gap-x-10 md:grid-cols-2">
         {filteredKeywords.map((keyword, idx) => (
           <KeywordCard key={keyword.canonical} keyword={keyword} index={idx} />
         ))}
@@ -320,7 +318,7 @@ export function RefinedKeywordAnalysis({ reviews }: RefinedKeywordAnalysisProps)
       
       {/* Rejected Phrases Section */}
       {result.rejectedPhrases.length > 0 && (
-        <Card className="border-dashed">
+        <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 text-muted-foreground" />
@@ -333,9 +331,9 @@ export function RefinedKeywordAnalysis({ reviews }: RefinedKeywordAnalysisProps)
           <CardContent>
             <div className="flex flex-wrap gap-2">
               {result.rejectedPhrases.slice(0, 15).map((rejected, idx) => (
-                <span 
-                  key={idx} 
-                  className="text-xs px-2 py-1 rounded bg-muted text-muted-foreground"
+                <span
+                  key={idx}
+                  className="text-xs px-2 py-1 border border-border/70 bg-transparent text-muted-foreground"
                   title={rejected.reason}
                 >
                   {rejected.phrase}

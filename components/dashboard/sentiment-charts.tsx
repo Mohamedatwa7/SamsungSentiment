@@ -30,30 +30,30 @@ import { useSegmentation } from "@/components/dashboard/segmentation-filter"
 const phoneModelsChartConfig: ChartConfig = {
   positive: {
     label: "Positive",
-    color: "oklch(0.65 0.18 150)",
+    color: "var(--positive)",
   },
   neutral: {
     label: "Neutral",
-    color: "oklch(0.6 0.02 250)",
+    color: "var(--chart-4)",
   },
   negative: {
     label: "Negative",
-    color: "oklch(0.6 0.2 30)",
+    color: "var(--negative)",
   },
 }
 
 const distributionChartConfig: ChartConfig = {
   positive: {
     label: "Positive",
-    color: "oklch(0.65 0.18 150)",
+    color: "var(--positive)",
   },
   neutral: {
     label: "Neutral",
-    color: "oklch(0.6 0.02 250)",
+    color: "var(--chart-4)",
   },
   negative: {
     label: "Negative",
-    color: "oklch(0.6 0.2 30)",
+    color: "var(--negative)",
   },
 }
 
@@ -73,15 +73,15 @@ export function SentimentTrendChart({ platformFilter, dateRange }: SentimentChar
   const commentMetrics = useMemo(() => getCommentMetrics(commentPlatformFilter, dateRange, segmentation), [getCommentMetrics, commentPlatformFilter, dateRange, segmentation])
 
   return (
-    <Card className="h-full animate-in fade-in slide-in-from-bottom-2 duration-500">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-lg font-semibold">Sentiment Analysis</CardTitle>
+    <Card className="h-full animate-in fade-in duration-500">
+      <CardHeader>
+        <CardTitle>Sentiment Analysis</CardTitle>
         <CardDescription>Based on {commentMetrics.total.toLocaleString()} analyzed comments</CardDescription>
       </CardHeader>
-      <CardContent className="pt-4">
+      <CardContent>
         {/* Visual Sentiment Bar */}
         <div className="mb-6">
-          <div className="flex h-4 w-full overflow-hidden rounded-full">
+          <div className="flex h-1.5 w-full overflow-hidden">
             <div 
               className="bg-positive transition-all" 
               style={{ width: `${commentMetrics.positivePercentage}%` }}
@@ -112,7 +112,7 @@ export function SentimentTrendChart({ platformFilter, dateRange }: SentimentChar
               <p className="text-sm font-medium mb-3 text-negative">Top Issues</p>
               <div className="flex flex-wrap gap-2">
                 {commentMetrics.topIssues.slice(0, 4).map((issue) => (
-                  <span key={issue.issue} className="rounded-full bg-negative/10 text-negative px-3 py-1 text-xs font-medium">
+                  <span key={issue.issue} className="rounded-full border border-negative/40 bg-transparent text-negative px-3 py-1 text-xs font-medium">
                     {issue.issue} ({issue.count})
                   </span>
                 ))}
@@ -125,7 +125,7 @@ export function SentimentTrendChart({ platformFilter, dateRange }: SentimentChar
               <p className="text-sm font-medium mb-3 text-positive">Top Praise</p>
               <div className="flex flex-wrap gap-2">
                 {commentMetrics.topPraise.slice(0, 4).map((praise) => (
-                  <span key={praise.praise} className="rounded-full bg-positive/10 text-positive px-3 py-1 text-xs font-medium">
+                  <span key={praise.praise} className="rounded-full border border-positive/40 bg-transparent text-positive px-3 py-1 text-xs font-medium">
                     {praise.praise} ({praise.count})
                   </span>
                 ))}
@@ -171,20 +171,21 @@ export function PhoneModelsSentimentChart({ platformFilter }: SentimentChartProp
   )
   
   return (
-    <Card className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-lg font-semibold">Sentiment by Product</CardTitle>
+    <Card className="animate-in fade-in duration-500">
+      <CardHeader>
+        <CardTitle>Sentiment by Product</CardTitle>
         <CardDescription>Based on comment analysis</CardDescription>
       </CardHeader>
       <CardContent className="pt-0">
         <ChartContainer config={phoneModelsChartConfig} className="h-[300px] w-full">
           <BarChart data={phoneModelsSentimentData} layout="vertical" margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={true} vertical={false} />
+            <CartesianGrid stroke="var(--border)" horizontal={true} vertical={false} />
             <XAxis
               type="number"
               tickLine={false}
               axisLine={false}
               tickMargin={8}
+              tick={{ fontSize: 11 }}
               className="text-xs text-muted-foreground"
             />
             <YAxis
@@ -193,13 +194,14 @@ export function PhoneModelsSentimentChart({ platformFilter }: SentimentChartProp
               tickLine={false}
               axisLine={false}
               tickMargin={8}
+              tick={{ fontSize: 11 }}
               className="text-xs text-muted-foreground"
               width={120}
             />
             <ChartTooltip content={<ChartTooltipContent />} />
-            <Bar dataKey="positive" fill="oklch(0.65 0.18 150)" radius={[0, 4, 4, 0]} stackId="a" maxBarSize={48} />
-            <Bar dataKey="neutral" fill="oklch(0.6 0.02 250)" radius={0} stackId="a" maxBarSize={48} />
-            <Bar dataKey="negative" fill="oklch(0.6 0.2 30)" radius={[0, 4, 4, 0]} stackId="a" maxBarSize={48} />
+            <Bar dataKey="positive" fill="var(--positive)" radius={0} stackId="a" maxBarSize={36} />
+            <Bar dataKey="neutral" fill="var(--chart-4)" radius={0} stackId="a" maxBarSize={36} />
+            <Bar dataKey="negative" fill="var(--negative)" radius={[0, 2, 2, 0]} stackId="a" maxBarSize={36} />
             <ChartLegend content={<ChartLegendContent />} />
           </BarChart>
         </ChartContainer>
@@ -218,15 +220,15 @@ export function SentimentDistributionChart({ platformFilter }: SentimentChartPro
   const commentMetrics = useMemo(() => getCommentMetrics(commentPlatformFilter), [getCommentMetrics, commentPlatformFilter])
   
   const distributionData = useMemo(() => [
-    { name: "Positive", value: commentMetrics.positiveRate, fill: "oklch(0.65 0.18 150)" },
-    { name: "Neutral", value: commentMetrics.neutralRate, fill: "oklch(0.6 0.02 250)" },
-    { name: "Negative", value: commentMetrics.negativeRate, fill: "oklch(0.6 0.2 30)" },
+    { name: "Positive", value: commentMetrics.positiveRate, fill: "var(--positive)" },
+    { name: "Neutral", value: commentMetrics.neutralRate, fill: "var(--chart-4)" },
+    { name: "Negative", value: commentMetrics.negativeRate, fill: "var(--negative)" },
   ], [commentMetrics])
   
   return (
-    <Card className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-lg font-semibold">Overall Sentiment</CardTitle>
+    <Card className="animate-in fade-in duration-500">
+      <CardHeader>
+        <CardTitle>Overall Sentiment</CardTitle>
         <CardDescription>Based on {commentMetrics.total} comments</CardDescription>
       </CardHeader>
       <CardContent className="pt-0">
@@ -240,7 +242,7 @@ export function SentimentDistributionChart({ platformFilter }: SentimentChartPro
               innerRadius={60}
               outerRadius={100}
               paddingAngle={2}
-              cornerRadius={4}
+              cornerRadius={2}
               dataKey="value"
               nameKey="name"
               stroke="none"
@@ -298,15 +300,15 @@ export function PlatformEngagementChart({ platformFilter, dateRange }: Sentiment
   const totalEngagement = platformData.reduce((sum, p) => sum + p.engagement, 0)
   
   return (
-    <Card className="h-full animate-in fade-in slide-in-from-bottom-2 duration-500">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-lg font-semibold">Platform Breakdown</CardTitle>
+    <Card className="h-full animate-in fade-in duration-500">
+      <CardHeader>
+        <CardTitle>Platform Breakdown</CardTitle>
         <CardDescription>{totalEngagement.toLocaleString()} total engagements</CardDescription>
       </CardHeader>
       <CardContent className="pt-0">
         <div className="space-y-4">
           {platformData.map((platform, index) => {
-            const colors = ["bg-primary", "bg-positive", "bg-amber-500", "bg-purple-500"]
+            const colors = ["bg-primary", "bg-chart-2", "bg-chart-3", "bg-chart-4"]
             const percentage = totalEngagement > 0 ? Math.round((platform.engagement / totalEngagement) * 100) : 0
             return (
               <div key={platform.platform} className="space-y-1.5">
@@ -314,9 +316,9 @@ export function PlatformEngagementChart({ platformFilter, dateRange }: Sentiment
                   <span className="font-medium">{platform.platform}</span>
                   <span className="text-muted-foreground">{percentage}%</span>
                 </div>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                  <div 
-                    className={`h-full rounded-full ${colors[index % colors.length]} transition-all`}
+                <div className="h-1.5 w-full overflow-hidden bg-muted">
+                  <div
+                    className={`h-full ${colors[index % colors.length]} transition-all`}
                     style={{ width: `${(platform.engagement / maxEngagement) * 100}%` }}
                   />
                 </div>

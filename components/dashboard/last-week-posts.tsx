@@ -43,7 +43,7 @@ function SentimentBar({ positive, negative, neutral }: { positive: number; negat
   const neuPercent = 100 - posPercent - negPercent
 
   return (
-    <div className="flex h-2 w-full overflow-hidden rounded-full bg-muted">
+    <div className="flex h-1.5 w-full overflow-hidden bg-muted">
       <div 
         className="bg-positive transition-all" 
         style={{ width: `${posPercent}%` }} 
@@ -71,24 +71,19 @@ function PostCard({ post, index }: { post: RecentActivityPost; index: number }) 
 
   return (
     <div className={cn(
-      "rounded-xl border bg-card p-4 transition-all duration-200 hover:bg-muted/40 hover:shadow-sm",
-      sentimentTrend > 20 && "border-positive/30",
-      sentimentTrend < -20 && "border-negative/30",
+      "border-b border-border/70 py-4 px-0 transition-colors last:border-0 hover:bg-muted/40",
+      sentimentTrend > 20 && "border-l-2 border-l-positive pl-4",
+      sentimentTrend < -20 && "border-l-2 border-l-negative pl-4",
     )}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className={cn(
-            "flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white",
-            post.platform === "instagram" && "bg-[#E4405F]",
-            post.platform === "tiktok" && "bg-[#00f2ea]",
-            post.platform === "facebook" && "bg-[#1877F2]"
-          )}>
+          <div className="flex h-8 w-8 items-center justify-center">
             {post.platform === "instagram" ? (
-              <Instagram className="h-4 w-4" />
+              <Instagram className="h-4 w-4 text-[#E4405F]" />
             ) : post.platform === "tiktok" ? (
-              <Music2 className="h-4 w-4" />
+              <Music2 className="h-4 w-4 text-[#00f2ea]" />
             ) : (
-              <Facebook className="h-4 w-4" />
+              <Facebook className="h-4 w-4 text-[#1877F2]" />
             )}
           </div>
           <div className="min-w-0 flex-1">
@@ -167,13 +162,13 @@ function PostCard({ post, index }: { post: RecentActivityPost; index: number }) 
           {expanded && (
             <div className="mt-2 space-y-2">
               {post.sampleComments.map((c, i) => (
-                <div 
-                  key={i} 
+                <div
+                  key={i}
                   className={cn(
-                    "rounded-lg p-2 text-xs",
-                    c.sentiment === "positive" && "bg-positive/10",
-                    c.sentiment === "negative" && "bg-negative/10",
-                    c.sentiment === "neutral" && "bg-muted/50",
+                    "border-l-2 py-1 pl-3 text-xs",
+                    c.sentiment === "positive" && "border-l-positive",
+                    c.sentiment === "negative" && "border-l-negative",
+                    c.sentiment === "neutral" && "border-l-border",
                   )}
                 >
                   <span className="font-medium">@{c.username}:</span>{" "}
@@ -321,12 +316,12 @@ export function LastWeekPosts({ platformFilter, dateRange }: LastWeekPostsProps)
   }, [posts])
 
   return (
-    <Card className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-      <CardHeader className="pb-2">
+    <Card className="animate-in fade-in duration-500">
+      <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="text-lg font-semibold flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-primary" />
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
               Recent Activity
             </CardTitle>
             <CardDescription>
@@ -373,7 +368,7 @@ export function LastWeekPosts({ platformFilter, dateRange }: LastWeekPostsProps)
         </div>
         
         {/* Platform Tabs */}
-        <Tabs value={selectedPlatform} onValueChange={(v) => setSelectedPlatform(v as PlatformTab)} className="px-6">
+        <Tabs value={selectedPlatform} onValueChange={(v) => setSelectedPlatform(v as PlatformTab)}>
           <TabsList className="h-9 w-auto">
             <TabsTrigger value="all" className="gap-1.5 text-xs px-3">
               All
@@ -401,22 +396,22 @@ export function LastWeekPosts({ platformFilter, dateRange }: LastWeekPostsProps)
       {!isCollapsed && (
         <CardContent className="pt-4">
           {/* Summary Stats */}
-          <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <div className="rounded-lg bg-muted/50 p-3 text-center">
-              <p className="kpi-value text-xl text-foreground">{stats.totalPosts}</p>
-              <p className="text-xs text-muted-foreground">Posts</p>
+          <div className="stat-rail divide-none mb-4 grid grid-cols-2 gap-y-4 text-center lg:grid-cols-4">
+            <div className="py-1">
+              <p className="kpi-value text-3xl text-foreground">{stats.totalPosts}</p>
+              <p className="section-label mt-1">Posts</p>
             </div>
-            <div className="rounded-lg bg-muted/50 p-3 text-center">
-              <p className="kpi-value text-xl text-foreground">{stats.totalComments.toLocaleString()}</p>
-              <p className="text-xs text-muted-foreground">Comments</p>
+            <div className="py-1">
+              <p className="kpi-value text-3xl text-foreground">{stats.totalComments.toLocaleString()}</p>
+              <p className="section-label mt-1">Comments</p>
             </div>
-            <div className="rounded-lg bg-positive/10 p-3 text-center">
-              <p className="kpi-value text-xl text-positive">{stats.avgPositive}%</p>
-              <p className="text-xs text-muted-foreground">Positive</p>
+            <div className="py-1">
+              <p className="kpi-value text-3xl text-positive">{stats.avgPositive}%</p>
+              <p className="section-label mt-1">Positive</p>
             </div>
-            <div className="rounded-lg bg-negative/10 p-3 text-center">
-              <p className="kpi-value text-xl text-negative">{stats.avgNegative}%</p>
-              <p className="text-xs text-muted-foreground">Negative</p>
+            <div className="py-1">
+              <p className="kpi-value text-3xl text-negative">{stats.avgNegative}%</p>
+              <p className="section-label mt-1">Negative</p>
             </div>
           </div>
 
@@ -444,7 +439,7 @@ export function LastWeekPosts({ platformFilter, dateRange }: LastWeekPostsProps)
             {timeRange === "all" ? " (all time)" : ` in the last ${timeRange} days`}
           </div>
           <ScrollArea className="nice-scroll h-[400px] pr-4">
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col">
               {posts.length > 0 ? (
                 posts.map((post, index) => (
                   <PostCard key={post.postUrl} post={post} index={index} />

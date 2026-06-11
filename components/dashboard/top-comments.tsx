@@ -16,12 +16,12 @@ import { useSegmentation } from "@/components/dashboard/segmentation-filter"
 function SentimentBadge({ sentiment }: { sentiment: Sentiment }) {
   return (
     <Badge
-      variant="secondary"
+      variant="outline"
       className={cn(
-        "gap-1 text-xs font-medium capitalize",
-        sentiment === "positive" && "bg-positive/10 text-positive hover:bg-positive/20",
-        sentiment === "neutral" && "bg-amber-500/10 text-amber-600 hover:bg-amber-500/20",
-        sentiment === "negative" && "bg-negative/10 text-negative hover:bg-negative/20"
+        "gap-1 bg-transparent text-xs font-medium capitalize",
+        sentiment === "positive" && "border-positive/40 text-positive",
+        sentiment === "neutral" && "border-border text-muted-foreground",
+        sentiment === "negative" && "border-negative/40 text-negative"
       )}
     >
       {sentiment === "positive" && <ThumbsUp className="h-3 w-3" />}
@@ -39,23 +39,15 @@ function TopCommentCard({ comment, rank }: { comment: Comment; rank: number }) {
 
   return (
     <div className={cn(
-      "group rounded-xl border bg-card p-4 transition-all duration-200 hover:shadow-md relative",
-      comment.sentiment === "negative" && "border-negative/30 bg-negative/5",
-      comment.sentiment === "positive" && "border-positive/30 bg-positive/5",
-      comment.sentiment === "neutral" && "border-border/50"
+      "group border-b border-border/70 py-4 px-0 transition-colors last:border-0 hover:bg-muted/40",
+      comment.sentiment === "negative" && "border-l-2 border-l-negative pl-4",
+      comment.sentiment === "positive" && "border-l-2 border-l-positive pl-4",
     )}>
-      {/* Rank Badge */}
-      <div className={cn(
-        "absolute -top-2 -left-2 flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white shadow-md",
-        rank === 1 && "bg-yellow-500",
-        rank === 2 && "bg-gray-400",
-        rank === 3 && "bg-amber-600",
-        rank > 3 && "bg-primary"
-      )}>
-        {rank}
-      </div>
-
-      <div className="flex items-start gap-3 pt-1">
+      <div className="flex items-start gap-3">
+        {/* Rank */}
+        <div className="kpi-value w-6 shrink-0 pt-1 text-right text-lg text-muted-foreground tabular-nums">
+          {rank}
+        </div>
         <Avatar className="h-9 w-9">
           <AvatarImage src={comment.profilePicUrl} alt={comment.username} />
           <AvatarFallback className="text-xs">
@@ -67,23 +59,23 @@ function TopCommentCard({ comment, rank }: { comment: Comment; rank: number }) {
             <div className="flex items-center gap-2">
               <span className="font-semibold text-sm">@{comment.username}</span>
 {comment.platform === "instagram" ? (
-  <div className="flex h-4 w-4 items-center justify-center rounded-full bg-[#E4405F]/10">
-  <Instagram className="h-2.5 w-2.5 text-[#E4405F]" />
+  <div className="flex h-4 w-4 items-center justify-center">
+  <Instagram className="h-3 w-3 text-muted-foreground" />
   </div>
   ) : comment.platform === "tiktok" ? (
-  <div className="flex h-4 w-4 items-center justify-center rounded-full bg-[#00f2ea]/10">
-    <Music2 className="h-2.5 w-2.5 text-[#00f2ea]" />
+  <div className="flex h-4 w-4 items-center justify-center">
+    <Music2 className="h-3 w-3 text-muted-foreground" />
   </div>
 ) : (
-  <div className="flex h-4 w-4 items-center justify-center rounded-full bg-[#1877F2]/10">
-    <Facebook className="h-2.5 w-2.5 text-[#1877F2]" />
+  <div className="flex h-4 w-4 items-center justify-center">
+    <Facebook className="h-3 w-3 text-muted-foreground" />
   </div>
 )}
             </div>
             <div className="flex items-center gap-2">
               {/* Likes Count */}
-              <div className="flex items-center gap-1 text-sm font-medium text-rose-500">
-                <Heart className="h-4 w-4 fill-current" />
+              <div className="flex items-center gap-1 text-sm font-medium text-muted-foreground tabular-nums">
+                <Heart className="h-3.5 w-3.5" />
                 <span>{comment.likes.toLocaleString()}</span>
               </div>
               <SentimentBadge sentiment={comment.sentiment} />
@@ -146,12 +138,12 @@ export function TopComments({ platformFilter, dateRange }: TopCommentsProps) {
   const avgLikes = topComments.length > 0 ? Math.round(totalLikesFromTop / topComments.length) : 0
 
   return (
-    <Card className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-      <CardHeader className="pb-2">
+    <Card className="animate-in fade-in duration-500">
+      <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="text-lg font-semibold flex items-center gap-2">
-              <Trophy className="h-5 w-5 text-yellow-500" />
+            <CardTitle className="flex items-center gap-2">
+              <Trophy className="h-4 w-4 text-muted-foreground" />
               Top 10 TikTok Comments
             </CardTitle>
             <CardDescription>
@@ -187,18 +179,18 @@ export function TopComments({ platformFilter, dateRange }: TopCommentsProps) {
       {!isCollapsed && (
         <CardContent className="pt-0">
           {/* Quick Stats */}
-          <div className="mb-4 grid grid-cols-3 gap-3">
-            <div className="rounded-lg bg-muted/50 p-3 text-center">
-              <p className="kpi-value text-xl text-foreground">{topComments.length}</p>
-              <p className="text-xs text-muted-foreground">Top TikTok</p>
+          <div className="stat-rail divide-none mb-4 grid grid-cols-3 text-center">
+            <div className="py-1">
+              <p className="kpi-value text-3xl text-foreground">{topComments.length}</p>
+              <p className="section-label mt-1">Top TikTok</p>
             </div>
-            <div className="rounded-lg bg-positive/10 p-3 text-center">
-              <p className="kpi-value text-xl text-positive">{topPositive.length}</p>
-              <p className="text-xs text-muted-foreground">Top Positive</p>
+            <div className="py-1">
+              <p className="kpi-value text-3xl text-positive">{topPositive.length}</p>
+              <p className="section-label mt-1">Top Positive</p>
             </div>
-            <div className="rounded-lg bg-negative/10 p-3 text-center">
-              <p className="kpi-value text-xl text-negative">{topNegative.length}</p>
-              <p className="text-xs text-muted-foreground">Top Negative</p>
+            <div className="py-1">
+              <p className="kpi-value text-3xl text-negative">{topNegative.length}</p>
+              <p className="section-label mt-1">Top Negative</p>
             </div>
           </div>
 
@@ -225,7 +217,7 @@ export function TopComments({ platformFilter, dateRange }: TopCommentsProps) {
             Showing {displayedComments.length} top TikTok comments by likes
           </div>
           <ScrollArea className="nice-scroll h-[550px] pr-4">
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col">
               {displayedComments.length > 0 ? (
                 displayedComments.map((comment, index) => (
                   <TopCommentCard key={comment.id} comment={comment} rank={index + 1} />

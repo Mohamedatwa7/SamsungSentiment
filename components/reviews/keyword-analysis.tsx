@@ -92,14 +92,14 @@ const intentLabels: Record<IntentCategory, string> = {
 }
 
 const intentColors: Record<IntentCategory, string> = {
-  praise: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-  complaint: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400",
-  comparison: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-  feature_request: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-  purchase_intent: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400",
-  recommendation: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400",
-  question: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
-  experience: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400",
+  praise: "bg-transparent border border-positive/40 text-positive",
+  complaint: "bg-transparent border border-negative/40 text-negative",
+  comparison: "bg-transparent border border-primary/40 text-primary",
+  feature_request: "bg-transparent border border-amber-500/40 text-amber-600 dark:text-amber-400",
+  purchase_intent: "bg-transparent border border-border text-foreground/80",
+  recommendation: "bg-transparent border border-border text-foreground/80",
+  question: "bg-transparent border border-border text-muted-foreground",
+  experience: "bg-transparent border border-border text-muted-foreground",
 }
 
 export function KeywordAnalysis({ reviews }: KeywordAnalysisProps) {
@@ -129,7 +129,7 @@ export function KeywordAnalysis({ reviews }: KeywordAnalysisProps) {
         name: aspectLabels[aspect as AspectCategory],
         count: data.count,
         sentiment: data.avgSentiment,
-        fill: data.avgSentiment > 0.1 ? "#10b981" : data.avgSentiment < -0.1 ? "#ef4444" : "#6b7280"
+        fill: data.avgSentiment > 0.1 ? "var(--positive)" : data.avgSentiment < -0.1 ? "var(--negative)" : "var(--neutral)"
       }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 10)
@@ -170,7 +170,7 @@ export function KeywordAnalysis({ reviews }: KeywordAnalysisProps) {
             <div className="h-[280px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={aspectChartData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="var(--border)" />
+                  <CartesianGrid horizontal={true} vertical={false} stroke="var(--border)" />
                   <XAxis type="number" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
                   <YAxis type="category" dataKey="name" width={90} tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
                   <Tooltip
@@ -178,13 +178,14 @@ export function KeywordAnalysis({ reviews }: KeywordAnalysisProps) {
                     contentStyle={{
                       backgroundColor: "var(--popover)",
                       border: "1px solid var(--border)",
-                      borderRadius: "8px",
+                      borderRadius: "6px",
                       color: "var(--popover-foreground)",
                       fontSize: "12px",
-                      boxShadow: "0 4px 12px rgb(0 0 0 / 0.1)"
+                      padding: "8px 12px",
+                      boxShadow: "none"
                     }}
                   />
-                  <Bar dataKey="count" radius={[0, 6, 6, 0]} maxBarSize={48}>
+                  <Bar dataKey="count" radius={[0, 2, 2, 0]} maxBarSize={36}>
                     {aspectChartData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.fill} />
                     ))}
@@ -205,7 +206,7 @@ export function KeywordAnalysis({ reviews }: KeywordAnalysisProps) {
             <div className="h-[280px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={intentChartData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="var(--border)" />
+                  <CartesianGrid horizontal={true} vertical={false} stroke="var(--border)" />
                   <XAxis type="number" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
                   <YAxis type="category" dataKey="name" width={110} tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
                   <Tooltip
@@ -213,13 +214,14 @@ export function KeywordAnalysis({ reviews }: KeywordAnalysisProps) {
                     contentStyle={{
                       backgroundColor: "var(--popover)",
                       border: "1px solid var(--border)",
-                      borderRadius: "8px",
+                      borderRadius: "6px",
                       color: "var(--popover-foreground)",
                       fontSize: "12px",
-                      boxShadow: "0 4px 12px rgb(0 0 0 / 0.1)"
+                      padding: "8px 12px",
+                      boxShadow: "none"
                     }}
                   />
-                  <Bar dataKey="count" fill="#8b5cf6" radius={[0, 6, 6, 0]} maxBarSize={48} />
+                  <Bar dataKey="count" fill="var(--chart-1)" radius={[0, 2, 2, 0]} maxBarSize={36} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -330,7 +332,7 @@ export function KeywordAnalysis({ reviews }: KeywordAnalysisProps) {
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
-              <ThumbsUp className="h-4 w-4 text-positive" />
+              <ThumbsUp className="h-4 w-4 text-muted-foreground" />
               <CardTitle className="text-base">Most Praised</CardTitle>
             </div>
             <CardDescription>Phrases with highest positive sentiment</CardDescription>
@@ -359,7 +361,7 @@ export function KeywordAnalysis({ reviews }: KeywordAnalysisProps) {
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
-              <ThumbsDown className="h-4 w-4 text-negative" />
+              <ThumbsDown className="h-4 w-4 text-muted-foreground" />
               <CardTitle className="text-base">Top Complaints</CardTitle>
             </div>
             <CardDescription>Phrases with highest negative sentiment</CardDescription>
@@ -388,7 +390,7 @@ export function KeywordAnalysis({ reviews }: KeywordAnalysisProps) {
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-amber-500" />
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
               <CardTitle className="text-base">Feature Requests</CardTitle>
             </div>
             <CardDescription>What customers are asking for</CardDescription>
@@ -420,17 +422,17 @@ export function KeywordAnalysis({ reviews }: KeywordAnalysisProps) {
 // Individual keyword badge component
 function KeywordBadge({ keyword }: { keyword: ExtractedKeyword }) {
   const sentimentColor = keyword.sentiment === "positive"
-    ? "bg-positive/10 text-positive border-positive/20"
+    ? "bg-transparent text-positive border-positive/40"
     : keyword.sentiment === "negative"
-    ? "bg-negative/10 text-negative border-negative/20"
-    : "bg-muted text-muted-foreground border-border"
+    ? "bg-transparent text-negative border-negative/40"
+    : "bg-transparent text-muted-foreground border-border"
 
   const Icon = aspectIcons[keyword.aspect]
 
   return (
     <div
       className={cn(
-        "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm border transition-colors hover:bg-muted/40",
+        "inline-flex items-center gap-1.5 px-2.5 py-1.5 text-sm border transition-colors hover:bg-muted/40",
         sentimentColor
       )}
       title={`${keyword.count} mentions | ${intentLabels[keyword.intent]} | ${aspectLabels[keyword.aspect]}`}

@@ -25,9 +25,9 @@ function StarRating({ rating }: { rating: string }) {
   return (
     <div className="flex items-center gap-0.5">
       {[1, 2, 3, 4, 5].map((i) => (
-        <Star 
-          key={i} 
-          className={`h-3 w-3 ${i <= stars ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30"}`}
+        <Star
+          key={i}
+          className={`h-3 w-3 ${i <= stars ? "fill-amber-500/90 text-amber-500/90" : "text-muted-foreground/30"}`}
         />
       ))}
     </div>
@@ -48,63 +48,71 @@ function ReviewCard({ review }: { review: AnalyzedReview }) {
     day: "numeric"
   })
   
+  const sentimentRail =
+    review.sentiment === "positive" ? "border-l-positive/60" :
+    review.sentiment === "negative" ? "border-l-negative/60" :
+    "border-l-border"
+
+  const sentimentGhost =
+    review.sentiment === "positive" ? "bg-transparent border-positive/40 text-positive" :
+    review.sentiment === "negative" ? "bg-transparent border-negative/40 text-negative" :
+    "bg-transparent border-border text-muted-foreground"
+
   return (
-    <Card className="overflow-hidden transition-colors hover:bg-muted/40">
-      <CardContent className="p-4">
-        <div className="flex flex-col gap-3">
-          {/* Header */}
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <Avatar className="h-10 w-10">
-                <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex flex-col gap-0.5">
-                <span className="font-medium text-sm">{review["Reviewer Display Name"]}</span>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Calendar className="h-3 w-3" />
-                  {formattedDate}
-                </div>
+    <div className={`border-b border-b-border/70 border-l-2 ${sentimentRail} py-4 pl-4 transition-colors hover:bg-muted/40`}>
+      <div className="flex flex-col gap-3">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Avatar className="h-10 w-10">
+              <AvatarFallback className="bg-muted text-muted-foreground text-sm">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex flex-col gap-0.5">
+              <span className="font-medium text-sm">{review["Reviewer Display Name"]}</span>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Calendar className="h-3 w-3" />
+                {formattedDate}
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <StarRating rating={review["Overall Rating"]} />
-              <Badge variant={review.sentiment === "positive" ? "default" : review.sentiment === "negative" ? "destructive" : "secondary"}>
-                <SentimentIcon sentiment={review.sentiment} />
-              </Badge>
-            </div>
           </div>
-          
-          {/* Product Badge */}
           <div className="flex items-center gap-2">
-            <Smartphone className="h-3 w-3 text-muted-foreground" />
-            <Badge variant="outline" className="text-xs">{review.productLine}</Badge>
+            <StarRating rating={review["Overall Rating"]} />
+            <Badge variant="outline" className={sentimentGhost}>
+              <SentimentIcon sentiment={review.sentiment} />
+            </Badge>
           </div>
-          
-          {/* Title & Content */}
-          {review["Review Title"] && (
-            <h4 className="font-semibold">{review["Review Title"]}</h4>
-          )}
-          {review["Review Text"] && (
-            <p className="text-sm text-muted-foreground leading-relaxed line-clamp-4">
-              {review["Review Text"]}
-            </p>
-          )}
-          
-          {/* Themes */}
-          {review.themes.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {review.themes.map(theme => (
-                <Badge key={theme} variant="secondary" className="text-xs">
-                  {theme}
-                </Badge>
-              ))}
-            </div>
-          )}
         </div>
-      </CardContent>
-    </Card>
+
+        {/* Product Badge */}
+        <div className="flex items-center gap-2">
+          <Smartphone className="h-3 w-3 text-muted-foreground" />
+          <Badge variant="outline" className="text-xs text-muted-foreground">{review.productLine}</Badge>
+        </div>
+
+        {/* Title & Content */}
+        {review["Review Title"] && (
+          <h4 className="font-semibold">{review["Review Title"]}</h4>
+        )}
+        {review["Review Text"] && (
+          <p className="text-sm text-muted-foreground leading-relaxed line-clamp-4">
+            {review["Review Text"]}
+          </p>
+        )}
+
+        {/* Themes */}
+        {review.themes.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {review.themes.map(theme => (
+              <Badge key={theme} variant="outline" className="text-xs text-muted-foreground">
+                {theme}
+              </Badge>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -161,8 +169,8 @@ export function ReviewsFeed({ reviews }: ReviewsFeedProps) {
   return (
     <div className="flex flex-col gap-6">
       {/* Search */}
-      <Card>
-        <CardContent className="p-4">
+      <Card className="py-6">
+        <CardContent>
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -234,7 +242,7 @@ export function ReviewsFeed({ reviews }: ReviewsFeedProps) {
       {/* Reviews Grid */}
       {displayedReviews.length > 0 ? (
         <>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="rule-t grid gap-x-10 md:grid-cols-2 xl:grid-cols-3">
             {displayedReviews.map((review) => (
               <ReviewCard key={review["Review ID"]} review={review} />
             ))}

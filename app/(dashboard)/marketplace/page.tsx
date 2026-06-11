@@ -22,18 +22,18 @@ function KPISkeleton() {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {[...Array(4)].map((_, i) => (
-        <Skeleton key={i} className="h-32 rounded-xl" />
+        <Skeleton key={i} className="h-32 rounded-sm" />
       ))}
     </div>
   )
 }
 
 function ChartSkeleton() {
-  return <Skeleton className="h-[350px] rounded-xl" />
+  return <Skeleton className="h-[350px] rounded-sm" />
 }
 
 function FeedSkeleton() {
-  return <Skeleton className="h-[500px] rounded-xl" />
+  return <Skeleton className="h-[500px] rounded-sm" />
 }
 
 export default function MarketplacePage() {
@@ -46,7 +46,7 @@ export default function MarketplacePage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between animate-in fade-in slide-in-from-bottom-2 duration-500">
         <div>
           <p className="section-label">Amazon &amp; Noon · Marketplace</p>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Marketplace Reviews</h1>
+          <h1 className="display-title text-3xl md:text-4xl">Marketplace Reviews</h1>
           <p className="text-muted-foreground">
             Sentiment analysis from Amazon and Noon marketplace reviews
           </p>

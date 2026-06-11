@@ -47,7 +47,7 @@ export function MarketplaceFilter({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2 transition-colors hover:bg-muted/50">
+        <Button variant="outline" size="sm" className="gap-2 rounded-sm border-border bg-transparent shadow-none transition-colors hover:bg-muted/40">
           <Store className="h-4 w-4" />
           <span className="hidden sm:inline">
             {allSelected || noneSelected 
@@ -57,7 +57,7 @@ export function MarketplaceFilter({
           </span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48 rounded-lg shadow-md">
+      <DropdownMenuContent align="end" className="w-48 rounded-sm border-border shadow-none">
         <DropdownMenuLabel className="section-label">Filter by Marketplace</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuCheckboxItem

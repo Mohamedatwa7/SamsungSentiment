@@ -42,12 +42,12 @@ function resolveFlagConfig(flag: string): { icon: typeof AlertTriangle; label: s
 function SentimentBadge({ sentiment }: { sentiment: Sentiment }) {
   return (
     <Badge
-      variant="secondary"
+      variant="outline"
       className={cn(
-        "gap-1 text-xs font-medium capitalize",
-        sentiment === "positive" && "bg-positive/10 text-positive hover:bg-positive/20",
-        sentiment === "neutral" && "bg-amber-500/10 text-amber-600 hover:bg-amber-500/20",
-        sentiment === "negative" && "bg-negative/10 text-negative hover:bg-negative/20"
+        "gap-1 bg-transparent text-xs font-medium capitalize",
+        sentiment === "positive" && "border-positive/40 text-positive",
+        sentiment === "neutral" && "border-border text-muted-foreground",
+        sentiment === "negative" && "border-negative/40 text-negative"
       )}
     >
       {sentiment === "positive" && <ThumbsUp className="h-3 w-3" />}
@@ -69,10 +69,9 @@ function CommentCard({ comment }: { comment: Comment }) {
   return (
     <TooltipProvider>
       <div className={cn(
-        "group rounded-xl border bg-card p-4 transition-all duration-200 hover:shadow-sm",
-        comment.sentiment === "negative" && "border-negative/30 bg-negative/5",
-        comment.sentiment === "positive" && "border-positive/30 bg-positive/5",
-        comment.sentiment === "neutral" && "border-border/50"
+        "group border-b border-border/70 py-4 px-0 transition-colors last:border-0 hover:bg-muted/40",
+        comment.sentiment === "negative" && "border-l-2 border-l-negative pl-4",
+        comment.sentiment === "positive" && "border-l-2 border-l-positive pl-4",
       )}>
         <div className="flex items-start gap-3">
           <Avatar className="h-8 w-8">
@@ -86,16 +85,16 @@ function CommentCard({ comment }: { comment: Comment }) {
               <div className="flex items-center gap-2">
                 <span className="font-semibold text-sm">@{comment.username}</span>
                 {comment.platform === "instagram" ? (
-                  <div className="flex h-4 w-4 items-center justify-center rounded-full bg-[#E4405F]/10">
-                    <Instagram className="h-2.5 w-2.5 text-[#E4405F]" />
+                  <div className="flex h-4 w-4 items-center justify-center">
+                    <Instagram className="h-3 w-3 text-muted-foreground" />
                   </div>
                 ) : comment.platform === "tiktok" ? (
-                  <div className="flex h-4 w-4 items-center justify-center rounded-full bg-[#00f2ea]/10">
-                    <Music2 className="h-2.5 w-2.5 text-[#00f2ea]" />
+                  <div className="flex h-4 w-4 items-center justify-center">
+                    <Music2 className="h-3 w-3 text-muted-foreground" />
                   </div>
                 ) : (
-                  <div className="flex h-4 w-4 items-center justify-center rounded-full bg-[#1877F2]/10">
-                    <Facebook className="h-2.5 w-2.5 text-[#1877F2]" />
+                  <div className="flex h-4 w-4 items-center justify-center">
+                    <Facebook className="h-3 w-3 text-muted-foreground" />
                   </div>
                 )}
               </div>
@@ -300,11 +299,11 @@ export function CommentsFeed({ platformFilter, dateRange }: CommentsFeedProps) {
   }
 
   return (
-    <Card className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
+    <Card className="animate-in fade-in duration-500">
+      <CardHeader className="flex flex-row items-center justify-between">
         <div>
-          <CardTitle className="text-lg font-semibold flex items-center gap-2">
-            <MessageCircle className="h-5 w-5" />
+          <CardTitle className="flex items-center gap-2">
+            <MessageCircle className="h-4 w-4 text-muted-foreground" />
             Comments Analysis
           </CardTitle>
           <CardDescription>
@@ -340,11 +339,17 @@ export function CommentsFeed({ platformFilter, dateRange }: CommentsFeedProps) {
         {/* Analysis Status */}
         {analysisStatus && (
           <div className={cn(
-            "mb-4 p-3 rounded-lg text-sm",
-            analysisStatus.includes("Error") || analysisStatus.includes("Failed") 
-              ? "bg-negative/10 text-negative" 
-              : "bg-primary/10 text-primary"
+            "mb-4 flex items-center gap-2 border-b border-border py-3 text-sm",
+            analysisStatus.includes("Error") || analysisStatus.includes("Failed")
+              ? "text-negative"
+              : "text-primary"
           )}>
+            <span className={cn(
+              "h-1.5 w-1.5 shrink-0 rounded-full",
+              analysisStatus.includes("Error") || analysisStatus.includes("Failed")
+                ? "bg-negative"
+                : "bg-primary"
+            )} />
             {analysisStatus}
           </div>
         )}
@@ -433,18 +438,18 @@ export function CommentsFeed({ platformFilter, dateRange }: CommentsFeedProps) {
         </div>
 
         {/* Sentiment Summary */}
-        <div className="mb-4 grid grid-cols-3 gap-3">
-          <div className="rounded-lg bg-positive/10 p-3 text-center">
-            <p className="kpi-value text-2xl text-positive">{displayMetrics.positivePercentage}%</p>
-            <p className="text-xs text-muted-foreground">Positive ({displayMetrics.positiveCount})</p>
+        <div className="stat-rail divide-none mb-4 grid grid-cols-3 text-center">
+          <div className="py-2">
+            <p className="kpi-value text-3xl text-positive">{displayMetrics.positivePercentage}%</p>
+            <p className="section-label mt-1">Positive ({displayMetrics.positiveCount})</p>
           </div>
-          <div className="rounded-lg bg-amber-500/10 p-3 text-center">
-            <p className="kpi-value text-2xl text-amber-600">{displayMetrics.neutralPercentage}%</p>
-            <p className="text-xs text-muted-foreground">Neutral ({displayMetrics.neutralCount})</p>
+          <div className="py-2">
+            <p className="kpi-value text-3xl text-amber-600">{displayMetrics.neutralPercentage}%</p>
+            <p className="section-label mt-1">Neutral ({displayMetrics.neutralCount})</p>
           </div>
-          <div className="rounded-lg bg-negative/10 p-3 text-center">
-            <p className="kpi-value text-2xl text-negative">{displayMetrics.negativePercentage}%</p>
-            <p className="text-xs text-muted-foreground">Negative ({displayMetrics.negativeCount})</p>
+          <div className="py-2">
+            <p className="kpi-value text-3xl text-negative">{displayMetrics.negativePercentage}%</p>
+            <p className="section-label mt-1">Negative ({displayMetrics.negativeCount})</p>
           </div>
         </div>
 
@@ -474,7 +479,7 @@ export function CommentsFeed({ platformFilter, dateRange }: CommentsFeedProps) {
           <span>Page {validPage} of {totalPages}</span>
         </div>
         <ScrollArea className="nice-scroll h-[600px] pr-4">
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col">
             {paginatedComments.map((comment) => (
               <CommentCard key={comment.id} comment={comment} />
             ))}
@@ -574,9 +579,9 @@ export function CommentsSentimentSummary({ platformFilter, dateRange }: Comments
   }
 
   return (
-    <Card className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-lg font-semibold">Comment Sentiment</CardTitle>
+    <Card className="animate-in fade-in duration-500">
+      <CardHeader>
+        <CardTitle>Comment Sentiment</CardTitle>
         <CardDescription>Instagram, TikTok + Facebook analysis</CardDescription>
       </CardHeader>
       <CardContent>
@@ -590,9 +595,9 @@ export function CommentsSentimentSummary({ platformFilter, dateRange }: Comments
               </span>
               <span className="font-medium">{metrics.positivePercentage}%</span>
             </div>
-            <div className="h-2 rounded-full bg-muted overflow-hidden">
-              <div 
-                className="h-full bg-positive rounded-full transition-all"
+            <div className="h-1.5 bg-muted overflow-hidden">
+              <div
+                className="h-full bg-positive transition-all"
                 style={{ width: `${metrics.positivePercentage}%` }}
               />
             </div>
@@ -606,9 +611,9 @@ export function CommentsSentimentSummary({ platformFilter, dateRange }: Comments
               </span>
               <span className="font-medium">{metrics.neutralPercentage}%</span>
             </div>
-            <div className="h-2 rounded-full bg-muted overflow-hidden">
-              <div 
-                className="h-full bg-amber-500 rounded-full transition-all"
+            <div className="h-1.5 bg-muted overflow-hidden">
+              <div
+                className="h-full bg-amber-500 transition-all"
                 style={{ width: `${metrics.neutralPercentage}%` }}
               />
             </div>
@@ -622,9 +627,9 @@ export function CommentsSentimentSummary({ platformFilter, dateRange }: Comments
               </span>
               <span className="font-medium">{metrics.negativePercentage}%</span>
             </div>
-            <div className="h-2 rounded-full bg-muted overflow-hidden">
-              <div 
-                className="h-full bg-negative rounded-full transition-all"
+            <div className="h-1.5 bg-muted overflow-hidden">
+              <div
+                className="h-full bg-negative transition-all"
                 style={{ width: `${metrics.negativePercentage}%` }}
               />
             </div>
@@ -636,7 +641,7 @@ export function CommentsSentimentSummary({ platformFilter, dateRange }: Comments
               <p className="text-sm font-medium mb-2">Top Issues Mentioned</p>
               <div className="flex flex-wrap gap-2">
                 {metrics.topIssues.slice(0, 3).map(({ issue, count }) => (
-                  <Badge key={issue} variant="destructive" className="text-xs">
+                  <Badge key={issue} variant="outline" className="border-negative/40 bg-transparent text-negative text-xs">
                     {issue} ({count})
                   </Badge>
                 ))}

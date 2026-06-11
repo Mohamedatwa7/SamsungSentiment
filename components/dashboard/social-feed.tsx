@@ -52,17 +52,17 @@ function TikTokIcon({ className }: { className?: string }) {
 
 function PlatformIcon({ platform }: { platform: Platform }) {
   const iconConfig = {
-    facebook: { bg: "bg-[#1877F2]/10", color: "text-[#1877F2]", Icon: Facebook },
-    instagram: { bg: "bg-[#E4405F]/10", color: "text-[#E4405F]", Icon: Instagram },
-    twitter: { bg: "bg-foreground/10", color: "text-foreground", Icon: XIcon },
-    tiktok: { bg: "bg-foreground/10", color: "text-foreground", Icon: TikTokIcon },
+    facebook: { bg: "", color: "text-muted-foreground", Icon: Facebook },
+    instagram: { bg: "", color: "text-muted-foreground", Icon: Instagram },
+    twitter: { bg: "", color: "text-muted-foreground", Icon: XIcon },
+    tiktok: { bg: "", color: "text-muted-foreground", Icon: TikTokIcon },
   }
 
   const config = iconConfig[platform]
   const IconComponent = config.Icon
 
   return (
-    <div className={cn("flex h-8 w-8 items-center justify-center rounded-full", config.bg)}>
+    <div className={cn("flex h-8 w-8 items-center justify-center", config.bg)}>
       <IconComponent className={cn("h-4 w-4", config.color)} />
     </div>
   )
@@ -91,7 +91,7 @@ function SocialPostCard({ post }: { post: SocialPost }) {
   }
 
   return (
-    <div className="group rounded-xl border border-border/50 bg-card p-4 transition-all duration-200 hover:border-border hover:bg-muted/40 hover:shadow-sm">
+    <div className="group border-b border-border/70 py-4 px-0 transition-colors last:border-0 hover:bg-muted/40">
       <div className="flex items-start gap-3">
         <PlatformIcon platform={post.platform} />
         <div className="min-w-0 flex-1">
@@ -228,10 +228,10 @@ export function SocialFeed({ platformFilter, dateRange }: SocialFeedProps) {
   }
 
   return (
-    <Card className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
+    <Card className="animate-in fade-in duration-500">
+      <CardHeader className="flex flex-row items-center justify-between">
         <div>
-          <CardTitle className="text-lg font-semibold">Samsung Gulf Social Feed</CardTitle>
+          <CardTitle>Samsung Gulf Social Feed</CardTitle>
           <CardDescription>Recent posts from @samsunggulf across all platforms</CardDescription>
         </div>
         <div className="flex items-center gap-2">
@@ -283,7 +283,7 @@ export function SocialFeed({ platformFilter, dateRange }: SocialFeedProps) {
             </TabsTrigger>
           </TabsList>
           <ScrollArea className="nice-scroll h-[550px] pr-4">
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col">
               {filteredPosts.map((post) => (
                 <SocialPostCard key={post.id} post={post as SocialPost} />
               ))}

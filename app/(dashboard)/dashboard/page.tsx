@@ -51,18 +51,18 @@ function DashboardContent() {
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6">
-      {/* Header */}
-      <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+      {/* Editorial masthead */}
+      <div className="animate-in fade-in slide-in-from-bottom-2 pt-4 duration-500">
         <p className="section-label">Samsung Gulf · Social Intelligence</p>
-        <h1 className="mt-1 text-2xl font-bold tracking-tight md:text-3xl">Social Reviews Dashboard</h1>
-        <p className="mt-1 text-sm text-muted-foreground md:text-base">
+        <h1 className="display-title mt-2 text-3xl md:text-4xl">Social Reviews Dashboard</h1>
+        <p className="mt-2 max-w-2xl text-sm text-muted-foreground md:text-base">
           Instagram, TikTok &amp; Facebook comments segmented by department, product and feature
         </p>
       </div>
 
-      {/* Sticky filter bar — condenses against the top nav on scroll */}
+      {/* Slim hairline toolbar — pins below the top nav on scroll */}
       {activeTab === "overview" && (
-        <div className="sticky top-16 z-20 -mx-4 border-y border-border/40 bg-background/85 px-4 py-3 backdrop-blur-xl md:-mx-6 md:px-6">
+        <div className="sticky top-14 z-20 -mx-4 border-y border-border bg-background px-4 py-2.5 md:-mx-6 md:px-6">
           <div className="flex flex-wrap items-center gap-2 md:gap-3">
             <SegmentationFilter value={segmentation} onChange={setSegmentation} />
             <DateFilter

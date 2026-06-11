@@ -96,7 +96,7 @@ export default function ReviewsPage() {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between animate-in fade-in slide-in-from-bottom-2 duration-500">
         <div className="space-y-1">
           <p className="section-label">Samsung.com · Product Reviews</p>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Product Reviews Analysis</h1>
+          <h1 className="display-title text-3xl md:text-4xl">Product Reviews Analysis</h1>
           <p className="text-muted-foreground">
             Sentiment analysis of Samsung.com product reviews
           </p>
@@ -112,10 +112,10 @@ export default function ReviewsPage() {
               <Button 
                 variant="outline" 
                 size="lg"
-                className="min-w-[280px] justify-between gap-2 border-2 border-primary/50 bg-primary/5 px-4 py-3 text-base font-medium shadow-sm hover:border-primary hover:bg-primary/10"
+                className="min-w-[280px] justify-between gap-2 px-4 py-3 text-base font-medium"
               >
                 <div className="flex items-center gap-2">
-                  <Filter className="h-5 w-5 text-primary" />
+                  <Filter className="h-5 w-5 text-muted-foreground" />
                   <span>
                     {selectedProducts.length === 0 
                       ? "All Products" 

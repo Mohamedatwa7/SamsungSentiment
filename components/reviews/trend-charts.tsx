@@ -91,15 +91,15 @@ export function TrendCharts({ allReviews }: TrendChartsProps) {
   return (
     <div className="grid gap-6">
       {/* Model Variant Filter */}
-      <Card className="border-2 border-primary/20 bg-primary/5">
-        <CardContent className="p-4">
+      <Card className="py-6">
+        <CardContent>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h3 className="font-semibold">Compare Model Variants (Trends)</h3>
               <p className="text-sm text-muted-foreground">QoQ: S26 (2026) vs S25 (2025)</p>
             </div>
             <Select value={selectedVariant} onValueChange={setSelectedVariant}>
-              <SelectTrigger className="w-[220px] border-2 border-primary/50 bg-background">
+              <SelectTrigger className="w-[220px]">
                 <SelectValue placeholder="Select comparison" />
               </SelectTrigger>
               <SelectContent>
@@ -125,7 +125,7 @@ export function TrendCharts({ allReviews }: TrendChartsProps) {
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={quarterlyChartData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                <CartesianGrid vertical={false} stroke="var(--border)" />
                 <XAxis dataKey="quarter" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
                 <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
                 <Tooltip
@@ -133,15 +133,16 @@ export function TrendCharts({ allReviews }: TrendChartsProps) {
                   contentStyle={{
                     backgroundColor: "var(--popover)",
                     border: "1px solid var(--border)",
-                    borderRadius: "8px",
+                    borderRadius: "6px",
                     color: "var(--popover-foreground)",
                     fontSize: "12px",
-                    boxShadow: "0 4px 12px rgb(0 0 0 / 0.1)"
+                    padding: "8px 12px",
+                    boxShadow: "none"
                   }}
                 />
-                <Legend />
-                <Line type="monotone" dataKey="s26Positive" name={`${s26Label} (2026)`} stroke="#3b82f6" strokeWidth={2.5} dot={false} activeDot={{ r: 4, strokeWidth: 0 }} />
-                <Line type="monotone" dataKey="s25Positive" name={`${s25Label} (2025)`} stroke="#94a3b8" strokeWidth={2.5} dot={false} activeDot={{ r: 4, strokeWidth: 0 }} />
+                <Legend iconSize={8} wrapperStyle={{ fontSize: "12px", color: "var(--muted-foreground)" }} />
+                <Line type="monotone" dataKey="s26Positive" name={`${s26Label} (2026)`} stroke="var(--chart-1)" strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 0 }} />
+                <Line type="monotone" dataKey="s25Positive" name={`${s25Label} (2025)`} stroke="var(--chart-2)" strokeWidth={2} strokeDasharray="4 4" dot={false} activeDot={{ r: 4, strokeWidth: 0 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -159,11 +160,11 @@ export function TrendCharts({ allReviews }: TrendChartsProps) {
             <table className="w-full text-sm tabular-nums">
               <thead>
                 <tr className="border-b">
-                  <th className="pb-3 text-left font-medium">Quarter</th>
-                  <th className="pb-3 text-center font-medium" colSpan={2}>Reviews</th>
-                  <th className="pb-3 text-center font-medium" colSpan={2}>Positive %</th>
-                  <th className="pb-3 text-center font-medium" colSpan={2}>Brand Health</th>
-                  <th className="pb-3 text-center font-medium">Health Change</th>
+                  <th className="section-label pb-3 text-left">Quarter</th>
+                  <th className="section-label pb-3 text-center" colSpan={2}>Reviews</th>
+                  <th className="section-label pb-3 text-center" colSpan={2}>Positive %</th>
+                  <th className="section-label pb-3 text-center" colSpan={2}>Brand Health</th>
+                  <th className="section-label pb-3 text-center">Health Change</th>
                 </tr>
                 <tr className="border-b text-xs text-muted-foreground">
                   <th className="pb-2"></th>

@@ -160,15 +160,15 @@ export function MonthVsLastYear({ allReviews }: MonthVsLastYearProps) {
   return (
     <div className="grid gap-6">
       {/* Model Variant Filter */}
-      <Card className="border-2 border-primary/20 bg-primary/5">
-        <CardContent className="p-4">
+      <Card className="py-6">
+        <CardContent>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h3 className="font-semibold">Compare Model Variants (MoM)</h3>
               <p className="text-sm text-muted-foreground">Compare same month: S26 (2026) vs S25 (2025)</p>
             </div>
             <Select value={selectedVariant} onValueChange={setSelectedVariant}>
-              <SelectTrigger className="w-[220px] border-2 border-primary/50 bg-background">
+              <SelectTrigger className="w-[220px]">
                 <SelectValue placeholder="Select comparison" />
               </SelectTrigger>
               <SelectContent>
@@ -185,65 +185,49 @@ export function MonthVsLastYear({ allReviews }: MonthVsLastYearProps) {
       </Card>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="accent-top hover-lift animate-in fade-in slide-in-from-bottom-2 duration-500">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="section-label">{s26Label} Total</p>
-                <CountUp value={totalS26} className="kpi-value text-3xl" />
-              </div>
-              <Badge className="bg-primary">2026</Badge>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="rule-t stat-rail grid grid-cols-1 gap-y-8 pt-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="flex flex-col gap-1.5 px-5 first:pl-0 animate-in fade-in slide-in-from-bottom-2 duration-500">
+          <p className="section-label flex items-center justify-between gap-2">
+            {s26Label} Total
+            <Badge className="bg-primary">2026</Badge>
+          </p>
+          <CountUp value={totalS26} className="kpi-value text-4xl" />
+        </div>
 
-        <Card className="accent-top hover-lift animate-in fade-in slide-in-from-bottom-2 duration-500">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="section-label">{s25Label} Total</p>
-                <CountUp value={totalS25} className="kpi-value text-3xl" />
-              </div>
-              <Badge variant="secondary">2025</Badge>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex flex-col gap-1.5 px-5 first:pl-0 animate-in fade-in slide-in-from-bottom-2 duration-500">
+          <p className="section-label flex items-center justify-between gap-2">
+            {s25Label} Total
+            <Badge variant="outline">2025</Badge>
+          </p>
+          <CountUp value={totalS25} className="kpi-value text-4xl" />
+        </div>
 
-        <Card className="accent-top hover-lift animate-in fade-in slide-in-from-bottom-2 duration-500">
-          <CardContent className="p-4">
-            <div className="flex flex-col gap-1">
-              <p className="section-label">Volume Change</p>
-              <div className="flex items-center gap-2">
-                <CountUp
-                  value={totalS26 - totalS25}
-                  format={(v) => `${v > 0 ? "+" : ""}${Math.round(v).toLocaleString()}`}
-                  className="kpi-value text-3xl"
-                />
-                <ChangeIndicator value={totalS25 > 0 ? ((totalS26 - totalS25) / totalS25) * 100 : 0} />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex flex-col gap-1.5 px-5 first:pl-0 animate-in fade-in slide-in-from-bottom-2 duration-500">
+          <p className="section-label">Volume Change</p>
+          <div className="flex items-baseline gap-2">
+            <CountUp
+              value={totalS26 - totalS25}
+              format={(v) => `${v > 0 ? "+" : ""}${Math.round(v).toLocaleString()}`}
+              className="kpi-value text-4xl"
+            />
+            <ChangeIndicator value={totalS25 > 0 ? ((totalS26 - totalS25) / totalS25) * 100 : 0} />
+          </div>
+        </div>
 
-        <Card className="accent-top hover-lift animate-in fade-in slide-in-from-bottom-2 duration-500">
-          <CardContent className="p-4">
-            <div className="flex flex-col gap-1">
-              <p className="section-label">Avg Positive Change</p>
-              <div className="flex items-center gap-2">
-                <CountUp value={avgS26Positive} format={(v) => `${v.toFixed(1)}%`} className="kpi-value text-3xl" />
-                <ChangeIndicator value={avgS26Positive - avgS25Positive} />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex flex-col gap-1.5 px-5 first:pl-0 animate-in fade-in slide-in-from-bottom-2 duration-500">
+          <p className="section-label">Avg Positive Change</p>
+          <div className="flex items-baseline gap-2">
+            <CountUp value={avgS26Positive} format={(v) => `${v.toFixed(1)}%`} className="kpi-value text-4xl" />
+            <ChangeIndicator value={avgS26Positive - avgS25Positive} />
+          </div>
+        </div>
       </div>
 
       {/* Positive Sentiment Comparison Chart */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
+            <Calendar className="h-4 w-4 text-muted-foreground" />
             Month vs Last Year: Positive Sentiment
           </CardTitle>
           <CardDescription>
@@ -254,7 +238,7 @@ export function MonthVsLastYear({ allReviews }: MonthVsLastYearProps) {
           <div className="h-[350px]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                <CartesianGrid vertical={false} stroke="var(--border)" />
                 <XAxis
                   dataKey="month"
                   tickLine={false}
@@ -272,15 +256,16 @@ export function MonthVsLastYear({ allReviews }: MonthVsLastYearProps) {
                   contentStyle={{
                     backgroundColor: "var(--popover)",
                     border: "1px solid var(--border)",
-                    borderRadius: "8px",
+                    borderRadius: "6px",
                     color: "var(--popover-foreground)",
                     fontSize: "12px",
-                    boxShadow: "0 4px 12px rgb(0 0 0 / 0.1)"
+                    padding: "8px 12px",
+                    boxShadow: "none"
                   }}
                 />
-                <Legend />
-                <Line type="monotone" dataKey="s26Positive" name={`${s26Label} (2026)`} stroke="#3b82f6" strokeWidth={2.5} dot={false} activeDot={{ r: 4, strokeWidth: 0 }} />
-                <Line type="monotone" dataKey="s25Positive" name={`${s25Label} (2025)`} stroke="#94a3b8" strokeWidth={2.5} dot={false} activeDot={{ r: 4, strokeWidth: 0 }} />
+                <Legend iconSize={8} wrapperStyle={{ fontSize: "12px", color: "var(--muted-foreground)" }} />
+                <Line type="monotone" dataKey="s26Positive" name={`${s26Label} (2026)`} stroke="var(--chart-1)" strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 0 }} />
+                <Line type="monotone" dataKey="s25Positive" name={`${s25Label} (2025)`} stroke="var(--chart-2)" strokeWidth={2} strokeDasharray="4 4" dot={false} activeDot={{ r: 4, strokeWidth: 0 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -293,7 +278,7 @@ export function MonthVsLastYear({ allReviews }: MonthVsLastYearProps) {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
+                <Calendar className="h-4 w-4 text-muted-foreground" />
                 Week-over-Week: Positive Sentiment
               </CardTitle>
               <CardDescription>
@@ -306,10 +291,10 @@ export function MonthVsLastYear({ allReviews }: MonthVsLastYearProps) {
               <PopoverTrigger asChild>
                 <Button 
                   variant="outline" 
-                  className="min-w-[200px] justify-between gap-2 border-2 border-primary/50"
+                  className="min-w-[200px] justify-between gap-2"
                 >
                   <div className="flex items-center gap-2">
-                    <Filter className="h-4 w-4 text-primary" />
+                    <Filter className="h-4 w-4 text-muted-foreground" />
                     <span>
                       {selectedMonths.length === 0 
                         ? "All Months" 
@@ -378,7 +363,7 @@ export function MonthVsLastYear({ allReviews }: MonthVsLastYearProps) {
             <div className="h-[350px]">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={weekChartData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                  <CartesianGrid vertical={false} stroke="var(--border)" />
                   <XAxis
                     dataKey="week"
                     tickLine={false}
@@ -394,15 +379,16 @@ export function MonthVsLastYear({ allReviews }: MonthVsLastYearProps) {
                     contentStyle={{
                       backgroundColor: "var(--popover)",
                       border: "1px solid var(--border)",
-                      borderRadius: "8px",
+                      borderRadius: "6px",
                       color: "var(--popover-foreground)",
                       fontSize: "12px",
-                      boxShadow: "0 4px 12px rgb(0 0 0 / 0.1)"
+                      padding: "8px 12px",
+                      boxShadow: "none"
                     }}
                   />
-                  <Legend />
-                  <Line type="monotone" dataKey="s26Positive" name={`${s26Label} (2026)`} stroke="#3b82f6" strokeWidth={2.5} dot={false} activeDot={{ r: 4, strokeWidth: 0 }} />
-                  <Line type="monotone" dataKey="s25Positive" name={`${s25Label} (2025)`} stroke="#94a3b8" strokeWidth={2.5} dot={false} activeDot={{ r: 4, strokeWidth: 0 }} />
+                  <Legend iconSize={8} wrapperStyle={{ fontSize: "12px", color: "var(--muted-foreground)" }} />
+                  <Line type="monotone" dataKey="s26Positive" name={`${s26Label} (2026)`} stroke="var(--chart-1)" strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 0 }} />
+                  <Line type="monotone" dataKey="s25Positive" name={`${s25Label} (2025)`} stroke="var(--chart-2)" strokeWidth={2} strokeDasharray="4 4" dot={false} activeDot={{ r: 4, strokeWidth: 0 }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -416,7 +402,7 @@ export function MonthVsLastYear({ allReviews }: MonthVsLastYearProps) {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
+                <Calendar className="h-4 w-4 text-muted-foreground" />
                 Week on Week Details
               </CardTitle>
               <CardDescription>
@@ -429,10 +415,10 @@ export function MonthVsLastYear({ allReviews }: MonthVsLastYearProps) {
               <PopoverTrigger asChild>
                 <Button 
                   variant="outline" 
-                  className="min-w-[200px] justify-between gap-2 border-2 border-primary/50"
+                  className="min-w-[200px] justify-between gap-2"
                 >
                   <div className="flex items-center gap-2">
-                    <Filter className="h-4 w-4 text-primary" />
+                    <Filter className="h-4 w-4 text-muted-foreground" />
                     <span>
                       {selectedMonths.length === 0 
                         ? "All Months" 
@@ -496,11 +482,11 @@ export function MonthVsLastYear({ allReviews }: MonthVsLastYearProps) {
             <table className="w-full text-sm tabular-nums">
               <thead>
                 <tr className="border-b">
-                  <th className="pb-3 text-left font-medium">Week</th>
-                  <th className="pb-3 text-center font-medium" colSpan={2}>Reviews</th>
-                  <th className="pb-3 text-center font-medium" colSpan={2}>Positive %</th>
-                  <th className="pb-3 text-center font-medium" colSpan={2}>Avg Rating</th>
-                  <th className="pb-3 text-center font-medium">Change</th>
+                  <th className="section-label pb-3 text-left">Week</th>
+                  <th className="section-label pb-3 text-center" colSpan={2}>Reviews</th>
+                  <th className="section-label pb-3 text-center" colSpan={2}>Positive %</th>
+                  <th className="section-label pb-3 text-center" colSpan={2}>Avg Rating</th>
+                  <th className="section-label pb-3 text-center">Change</th>
                 </tr>
                 <tr className="border-b text-xs text-muted-foreground">
                   <th className="pb-2"></th>
@@ -563,11 +549,11 @@ export function MonthVsLastYear({ allReviews }: MonthVsLastYearProps) {
             <table className="w-full text-sm tabular-nums">
               <thead>
                 <tr className="border-b">
-                  <th className="pb-3 text-left font-medium">Month Comparison</th>
-                  <th className="pb-3 text-center font-medium" colSpan={2}>Reviews</th>
-                  <th className="pb-3 text-center font-medium" colSpan={2}>Positive %</th>
-                  <th className="pb-3 text-center font-medium" colSpan={2}>Avg Rating</th>
-                  <th className="pb-3 text-center font-medium">Health Change</th>
+                  <th className="section-label pb-3 text-left">Month Comparison</th>
+                  <th className="section-label pb-3 text-center" colSpan={2}>Reviews</th>
+                  <th className="section-label pb-3 text-center" colSpan={2}>Positive %</th>
+                  <th className="section-label pb-3 text-center" colSpan={2}>Avg Rating</th>
+                  <th className="section-label pb-3 text-center">Health Change</th>
                 </tr>
                 <tr className="border-b text-xs text-muted-foreground">
                   <th className="pb-2"></th>

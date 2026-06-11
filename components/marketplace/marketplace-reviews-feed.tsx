@@ -24,18 +24,18 @@ function ReviewCard({ review }: { review: MarketplaceReview }) {
     neutral: "text-muted-foreground",
   }
 
-  const sentimentBg = {
-    positive: "bg-positive/5 border-positive/20",
-    negative: "bg-negative/5 border-negative/20",
-    neutral: "bg-muted/50 border-border",
+  const sentimentRule = {
+    positive: "border-l-positive/60",
+    negative: "border-l-negative/60",
+    neutral: "border-l-border",
   }
 
   return (
-    <div className={cn("rounded-xl border p-4 transition-colors", sentimentBg[review.sentiment])}>
+    <div className={cn("border-b border-b-border/70 last:border-b-0 border-l-2 pl-4 py-4 transition-colors", sentimentRule[review.sentiment])}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <Badge variant="outline" className="capitalize text-xs">
+            <Badge variant="outline" className={cn("capitalize text-xs rounded-sm bg-transparent border-border/70", sentimentColor[review.sentiment])}>
               {review.marketplace}
             </Badge>
             <div className="flex items-center gap-0.5">
@@ -104,7 +104,7 @@ export function MarketplaceReviewsFeed({ marketplaceFilter, dateRange }: Marketp
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="text-lg font-semibold">Top Reviews</CardTitle>
+            <CardTitle>Top Reviews</CardTitle>
             <CardDescription>Most helpful customer reviews</CardDescription>
           </div>
           <Tabs value={filter} onValueChange={(v) => setFilter(v as typeof filter)}>
@@ -117,10 +117,9 @@ export function MarketplaceReviewsFeed({ marketplaceFilter, dateRange }: Marketp
         </div>
       </CardHeader>
       <CardContent>
-        <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2 nice-scroll">
+        <div className="max-h-[600px] overflow-y-auto pr-2 nice-scroll">
           {reviews.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-2 py-8">
-              <Star className="h-8 w-8 text-muted-foreground/50" />
+            <div className="py-12">
               <p className="text-center text-sm text-muted-foreground">No reviews found for the selected filters.</p>
             </div>
           ) : (

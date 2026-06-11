@@ -87,7 +87,7 @@ function TopNav() {
   }
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b border-border/50 bg-background/80 px-4 backdrop-blur-xl">
+    <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b border-border bg-background px-4">
       <SidebarTrigger className="-ml-1" />
       
       <div className="flex items-center gap-2">

@@ -106,22 +106,16 @@ export function InfluencerKPIs() {
   ]
   
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+    <div className="rule-t stat-rail grid grid-cols-1 gap-y-8 pt-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
       {kpis.map((kpi, idx) => (
-        <Card key={idx} className="accent-top hover-lift animate-in fade-in slide-in-from-bottom-2 duration-500">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${kpi.bgColor}`}>
-                <kpi.icon className={`h-5 w-5 ${kpi.color}`} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="section-label truncate">{kpi.title}</p>
-                <p className="kpi-value text-xl truncate">{kpi.value}</p>
-                {kpi.subValue && <p className="text-xs text-muted-foreground">{kpi.subValue}</p>}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div key={idx} className="flex min-w-0 flex-col gap-1.5 px-5 first:pl-0 animate-in fade-in slide-in-from-bottom-2 duration-500">
+          <p className="section-label flex items-center gap-1.5 truncate">
+            <kpi.icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
+            {kpi.title}
+          </p>
+          <p className="kpi-value text-3xl truncate">{kpi.value}</p>
+          {kpi.subValue && <p className="text-xs text-muted-foreground">{kpi.subValue}</p>}
+        </div>
       ))}
     </div>
   )
@@ -147,7 +141,7 @@ function InfluencerCard({
             <CardTitle className="text-lg">{influencer.name}</CardTitle>
             <CardDescription className="text-sm">{influencer.handle}</CardDescription>
           </div>
-          <div className="flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1">
+          <div className="flex items-center gap-1.5 rounded-full border border-border bg-transparent px-2.5 py-1">
             <Activity className="h-3.5 w-3.5 text-primary" />
             <span className="text-xs font-semibold text-primary">{influencer.engagementRate}% ER</span>
           </div>
@@ -155,27 +149,27 @@ function InfluencerCard({
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Key Metrics */}
-        <div className="grid grid-cols-3 gap-3">
-          <div className="rounded-lg border bg-positive/5 p-2.5 text-center">
+        <div className="rule-t stat-rail grid grid-cols-3 pt-3">
+          <div className="px-4 first:pl-0 text-center">
             <div className="flex items-center justify-center gap-1 text-positive">
               <ThumbsUp className="h-3.5 w-3.5" />
-              <span className="kpi-value text-lg">{metrics.positivePercent}%</span>
+              <span className="kpi-value text-xl">{metrics.positivePercent}%</span>
             </div>
-            <p className="text-[10px] text-muted-foreground">Positive</p>
+            <p className="section-label text-[10px]">Positive</p>
           </div>
-          <div className="rounded-lg border bg-muted/40 p-2.5 text-center">
+          <div className="px-4 first:pl-0 text-center">
             <div className="flex items-center justify-center gap-1 text-muted-foreground">
               <Minus className="h-3.5 w-3.5" />
-              <span className="kpi-value text-lg">{metrics.neutralPercent}%</span>
+              <span className="kpi-value text-xl">{metrics.neutralPercent}%</span>
             </div>
-            <p className="text-[10px] text-muted-foreground">Neutral</p>
+            <p className="section-label text-[10px]">Neutral</p>
           </div>
-          <div className="rounded-lg border bg-negative/5 p-2.5 text-center">
+          <div className="px-4 first:pl-0 text-center">
             <div className="flex items-center justify-center gap-1 text-negative">
               <ThumbsDown className="h-3.5 w-3.5" />
-              <span className="kpi-value text-lg">{metrics.negativePercent}%</span>
+              <span className="kpi-value text-xl">{metrics.negativePercent}%</span>
             </div>
-            <p className="text-[10px] text-muted-foreground">Negative</p>
+            <p className="section-label text-[10px]">Negative</p>
           </div>
         </div>
         
@@ -195,18 +189,13 @@ function InfluencerCard({
         
         {/* Insights */}
         <div className="space-y-2">
-          <p className="text-xs font-medium text-muted-foreground">Insights</p>
-          <div className="space-y-1.5">
+          <p className="section-label">Insights</p>
+          <div>
             {insights.slice(0, 3).map((insight, idx) => (
               <button
                 key={idx}
                 onClick={() => onInsightClick(insight)}
-                className={`flex w-full items-center justify-between rounded-md border p-2 text-left text-xs transition-colors hover:bg-muted/50 ${
-                  insight.type === "success" ? "border-positive/30 bg-positive/5" :
-                  insight.type === "warning" ? "border-amber-500/30 bg-amber-500/5" :
-                  insight.type === "danger" ? "border-negative/30 bg-negative/5" :
-                  "border-muted"
-                }`}
+                className="flex w-full items-center justify-between border-b border-border/70 py-2 text-left text-xs transition-colors last:border-0 hover:bg-muted/40"
               >
                 <div className="flex items-center gap-2">
                   {insight.type === "success" && <CheckCircle2 className="h-3.5 w-3.5 text-positive" />}
@@ -245,23 +234,24 @@ function ComparisonChart() {
         <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} barGap={0} barCategoryGap="15%">
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+              <CartesianGrid vertical={false} stroke="var(--border)" />
               <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
               <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
               <Tooltip
                 contentStyle={{
                   backgroundColor: "var(--popover)",
                   border: "1px solid var(--border)",
-                  borderRadius: "8px",
+                  borderRadius: "6px",
                   color: "var(--popover-foreground)",
                   fontSize: "12px",
-                  boxShadow: "0 4px 12px rgb(0 0 0 / 0.1)"
+                  padding: "8px 12px",
+                  boxShadow: "none"
                 }}
                 formatter={(value: number, name: string) => [`${value}%`, name.charAt(0).toUpperCase() + name.slice(1)]}
               />
-              <Legend />
-              <Bar dataKey="positive" name="Positive" fill="#22c55e" radius={[6, 6, 0, 0]} maxBarSize={48} />
-              <Bar dataKey="negative" name="Negative" fill="#ef4444" radius={[6, 6, 0, 0]} maxBarSize={48} />
+              <Legend iconSize={8} wrapperStyle={{ fontSize: "12px", color: "var(--muted-foreground)" }} />
+              <Bar dataKey="positive" name="Positive" fill="var(--positive)" radius={[2, 2, 0, 0]} maxBarSize={36} />
+              <Bar dataKey="negative" name="Negative" fill="var(--negative)" radius={[2, 2, 0, 0]} maxBarSize={36} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -280,9 +270,9 @@ function CommentHealthComparison() {
   }))
   
   const getHealthColor = (score: number) => {
-    if (score >= 70) return "#06b6d4" // cyan
-    if (score >= 50) return "#f59e0b" // amber
-    return "#f43f5e" // rose
+    if (score >= 70) return "var(--positive)"
+    if (score >= 50) return "var(--neutral)"
+    return "var(--negative)"
   }
   
   return (
@@ -295,21 +285,22 @@ function CommentHealthComparison() {
         <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} layout="vertical" barCategoryGap="20%">
-              <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="var(--border)" />
+              <CartesianGrid horizontal={true} vertical={false} stroke="var(--border)" />
               <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}`} tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
               <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} width={100} />
               <Tooltip
                 contentStyle={{
                   backgroundColor: "var(--popover)",
                   border: "1px solid var(--border)",
-                  borderRadius: "8px",
+                  borderRadius: "6px",
                   color: "var(--popover-foreground)",
                   fontSize: "12px",
-                  boxShadow: "0 4px 12px rgb(0 0 0 / 0.1)"
+                  padding: "8px 12px",
+                  boxShadow: "none"
                 }}
                 formatter={(value: number) => [`${value}/100`, "Comment Health"]}
               />
-              <Bar dataKey="health" radius={[0, 6, 6, 0]} maxBarSize={48}>
+              <Bar dataKey="health" radius={[0, 2, 2, 0]} maxBarSize={36}>
                 {chartData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={getHealthColor(entry.health)} />
                 ))}
@@ -338,12 +329,7 @@ function CombinedInsightsSection({ onInsightClick }: { onInsightClick: (insight:
             <button
               key={idx}
               onClick={() => onInsightClick(insight)}
-              className={`flex flex-col items-start gap-2 rounded-lg border p-4 text-left transition-colors hover:bg-muted/50 ${
-                insight.type === "success" ? "border-positive/30 bg-positive/5" :
-                insight.type === "warning" ? "border-amber-500/30 bg-amber-500/5" :
-                insight.type === "danger" ? "border-negative/30 bg-negative/5" :
-                "border-muted"
-              }`}
+              className="flex flex-col items-start gap-2 border-b border-border/70 py-4 text-left transition-colors hover:bg-muted/40"
             >
               <div className="flex items-center gap-2">
                 {insight.type === "success" && <CheckCircle2 className="h-4 w-4 text-positive" />}
@@ -405,10 +391,10 @@ function TranslatableComment({ comment, idx }: { comment: InfluencerComment; idx
   
   return (
     <div
-      className={`rounded-lg border p-3 transition-colors hover:bg-muted/40 ${
-        comment.sentiment === "positive" ? "border-positive/20 bg-positive/5" :
-        comment.sentiment === "negative" ? "border-negative/20 bg-negative/5" :
-        "border-muted bg-muted/20"
+      className={`border-b border-b-border/70 border-l-2 py-3 pl-3 transition-colors hover:bg-muted/40 ${
+        comment.sentiment === "positive" ? "border-l-positive/60" :
+        comment.sentiment === "negative" ? "border-l-negative/60" :
+        "border-l-border"
       }`}
     >
       <div className="flex items-start justify-between gap-3">

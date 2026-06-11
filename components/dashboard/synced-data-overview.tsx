@@ -92,18 +92,18 @@ export function SyncedDataOverview() {
   }
 
   const platformColors: Record<string, string> = {
-    instagram: "bg-pink-500 text-white",
-    tiktok: "bg-foreground text-background",
-    facebook: "bg-blue-600 text-white",
-    twitter: "bg-sky-500 text-white",
+    instagram: "border-border bg-transparent text-foreground",
+    tiktok: "border-border bg-transparent text-foreground",
+    facebook: "border-border bg-transparent text-foreground",
+    twitter: "border-border bg-transparent text-foreground",
   }
 
   return (
-    <Card className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
+    <Card className="animate-in fade-in duration-500">
+      <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle className="flex items-center gap-2">
-            <MessageSquare className="h-5 w-5" />
+            <MessageSquare className="h-4 w-4 text-muted-foreground" />
             Synced Data from Apify
           </CardTitle>
           <CardDescription>
@@ -115,34 +115,34 @@ export function SyncedDataOverview() {
         </Button>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <div className="text-center p-4 bg-muted/50 rounded-lg">
-            <div className="kpi-value text-3xl"><CountUp value={data.counts.posts} format={(v) => `${Math.round(v)}`} /></div>
-            <div className="text-sm text-muted-foreground">Synced Posts</div>
+        <div className="stat-rail divide-none grid grid-cols-2 mb-4 text-center">
+          <div className="py-2">
+            <div className="kpi-value text-4xl"><CountUp value={data.counts.posts} format={(v) => `${Math.round(v)}`} /></div>
+            <div className="section-label mt-1">Synced Posts</div>
           </div>
-          <div className="text-center p-4 bg-muted/50 rounded-lg">
-            <div className="kpi-value text-3xl"><CountUp value={data.counts.comments} format={(v) => `${Math.round(v)}`} /></div>
-            <div className="text-sm text-muted-foreground">Synced Comments</div>
+          <div className="py-2">
+            <div className="kpi-value text-4xl"><CountUp value={data.counts.comments} format={(v) => `${Math.round(v)}`} /></div>
+            <div className="section-label mt-1">Synced Comments</div>
           </div>
         </div>
-        
+
         <div className="space-y-2">
-          <p className="text-sm font-medium">Comments by Platform</p>
+          <p className="section-label">Comments by Platform</p>
           <div className="flex flex-wrap gap-2">
             {Object.entries(data.platformBreakdown).map(([platform, count]) => (
-              <Badge 
-                key={platform} 
-                variant="secondary"
-                className={platformColors[platform] || "bg-gray-500 text-white"}
+              <Badge
+                key={platform}
+                variant="outline"
+                className={platformColors[platform] || "border-border bg-transparent text-muted-foreground"}
               >
                 {platform}: {count}
               </Badge>
             ))}
           </div>
         </div>
-        
+
         {data.lastComment && (
-          <div className="mt-4 p-3 bg-muted/30 rounded-lg">
+          <div className="rule-t mt-4 pt-3">
             <p className="text-xs text-muted-foreground mb-1">Latest synced comment:</p>
             <p className="text-sm line-clamp-2">{data.lastComment.text}</p>
             <p className="text-xs text-muted-foreground mt-1">

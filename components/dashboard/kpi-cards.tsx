@@ -1,8 +1,6 @@
 "use client"
 
 import { MessageCircle, ThumbsUp, Share2, FileText, Play } from "lucide-react"
-import { Card, CardContent } from "@/components/ui/card"
-import { cn } from "@/lib/utils"
 import { getProcessedDashboardData, type Platform } from "@/lib/social-data"
 
 interface KPICardProps {
@@ -19,25 +17,16 @@ interface KPICardsProps {
 
 function KPICard({ title, value, subValue, icon, iconColor }: KPICardProps) {
   return (
-    <Card className="relative overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-500">
-      <CardContent className="p-6">
-        <div className="flex items-start justify-between">
-          <div className="space-y-3">
-            <p className="section-label">{title}</p>
-            <p className="kpi-value text-3xl">{value}</p>
-            {subValue && (
-              <p className="text-sm text-muted-foreground">{subValue}</p>
-            )}
-          </div>
-          <div className={cn(
-            "flex h-12 w-12 items-center justify-center rounded-xl",
-            iconColor || "bg-primary/10 text-primary"
-          )}>
-            {icon}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="space-y-2 py-1">
+      <div className="flex items-center gap-2">
+        <span className="text-muted-foreground [&_svg]:h-3.5 [&_svg]:w-3.5">{icon}</span>
+        <p className="section-label">{title}</p>
+      </div>
+      <p className="kpi-value text-4xl md:text-5xl">{value}</p>
+      {subValue && (
+        <p className="text-xs text-muted-foreground">{subValue}</p>
+      )}
+    </div>
   )
 }
 
@@ -85,7 +74,7 @@ export function KPICards({ platformFilter }: KPICardsProps) {
   ]
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="stat-rail divide-none rule-t grid gap-y-8 py-8 animate-in fade-in duration-500 sm:grid-cols-2 lg:grid-cols-4 [&>*]:px-6 [&>*:first-child]:pl-0 [&>*:last-child]:pr-0">
       {kpis.map((kpi) => (
         <KPICard key={kpi.title} {...kpi} />
       ))}

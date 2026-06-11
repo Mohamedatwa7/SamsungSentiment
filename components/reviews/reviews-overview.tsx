@@ -1,6 +1,5 @@
 "use client"
 
-import { Card, CardContent } from "@/components/ui/card"
 import { CountUp } from "@/components/ui/count-up"
 import { ThumbsUp, ThumbsDown, Minus, Star, MessageSquare, TrendingUp, Eye, Moon, RotateCcw } from "lucide-react"
 import type { SentimentMetrics, S26FeatureMetrics } from "@/lib/reviews-data"
@@ -106,46 +105,38 @@ export function ReviewsOverview({ metrics, featureMetrics }: ReviewsOverviewProp
   ]
   
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+    <div className="accent-top rule-t stat-rail grid grid-cols-1 gap-y-8 pt-6 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
       {cards.map((card) => (
-        <Card key={card.title} className="accent-top hover-lift relative overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-500">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex flex-col gap-1 min-w-0 flex-1">
-                <span className="section-label truncate">
-                  {card.title}
-                </span>
-                <div className="flex items-baseline gap-1">
-                  <CountUp value={card.numeric} format={card.format} className="kpi-value text-3xl" />
-                  {card.suffix && (
-                    <span className="text-sm text-muted-foreground">{card.suffix}</span>
-                  )}
-                </div>
-                {card.subValue && !card.positiveRate && (
-                  <span className="text-xs text-muted-foreground">
-                    {card.subValue} reviews
-                  </span>
-                )}
-                {card.positiveRate !== undefined && (
-                  <div className="mt-1 space-y-1">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground">{card.subValue}</span>
-                    </div>
-                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                      <div 
-                        className="h-full rounded-full bg-positive transition-all"
-                        style={{ width: `${card.positiveRate}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
+        <div key={card.title} className="flex min-w-0 flex-col gap-1.5 px-5 first:pl-0 animate-in fade-in slide-in-from-bottom-2 duration-500">
+          <span className="section-label flex items-center gap-1.5 truncate">
+            <card.icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
+            {card.title}
+          </span>
+          <div className="flex items-baseline gap-1">
+            <CountUp value={card.numeric} format={card.format} className="kpi-value text-4xl" />
+            {card.suffix && (
+              <span className="text-sm text-muted-foreground">{card.suffix}</span>
+            )}
+          </div>
+          {card.subValue && !card.positiveRate && (
+            <span className="text-xs text-muted-foreground">
+              {card.subValue} reviews
+            </span>
+          )}
+          {card.positiveRate !== undefined && (
+            <div className="mt-1 space-y-1">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">{card.subValue}</span>
               </div>
-              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${card.bgColor}`}>
-                <card.icon className={`h-5 w-5 ${card.color}`} />
+              <div className="h-1.5 w-full overflow-hidden bg-muted">
+                <div
+                  className="h-full bg-positive transition-all"
+                  style={{ width: `${card.positiveRate}%` }}
+                />
               </div>
             </div>
-          </CardContent>
-        </Card>
+          )}
+        </div>
       ))}
     </div>
   )

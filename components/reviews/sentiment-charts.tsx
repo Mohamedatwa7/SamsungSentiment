@@ -10,9 +10,9 @@ interface SentimentChartsProps {
 
 export function SentimentCharts({ metrics }: SentimentChartsProps) {
   const data = [
-    { name: "Positive", value: metrics.positive, color: "#22c55e" },
-    { name: "Neutral", value: metrics.neutral, color: "#6b7280" },
-    { name: "Negative", value: metrics.negative, color: "#ef4444" }
+    { name: "Positive", value: metrics.positive, color: "var(--positive)" },
+    { name: "Neutral", value: metrics.neutral, color: "var(--neutral)" },
+    { name: "Negative", value: metrics.negative, color: "var(--negative)" }
   ]
   
   return (
@@ -34,10 +34,13 @@ export function SentimentCharts({ metrics }: SentimentChartsProps) {
                 innerRadius={60}
                 outerRadius={100}
                 paddingAngle={2}
-                cornerRadius={4}
                 stroke="none"
                 dataKey="value"
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                label={({ name, percent, x, y, textAnchor }) => (
+                  <text x={x} y={y} textAnchor={textAnchor} fill="var(--muted-foreground)" fontSize={11}>
+                    {`${name} ${(percent * 100).toFixed(0)}%`}
+                  </text>
+                )}
                 labelLine={false}
               >
                 {data.map((entry, index) => (
@@ -49,29 +52,30 @@ export function SentimentCharts({ metrics }: SentimentChartsProps) {
                 contentStyle={{
                   backgroundColor: "var(--popover)",
                   border: "1px solid var(--border)",
-                  borderRadius: "8px",
+                  borderRadius: "6px",
                   color: "var(--popover-foreground)",
                   fontSize: "12px",
-                  boxShadow: "0 4px 12px rgb(0 0 0 / 0.1)"
+                  padding: "8px 12px",
+                  boxShadow: "none"
                 }}
               />
-              <Legend />
+              <Legend iconSize={8} wrapperStyle={{ fontSize: "12px", color: "var(--muted-foreground)" }} />
             </PieChart>
           </ResponsiveContainer>
         </div>
         
         {/* Summary Stats */}
-        <div className="mt-4 grid grid-cols-3 gap-4 border-t pt-4">
-          <div className="text-center">
-            <div className="kpi-value text-2xl text-positive">{metrics.positivePercent.toFixed(1)}%</div>
+        <div className="rule-t stat-rail mt-4 grid grid-cols-3 pt-4">
+          <div className="px-5 first:pl-0">
+            <div className="kpi-value text-3xl text-positive">{metrics.positivePercent.toFixed(1)}%</div>
             <div className="section-label">Positive</div>
           </div>
-          <div className="text-center">
-            <div className="kpi-value text-2xl text-muted-foreground">{metrics.neutralPercent.toFixed(1)}%</div>
+          <div className="px-5 first:pl-0">
+            <div className="kpi-value text-3xl text-muted-foreground">{metrics.neutralPercent.toFixed(1)}%</div>
             <div className="section-label">Neutral</div>
           </div>
-          <div className="text-center">
-            <div className="kpi-value text-2xl text-negative">{metrics.negativePercent.toFixed(1)}%</div>
+          <div className="px-5 first:pl-0">
+            <div className="kpi-value text-3xl text-negative">{metrics.negativePercent.toFixed(1)}%</div>
             <div className="section-label">Negative</div>
           </div>
         </div>

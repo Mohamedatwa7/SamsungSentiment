@@ -76,18 +76,18 @@ function ConversationSidebar({
       {/* Mobile overlay */}
       {isOpen && (
         <div 
-          className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-40 bg-background/80 lg:hidden"
           onClick={onClose}
         />
       )}
       
       {/* Sidebar */}
       <div className={cn(
-        "fixed inset-y-0 left-0 z-50 flex h-full w-72 flex-col border-r border-border/50 bg-card/95 backdrop-blur transition-transform duration-300 lg:relative lg:translate-x-0",
+        "fixed inset-y-0 left-0 z-50 flex h-full w-72 flex-col border-r border-border bg-background transition-transform duration-300 lg:relative lg:translate-x-0",
         isOpen ? "translate-x-0" : "-translate-x-full"
       )}>
-        <div className="flex items-center justify-between border-b border-border/50 p-4">
-          <h2 className="font-semibold">Conversations</h2>
+        <div className="flex items-center justify-between border-b border-border p-4">
+          <h2 className="display-title text-base">Conversations</h2>
           <div className="flex items-center gap-1">
             <Button variant="ghost" size="icon" onClick={onNew} className="h-8 w-8">
               <Plus className="h-4 w-4" />
@@ -98,7 +98,7 @@ function ConversationSidebar({
           </div>
         </div>
         <ScrollArea className="flex-1 nice-scroll">
-          <div className="flex flex-col gap-1 p-2">
+          <div className="flex flex-col">
             {conversations.map((conv) => (
               <div
                 key={conv.id}
@@ -116,10 +116,10 @@ function ConversationSidebar({
                   }
                 }}
                 className={cn(
-                  "group flex w-full cursor-pointer flex-col gap-1 rounded-lg p-3 text-left transition-colors duration-200",
+                  "group flex w-full cursor-pointer flex-col gap-1 border-b border-border/70 px-4 py-3 text-left transition-colors duration-200",
                   activeId === conv.id
-                    ? "bg-primary/10 text-foreground"
-                    : "hover:bg-muted/60"
+                    ? "bg-muted/40 text-foreground"
+                    : "hover:bg-muted/30"
                 )}
               >
                 <div className="flex items-center justify-between">
@@ -201,10 +201,10 @@ function ChatMessage({ message }: { message: UIMessage }) {
       </Avatar>
       <div
         className={cn(
-          "min-w-0 flex-1 space-y-2 rounded-2xl px-4 py-3 shadow-sm",
+          "min-w-0 flex-1 space-y-2",
           isUser
-            ? "bg-primary text-primary-foreground"
-            : "bg-muted"
+            ? "rounded-md bg-primary px-4 py-3 text-primary-foreground"
+            : "border-l-2 border-border py-1 pl-4"
         )}
       >
         <div className="flex items-center gap-2">
@@ -263,10 +263,10 @@ function ChatMessage({ message }: { message: UIMessage }) {
 function EmptyState({ onPromptClick }: { onPromptClick: (prompt: string) => void }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center px-4 py-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
-      <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 sm:mb-8">
+      <div className="mb-6 sm:mb-8">
         <Sparkles className="h-8 w-8 text-primary" />
       </div>
-      <h2 className="mb-2 text-xl font-semibold sm:text-2xl">Samsung AI Assistant</h2>
+      <h2 className="display-title mb-2 text-xl sm:text-2xl">Samsung AI Assistant</h2>
       <p className="mb-6 max-w-md text-center text-sm text-muted-foreground sm:mb-8 sm:text-base">
         Ask me anything about customer sentiment, product insights, or market trends across GCC markets.
       </p>
@@ -274,7 +274,7 @@ function EmptyState({ onPromptClick }: { onPromptClick: (prompt: string) => void
         {suggestedPrompts.map((prompt) => (
           <Card
             key={prompt}
-            className="cursor-pointer hover-lift p-3 transition-all hover:border-primary/50 sm:p-4"
+            className="cursor-pointer gap-0 rounded-sm border border-border p-3 py-3 transition-colors hover:border-foreground/50 hover:bg-muted/30 sm:p-4 sm:py-4"
             onClick={() => onPromptClick(prompt)}
           >
             <p className="text-xs text-foreground/90 sm:text-sm">{prompt}</p>
@@ -369,7 +369,7 @@ function ChatInterface({
                     AI
                   </AvatarFallback>
                 </Avatar>
-                <div className="flex items-center gap-1 rounded-2xl bg-muted px-4 py-3 shadow-sm">
+                <div className="flex items-center gap-1 border-l-2 border-border py-3 pl-4">
                   <div className="h-2 w-2 animate-bounce rounded-full bg-primary [animation-delay:-0.3s]" />
                   <div className="h-2 w-2 animate-bounce rounded-full bg-primary [animation-delay:-0.15s]" />
                   <div className="h-2 w-2 animate-bounce rounded-full bg-primary" />
@@ -377,7 +377,7 @@ function ChatInterface({
               </div>
             )}
             {error && (
-              <div className="mx-4 my-4 rounded-lg border border-destructive/50 bg-destructive/10 p-4">
+              <div className="mx-4 my-4 rounded-sm border border-destructive/40 p-4">
                 <p className="text-sm text-destructive">{error}</p>
                 <p className="mt-2 text-xs text-muted-foreground">
                   The AI Gateway requires a valid credit card on your Vercel account, or you can configure a custom API key in the settings.
@@ -389,9 +389,9 @@ function ChatInterface({
       )}
 
       {/* Input Area */}
-      <div className="border-t border-border/50 bg-background p-3 sm:p-4">
+      <div className="border-t border-border bg-background p-3 sm:p-4">
         <div className="mx-auto max-w-3xl">
-          <div className="relative flex items-end gap-2 rounded-xl border border-border/50 bg-card p-2 shadow-sm transition-shadow focus-within:shadow-md focus-within:border-primary/50">
+          <div className="relative flex items-end gap-2 rounded-md border border-border bg-background p-2 transition-colors focus-within:border-primary/60">
             <Button
               variant="ghost"
               size="icon"
@@ -406,13 +406,13 @@ function ChatInterface({
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               rows={1}
-              className="min-h-[40px] max-h-[200px] flex-1 resize-none border-0 bg-transparent p-2 text-sm focus-visible:ring-0 sm:text-base"
+              className="nice-scroll min-h-[40px] max-h-[200px] flex-1 resize-none border-0 bg-transparent p-2 text-sm focus-visible:ring-0 sm:text-base"
             />
             <Button
               onClick={handleSend}
               disabled={!input.trim() || isLoading}
               size="icon"
-              className="h-9 w-9 shrink-0 rounded-lg"
+              className="h-9 w-9 shrink-0 rounded-md"
             >
               <Send className="h-4 w-4" />
             </Button>
@@ -498,7 +498,7 @@ export default function ChatbotPage() {
 
       <div className="flex flex-1 flex-col">
         {/* Mobile header */}
-        <div className="flex items-center gap-3 border-b border-border/50 p-3 lg:hidden">
+        <div className="flex items-center gap-3 border-b border-border p-3 lg:hidden">
           <Button
             variant="ghost"
             size="icon"

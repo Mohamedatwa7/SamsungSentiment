@@ -90,40 +90,36 @@ interface ExecKPIProps {
 
 function ExecKPI({ title, value, subtitle, trend, trendValue, icon, status }: ExecKPIProps) {
   return (
-    <Card className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between">
-          <div className="space-y-1">
-            <p className="section-label">{title}</p>
-            <div className="flex items-baseline gap-2">
-              <p className="kpi-value text-2xl">{value}</p>
-              {trend && trendValue && (
-                <span className={cn(
-                  "flex items-center text-xs font-medium",
-                  trend === "up" && "text-positive",
-                  trend === "down" && "text-negative",
-                  trend === "neutral" && "text-muted-foreground"
-                )}>
-                  {trend === "up" && <TrendingUp className="h-3 w-3 mr-0.5" />}
-                  {trend === "down" && <TrendingDown className="h-3 w-3 mr-0.5" />}
-                  {trendValue}
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">{subtitle}</p>
-          </div>
-          <div className={cn(
-            "flex h-10 w-10 items-center justify-center rounded-lg",
-            status === "success" && "bg-positive/10 text-positive",
-            status === "warning" && "bg-amber-500/10 text-amber-500",
-            status === "danger" && "bg-negative/10 text-negative",
-            !status && "bg-primary/10 text-primary"
+    <div className="space-y-2 py-1">
+      <div className="flex items-center gap-2">
+        <span className="text-muted-foreground [&_svg]:h-3.5 [&_svg]:w-3.5">{icon}</span>
+        <p className="section-label">{title}</p>
+        {status && (
+          <span className={cn(
+            "h-1.5 w-1.5 rounded-full",
+            status === "success" && "bg-positive",
+            status === "warning" && "bg-amber-500",
+            status === "danger" && "bg-negative"
+          )} />
+        )}
+      </div>
+      <p className="kpi-value text-4xl md:text-5xl">{value}</p>
+      <div className="space-y-0.5">
+        {trend && trendValue && (
+          <span className={cn(
+            "flex items-center text-xs font-medium",
+            trend === "up" && "text-positive",
+            trend === "down" && "text-negative",
+            trend === "neutral" && "text-muted-foreground"
           )}>
-            {icon}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+            {trend === "up" && <TrendingUp className="h-3 w-3 mr-0.5" />}
+            {trend === "down" && <TrendingDown className="h-3 w-3 mr-0.5" />}
+            {trendValue}
+          </span>
+        )}
+        <p className="text-xs text-muted-foreground">{subtitle}</p>
+      </div>
+    </div>
   )
 }
 
@@ -198,7 +194,7 @@ export function ExecutiveKPIs({ platformFilter, dateRange }: ExecutiveMetricsPro
   }, [commentsByProduct])
   
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="stat-rail divide-none rule-t grid gap-y-8 py-8 animate-in fade-in duration-500 sm:grid-cols-2 lg:grid-cols-4 [&>*]:px-6 [&>*:first-child]:pl-0 [&>*:last-child]:pr-0">
       <ExecKPI
         title="Comment Health Score"
         value={`${brandHealthScore}/100`}
@@ -264,109 +260,77 @@ export function MainKPIs({ platformFilter, dateRange }: ExecutiveMetricsProps) {
     : "∞"
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-      {/* Comment Health Index */}
-      <Card className="accent-top animate-in fade-in slide-in-from-bottom-2 duration-500">
-        <CardContent className="p-5">
-          <div className="flex items-start justify-between">
-            <div className="space-y-1">
-              <p className="section-label">Health Index</p>
-              <p className={cn(
-                "kpi-value text-4xl",
-                commentHealthScore >= 70 ? "text-positive" : commentHealthScore >= 50 ? "text-amber-500" : "text-negative"
-              )}><CountUp value={commentHealthScore} format={(v) => `${Math.round(v)}/100`} /></p>
-              <p className="text-xs text-muted-foreground">overall comment sentiment</p>
-            </div>
-            <div className={cn(
-              "flex h-10 w-10 items-center justify-center rounded-lg",
-              commentHealthScore >= 70 ? "bg-positive/10" : commentHealthScore >= 50 ? "bg-amber-500/10" : "bg-negative/10"
-            )}>
-              <Activity className={cn(
-                "h-5 w-5",
-                commentHealthScore >= 70 ? "text-positive" : commentHealthScore >= 50 ? "text-amber-500" : "text-negative"
-              )} />
-            </div>
+    <div className="accent-top rule-t py-8 animate-in fade-in duration-500">
+      <div className="stat-rail divide-none grid gap-y-8 sm:grid-cols-2 lg:grid-cols-5 [&>*]:px-6 [&>*:first-child]:pl-0 [&>*:last-child]:pr-0">
+        {/* Comment Health Index */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Activity className="h-3.5 w-3.5 text-muted-foreground" />
+            <p className="section-label">Health Index</p>
           </div>
-        </CardContent>
-      </Card>
+          <p className={cn(
+            "kpi-value text-4xl md:text-5xl",
+            commentHealthScore >= 70 ? "text-positive" : commentHealthScore >= 50 ? "text-amber-500" : "text-negative"
+          )}><CountUp value={commentHealthScore} format={(v) => `${Math.round(v)}/100`} /></p>
+          <p className="text-xs text-muted-foreground">overall comment sentiment</p>
+        </div>
 
-      {/* Total Posts */}
-      <Card className="accent-top animate-in fade-in slide-in-from-bottom-2 duration-500">
-        <CardContent className="p-5">
-          <div className="flex items-start justify-between">
-            <div className="space-y-1">
-              <p className="section-label">Total Posts</p>
-              <p className="kpi-value text-4xl"><CountUp value={totalPosts} /></p>
-              <p className="text-xs text-muted-foreground">across all platforms</p>
-            </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-              <PieChartIcon className="h-5 w-5 text-primary" />
-            </div>
+        {/* Total Posts */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <PieChartIcon className="h-3.5 w-3.5 text-muted-foreground" />
+            <p className="section-label">Total Posts</p>
           </div>
-        </CardContent>
-      </Card>
+          <p className="kpi-value text-4xl md:text-5xl"><CountUp value={totalPosts} /></p>
+          <p className="text-xs text-muted-foreground">across all platforms</p>
+        </div>
 
-      {/* Number of Comments */}
-      <Card className="accent-top animate-in fade-in slide-in-from-bottom-2 duration-500">
-        <CardContent className="p-5">
-          <div className="flex items-start justify-between">
-            <div className="space-y-1">
-              <p className="section-label">Total Comments</p>
-              <p className="kpi-value text-4xl"><CountUp value={total} /></p>
-              <p className="text-xs text-muted-foreground">analyzed from all platforms</p>
-            </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-              <BarChart3 className="h-5 w-5 text-primary" />
-            </div>
+        {/* Number of Comments */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="h-3.5 w-3.5 text-muted-foreground" />
+            <p className="section-label">Total Comments</p>
           </div>
-        </CardContent>
-      </Card>
+          <p className="kpi-value text-4xl md:text-5xl"><CountUp value={total} /></p>
+          <p className="text-xs text-muted-foreground">analyzed from all platforms</p>
+        </div>
 
-      {/* Platform Split */}
-      <Card className="accent-top animate-in fade-in slide-in-from-bottom-2 duration-500">
-        <CardContent className="p-5">
-          <div className="space-y-2">
-            <p className="section-label">Platform Split</p>
-            <div className="flex h-2.5 overflow-hidden rounded-full bg-muted">
-              <div className="bg-[#E4405F]" style={{ width: `${instagramPct}%` }} title={`Instagram: ${instagramPct}%`} />
-              <div className="bg-[#00f2ea]" style={{ width: `${tiktokPct}%` }} title={`TikTok: ${tiktokPct}%`} />
-              <div className="bg-[#1877F2]" style={{ width: `${facebookPct}%` }} title={`Facebook: ${facebookPct}%`} />
-            </div>
-            <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <span className="inline-block h-2 w-2 rounded-full bg-[#E4405F]" />
-                IG {instagramPct}%
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="inline-block h-2 w-2 rounded-full bg-[#00f2ea]" />
-                TT {tiktokPct}%
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="inline-block h-2 w-2 rounded-full bg-[#1877F2]" />
-                FB {facebookPct}%
-              </span>
-            </div>
+        {/* Platform Split */}
+        <div className="space-y-2">
+          <p className="section-label">Platform Split</p>
+          <div className="mt-4 flex h-1.5 overflow-hidden bg-muted">
+            <div className="bg-[#E4405F]" style={{ width: `${instagramPct}%` }} title={`Instagram: ${instagramPct}%`} />
+            <div className="bg-[#00f2ea]" style={{ width: `${tiktokPct}%` }} title={`TikTok: ${tiktokPct}%`} />
+            <div className="bg-[#1877F2]" style={{ width: `${facebookPct}%` }} title={`Facebook: ${facebookPct}%`} />
           </div>
-        </CardContent>
-      </Card>
+          <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#E4405F]" />
+              IG {instagramPct}%
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#00f2ea]" />
+              TT {tiktokPct}%
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#1877F2]" />
+              FB {facebookPct}%
+            </span>
+          </div>
+        </div>
 
-      {/* Positive to Negative Ratio */}
-      <Card className="accent-top animate-in fade-in slide-in-from-bottom-2 duration-500">
-        <CardContent className="p-5">
-          <div className="flex items-start justify-between">
-            <div className="space-y-1">
-              <p className="section-label">Pos:Neg Ratio</p>
-              <p className="kpi-value text-4xl">{posToNegRatio}:1</p>
-              <p className="text-xs text-muted-foreground">
-                {commentMetrics.positive.toLocaleString()} pos / {commentMetrics.negative.toLocaleString()} neg
-              </p>
-            </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/10">
-              <Target className="h-5 w-5 text-amber-500" />
-            </div>
+        {/* Positive to Negative Ratio */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Target className="h-3.5 w-3.5 text-muted-foreground" />
+            <p className="section-label">Pos:Neg Ratio</p>
           </div>
-        </CardContent>
-      </Card>
+          <p className="kpi-value text-4xl md:text-5xl">{posToNegRatio}:1</p>
+          <p className="text-xs text-muted-foreground">
+            {commentMetrics.positive.toLocaleString()} pos / {commentMetrics.negative.toLocaleString()} neg
+          </p>
+        </div>
+      </div>
     </div>
   )
 }
@@ -390,10 +354,10 @@ export function BrandHealthGauge({ platformFilter, dateRange }: ExecutiveMetrics
       value: brandHealthScore,
       fill:
         brandHealthScore >= 70
-          ? "oklch(0.65 0.18 150)"
+          ? "var(--positive)"
           : brandHealthScore >= 50
-          ? "oklch(0.7 0.15 85)"
-          : "oklch(0.6 0.2 30)",
+          ? "oklch(0.62 0.1 85)"
+          : "var(--negative)",
     },
   ]
 
@@ -401,9 +365,9 @@ export function BrandHealthGauge({ platformFilter, dateRange }: ExecutiveMetrics
   const topContributors = brandHealth.topContributors.slice(0, 5)
 
   return (
-    <Card className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-lg font-semibold">Comment Health Index</CardTitle>
+    <Card className="animate-in fade-in duration-500">
+      <CardHeader>
+        <CardTitle>Comment Health Index</CardTitle>
         <CardDescription>
           Weighted by department strategy (MX 70% / VD 20% / HA 10%) and statistical confidence
         </CardDescription>
@@ -425,7 +389,7 @@ export function BrandHealthGauge({ platformFilter, dateRange }: ExecutiveMetrics
                 <RadialBar
                   background={{ fill: "var(--muted)" }}
                   dataKey="value"
-                  cornerRadius={10}
+                  cornerRadius={2}
                 />
               </RadialBarChart>
             </ResponsiveContainer>
@@ -439,16 +403,16 @@ export function BrandHealthGauge({ platformFilter, dateRange }: ExecutiveMetrics
             {"± "}{brandHealth.margin} margin of error
           </p>
 
-          <div className="mt-4 grid w-full grid-cols-3 gap-2 text-center text-xs">
-            <div className="rounded-lg bg-negative/10 p-2">
+          <div className="stat-rail divide-none rule-t rule-b mt-4 grid w-full grid-cols-3 text-center text-xs">
+            <div className="py-2">
               <p className="font-semibold text-negative">0-49</p>
               <p className="text-muted-foreground">At Risk</p>
             </div>
-            <div className="rounded-lg bg-amber-500/10 p-2">
+            <div className="py-2">
               <p className="font-semibold text-amber-600">50-69</p>
               <p className="text-muted-foreground">Moderate</p>
             </div>
-            <div className="rounded-lg bg-positive/10 p-2">
+            <div className="py-2">
               <p className="font-semibold text-positive">70-100</p>
               <p className="text-muted-foreground">Healthy</p>
             </div>
@@ -458,7 +422,7 @@ export function BrandHealthGauge({ platformFilter, dateRange }: ExecutiveMetrics
           {topContributors.length > 0 && (
             <div className="mt-5 w-full">
               <div className="mb-2 flex items-center justify-between">
-                <p className="text-xs font-semibold text-foreground">Top Score Drivers</p>
+                <p className="section-label">Top Score Drivers</p>
                 <p className="text-[10px] text-muted-foreground">{brandHealth.productCount} products</p>
               </div>
               <div className="space-y-2">
@@ -478,9 +442,9 @@ export function BrandHealthGauge({ platformFilter, dateRange }: ExecutiveMetrics
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                        <div className="h-1 flex-1 overflow-hidden bg-muted">
                           <div
-                            className="h-full rounded-full bg-primary"
+                            className="h-full bg-primary"
                             style={{ width: `${Math.min(100, c.contributionShare)}%` }}
                           />
                         </div>
@@ -875,16 +839,16 @@ export function CriticalAlerts({ platformFilter, dateRange }: ExecutiveMetricsPr
   }, [commentMetrics, prevMetrics, commentsByProduct, brandHealthScore, topIssues, topPraise])
 
   return (
-    <Card className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg font-semibold flex items-center gap-2">
-          <Activity className="h-5 w-5" />
+    <Card className="animate-in fade-in duration-500">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Activity className="h-4 w-4 text-muted-foreground" />
           Alerts & Insights
         </CardTitle>
         <CardDescription>Key items requiring attention</CardDescription>
       </CardHeader>
       <CardContent className="pt-0">
-        <div className="space-y-3">
+        <div>
           {alerts.length === 0 ? (
             <p className="text-sm text-muted-foreground">No critical alerts at this time</p>
           ) : (
@@ -898,31 +862,22 @@ export function CriticalAlerts({ platformFilter, dateRange }: ExecutiveMetricsPr
                     setSelectedAlert({ title: alert.title, message: alert.message, comments: relatedComments })
                   }}
                   className={cn(
-                    "hover-lift flex w-full items-start gap-3 rounded-xl p-3 text-left transition-all",
-                    alert.type === "danger" && "bg-negative/10",
-                    alert.type === "warning" && "bg-amber-500/10",
-                    alert.type === "success" && "bg-positive/10",
-                    alert.type === "info" && "bg-primary/10",
-                    hasDetails && "cursor-pointer hover:ring-2 hover:ring-primary/20"
+                    "flex w-full items-start gap-3 border-b border-border py-3 text-left transition-colors last:border-0",
+                    hasDetails && "cursor-pointer hover:bg-muted/40"
                   )}
                 >
-                  <div className={cn(
-                    "mt-0.5",
-                    alert.type === "danger" && "text-negative",
-                    alert.type === "warning" && "text-amber-600",
-                    alert.type === "success" && "text-positive",
-                    alert.type === "info" && "text-primary"
-                  )}>
+                  <span className={cn(
+                    "mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full",
+                    alert.type === "danger" && "bg-negative",
+                    alert.type === "warning" && "bg-amber-500",
+                    alert.type === "success" && "bg-positive",
+                    alert.type === "info" && "bg-primary"
+                  )} />
+                  <div className="mt-0.5 text-muted-foreground">
                     {alert.icon}
                   </div>
                   <div className="flex-1">
-                    <p className={cn(
-                      "text-sm font-medium",
-                      alert.type === "danger" && "text-negative",
-                      alert.type === "warning" && "text-amber-600",
-                      alert.type === "success" && "text-positive",
-                      alert.type === "info" && "text-primary"
-                    )}>
+                    <p className="text-sm font-medium text-foreground">
                       {alert.title}
                     </p>
                     <p className="text-xs text-muted-foreground">{alert.message}</p>
@@ -949,35 +904,30 @@ export function CriticalAlerts({ platformFilter, dateRange }: ExecutiveMetricsPr
               </span>
             </DialogDescription>
           </DialogHeader>
-          <div className="nice-scroll flex-1 overflow-y-auto space-y-3 pr-2">
+          <div className="nice-scroll flex-1 overflow-y-auto pr-2">
             {selectedAlert?.comments.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <p className="text-sm text-muted-foreground">No comments found for this insight</p>
               </div>
             ) : null}
             {selectedAlert?.comments.slice(0, 200).map((comment, idx) => (
-              <div key={idx} className="rounded-lg border p-3 space-y-2 transition-colors hover:bg-muted/40">
+              <div key={idx} className="border-b border-border/70 py-3 px-0 space-y-2 transition-colors last:border-0 hover:bg-muted/40">
                 <div className="flex items-center gap-2">
-                  <div className={cn(
-                    "flex h-5 w-5 items-center justify-center rounded-full",
-                    comment.platform === "instagram" && "bg-[#E4405F]/10",
-                    comment.platform === "tiktok" && "bg-[#00f2ea]/10",
-                    comment.platform === "facebook" && "bg-[#1877F2]/10"
-                  )}>
+                  <div className="flex h-5 w-5 items-center justify-center">
                     {comment.platform === "instagram" ? (
-                      <Instagram className="h-3 w-3 text-[#E4405F]" />
+                      <Instagram className="h-3 w-3 text-muted-foreground" />
                     ) : comment.platform === "tiktok" ? (
-                      <Music2 className="h-3 w-3 text-[#00f2ea]" />
+                      <Music2 className="h-3 w-3 text-muted-foreground" />
                     ) : (
-                      <Facebook className="h-3 w-3 text-[#1877F2]" />
+                      <Facebook className="h-3 w-3 text-muted-foreground" />
                     )}
                   </div>
                   <span className="text-xs text-muted-foreground">{comment.username}</span>
                   <div className={cn(
-                    "ml-auto flex h-5 items-center gap-1 rounded-full px-2 text-[10px] font-medium",
-                    comment.sentiment === "positive" && "bg-positive/10 text-positive",
-                    comment.sentiment === "negative" && "bg-negative/10 text-negative",
-                    comment.sentiment === "neutral" && "bg-muted text-muted-foreground"
+                    "ml-auto flex h-5 items-center gap-1 rounded-full border bg-transparent px-2 text-[10px] font-medium",
+                    comment.sentiment === "positive" && "border-positive/40 text-positive",
+                    comment.sentiment === "negative" && "border-negative/40 text-negative",
+                    comment.sentiment === "neutral" && "border-border text-muted-foreground"
                   )}>
                     {comment.sentiment === "positive" ? (
                       <ThumbsUp className="h-3 w-3" />
@@ -1182,11 +1132,11 @@ export function ProductPerformanceChart({ platformFilter }: ExecutiveMetricsProp
   const leastPraised = topics.filter(t => t.score <= 0).sort((a, b) => a.score - b.score).slice(0, 3)
 
   return (
-    <Card className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-      <CardHeader className="pb-2">
+    <Card className="animate-in fade-in duration-500">
+      <CardHeader>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <CardTitle className="text-lg font-semibold">Product Performance</CardTitle>
+            <CardTitle>Product Performance</CardTitle>
             <CardDescription>Sentiment analysis and topic breakdown</CardDescription>
           </div>
           <div className="flex gap-2">
@@ -1219,23 +1169,23 @@ export function ProductPerformanceChart({ platformFilter }: ExecutiveMetricsProp
       </CardHeader>
       <CardContent className="pt-0">
         {/* Sentiment Overview */}
-        <div className="mb-4 grid grid-cols-3 gap-2 text-center">
-          <div className="rounded-lg bg-positive/10 p-3">
-            <p className="kpi-value text-2xl text-positive">{sentimentBreakdown.positiveRate}%</p>
-            <p className="text-xs text-muted-foreground">Positive ({sentimentBreakdown.positive})</p>
+        <div className="stat-rail divide-none mb-4 grid grid-cols-3 text-center">
+          <div className="py-2">
+            <p className="kpi-value text-3xl text-positive">{sentimentBreakdown.positiveRate}%</p>
+            <p className="section-label mt-1">Positive ({sentimentBreakdown.positive})</p>
           </div>
-          <div className="rounded-lg bg-muted p-3">
-            <p className="kpi-value text-2xl text-muted-foreground">{sentimentBreakdown.neutralRate}%</p>
-            <p className="text-xs text-muted-foreground">Neutral ({sentimentBreakdown.neutral})</p>
+          <div className="py-2">
+            <p className="kpi-value text-3xl text-muted-foreground">{sentimentBreakdown.neutralRate}%</p>
+            <p className="section-label mt-1">Neutral ({sentimentBreakdown.neutral})</p>
           </div>
-          <div className="rounded-lg bg-negative/10 p-3">
-            <p className="kpi-value text-2xl text-negative">{sentimentBreakdown.negativeRate}%</p>
-            <p className="text-xs text-muted-foreground">Negative ({sentimentBreakdown.negative})</p>
+          <div className="py-2">
+            <p className="kpi-value text-3xl text-negative">{sentimentBreakdown.negativeRate}%</p>
+            <p className="section-label mt-1">Negative ({sentimentBreakdown.negative})</p>
           </div>
         </div>
-        
+
         {/* Sentiment Progress Bar */}
-        <div className="mb-6 flex h-3 overflow-hidden rounded-full">
+        <div className="mb-6 flex h-1.5 overflow-hidden">
           <div className="bg-positive" style={{ width: `${sentimentBreakdown.positiveRate}%` }} />
           <div className="bg-muted-foreground/30" style={{ width: `${sentimentBreakdown.neutralRate}%` }} />
           <div className="bg-negative" style={{ width: `${sentimentBreakdown.negativeRate}%` }} />
@@ -1249,13 +1199,16 @@ export function ProductPerformanceChart({ platformFilter }: ExecutiveMetricsProp
               <ThumbsUp className="h-4 w-4" />
               Top Praised Topics
             </h4>
-            <div className="space-y-2">
+            <div>
               {topPraised.length > 0 ? topPraised.map(topic => (
-                <div key={topic.topic} className="flex items-center justify-between rounded-md bg-positive/5 px-3 py-2">
-                  <span className="text-sm font-medium">{topic.topic}</span>
+                <div key={topic.topic} className="flex items-center justify-between border-b border-border py-2.5 last:border-0">
+                  <span className="flex items-center gap-2 text-sm font-medium">
+                    <span className="h-1.5 w-1.5 rounded-full bg-positive" />
+                    {topic.topic}
+                  </span>
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-muted-foreground">{topic.total} mentions</span>
-                    <Badge variant="outline" className="border-positive text-positive text-xs">
+                    <Badge variant="outline" className="border-positive/40 bg-transparent text-positive text-xs">
                       +{topic.score}%
                     </Badge>
                   </div>
@@ -1272,13 +1225,16 @@ export function ProductPerformanceChart({ platformFilter }: ExecutiveMetricsProp
               <ThumbsDown className="h-4 w-4" />
               Least Praised Topics
             </h4>
-            <div className="space-y-2">
+            <div>
               {leastPraised.length > 0 ? leastPraised.map(topic => (
-                <div key={topic.topic} className="flex items-center justify-between rounded-md bg-negative/5 px-3 py-2">
-                  <span className="text-sm font-medium">{topic.topic}</span>
+                <div key={topic.topic} className="flex items-center justify-between border-b border-border py-2.5 last:border-0">
+                  <span className="flex items-center gap-2 text-sm font-medium">
+                    <span className="h-1.5 w-1.5 rounded-full bg-negative" />
+                    {topic.topic}
+                  </span>
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-muted-foreground">{topic.total} mentions</span>
-                    <Badge variant="outline" className="border-negative text-negative text-xs">
+                    <Badge variant="outline" className="border-negative/40 bg-transparent text-negative text-xs">
                       {topic.score}%
                     </Badge>
                   </div>
@@ -1317,9 +1273,9 @@ export function PlatformROI({ platformFilter, dateRange }: ExecutiveMetricsProps
   const maxEngagement = Math.max(...platformMetrics.map(p => p.engagement))
 
   return (
-    <Card className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-lg font-semibold">Platform Efficiency</CardTitle>
+    <Card className="animate-in fade-in duration-500">
+      <CardHeader>
+        <CardTitle>Platform Efficiency</CardTitle>
         <CardDescription>Engagement per post by platform</CardDescription>
       </CardHeader>
       <CardContent className="pt-0">
@@ -1330,9 +1286,9 @@ export function PlatformROI({ platformFilter, dateRange }: ExecutiveMetricsProps
                 <span className="font-medium">{platform.platform}</span>
                 <span className="text-muted-foreground">{platform.engagement} eng/post</span>
               </div>
-              <Progress 
-                value={(platform.engagement / maxEngagement) * 100} 
-                className="h-2"
+              <Progress
+                value={(platform.engagement / maxEngagement) * 100}
+                className="h-1.5 rounded-none bg-muted"
               />
               <p className="text-xs text-muted-foreground">
                 {platform.posts} posts | {platform.total.toLocaleString()} total engagements
@@ -1354,28 +1310,28 @@ export function QuickSummary({ platformFilter }: ExecutiveMetricsProps) {
   const commentMetrics = useMemo(() => getCommentMetrics(commentPlatformFilter, undefined, segmentation), [getCommentMetrics, commentPlatformFilter, segmentation])
   
   return (
-    <Card className="bg-gradient-to-br from-primary/5 to-primary/10 animate-in fade-in slide-in-from-bottom-2 duration-500">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-lg font-semibold">Performance Summary</CardTitle>
+    <Card className="animate-in fade-in duration-500">
+      <CardHeader>
+        <CardTitle>Performance Summary</CardTitle>
         <CardDescription>Key metrics at a glance</CardDescription>
       </CardHeader>
       <CardContent className="pt-0">
-        <div className="grid grid-cols-2 gap-4">
-          <div className="rounded-lg bg-background/80 p-3 text-center">
-            <p className="kpi-value text-2xl">{dashboardData.kpiMetrics.totalPosts}</p>
-            <p className="text-xs text-muted-foreground">Total Posts</p>
+        <div className="stat-rail divide-none grid grid-cols-2 gap-y-6 text-center">
+          <div className="py-1">
+            <p className="kpi-value text-3xl">{dashboardData.kpiMetrics.totalPosts}</p>
+            <p className="section-label mt-1">Total Posts</p>
           </div>
-          <div className="rounded-lg bg-background/80 p-3 text-center">
-            <p className="kpi-value text-2xl">{commentMetrics.total.toLocaleString()}</p>
-            <p className="text-xs text-muted-foreground">Comments Analyzed</p>
+          <div className="py-1">
+            <p className="kpi-value text-3xl">{commentMetrics.total.toLocaleString()}</p>
+            <p className="section-label mt-1">Comments Analyzed</p>
           </div>
-          <div className="rounded-lg bg-background/80 p-3 text-center">
-            <p className="kpi-value text-2xl text-positive">{commentMetrics.positiveRate}%</p>
-            <p className="text-xs text-muted-foreground">Positive Sentiment</p>
+          <div className="py-1">
+            <p className="kpi-value text-3xl text-positive">{commentMetrics.positiveRate}%</p>
+            <p className="section-label mt-1">Positive Sentiment</p>
           </div>
-          <div className="rounded-lg bg-background/80 p-3 text-center">
-            <p className="kpi-value text-2xl text-negative">{commentMetrics.negativeRate}%</p>
-            <p className="text-xs text-muted-foreground">Negative Sentiment</p>
+          <div className="py-1">
+            <p className="kpi-value text-3xl text-negative">{commentMetrics.negativeRate}%</p>
+            <p className="section-label mt-1">Negative Sentiment</p>
           </div>
         </div>
       </CardContent>

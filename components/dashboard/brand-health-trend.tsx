@@ -73,12 +73,12 @@ export function BrandHealthTrend({ platformFilter, dateRange }: BrandHealthTrend
   }))
 
   return (
-    <Card className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-      <CardHeader className="pb-2">
+    <Card className="animate-in fade-in duration-500">
+      <CardHeader>
         <div className="flex items-start justify-between">
           <div>
-            <CardTitle className="text-lg font-semibold">Comment Health Trend</CardTitle>
-            <CardDescription className="text-sm text-muted-foreground">
+            <CardTitle>Comment Health Trend</CardTitle>
+            <CardDescription>
               Week-on-week comment health score based on sentiment analysis
             </CardDescription>
           </div>
@@ -101,8 +101,8 @@ export function BrandHealthTrend({ platformFilter, dateRange }: BrandHealthTrend
                 variant="outline" 
                 className={cn(
                   "flex items-center gap-1",
-                  weekChange > 0 ? "border-positive text-positive" :
-                  weekChange < 0 ? "border-negative text-negative" : "border-muted-foreground"
+                  weekChange > 0 ? "border-positive/40 bg-transparent text-positive" :
+                  weekChange < 0 ? "border-negative/40 bg-transparent text-negative" : "border-border bg-transparent text-muted-foreground"
                 )}
               >
                 {weekChange > 0 ? <TrendingUp className="h-3 w-3" /> :
@@ -124,7 +124,7 @@ export function BrandHealthTrend({ platformFilter, dateRange }: BrandHealthTrend
                 data={chartData}
                 margin={{ top: 20, right: 30, left: 0, bottom: 10 }}
               >
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                <CartesianGrid vertical={false} stroke="var(--border)" />
                 <XAxis 
                   dataKey="weekLabel" 
                   tick={{ fontSize: 11 }}
@@ -145,7 +145,7 @@ export function BrandHealthTrend({ platformFilter, dateRange }: BrandHealthTrend
                     if (!active || !payload?.length) return null
                     const data = payload[0].payload
                     return (
-                      <div className="rounded-lg border bg-popover px-3 py-2 text-xs shadow-md text-popover-foreground">
+                      <div className="rounded-md border bg-popover px-3 py-2 text-xs shadow-sm text-popover-foreground">
                         <p className="text-sm font-medium">Week of {data.weekStart}</p>
                         <p className="kpi-value text-2xl">{data.score}</p>
                         <p className="text-xs text-muted-foreground">
@@ -155,22 +155,22 @@ export function BrandHealthTrend({ platformFilter, dateRange }: BrandHealthTrend
                     )
                   }}
                 />
-                <ReferenceLine 
-                  y={averageScore} 
-                  stroke="oklch(0.6 0.1 250)" 
+                <ReferenceLine
+                  y={averageScore}
+                  stroke="var(--chart-4)"
                   strokeDasharray="5 5"
-                  label={{ 
-                    value: `Avg: ${averageScore}`, 
+                  label={{
+                    value: `Avg: ${averageScore}`,
                     position: "right",
                     fontSize: 10,
-                    fill: "oklch(0.6 0.1 250)"
+                    fill: "var(--muted-foreground)"
                   }}
                 />
                 <Line
                   type="monotone"
                   dataKey="score"
-                  stroke="oklch(0.6 0.2 250)"
-                  strokeWidth={2.5}
+                  stroke="var(--chart-1)"
+                  strokeWidth={2}
                   dot={false}
                   activeDot={{ r: 4, strokeWidth: 0 }}
                 />
@@ -186,20 +186,20 @@ export function BrandHealthTrend({ platformFilter, dateRange }: BrandHealthTrend
         )}
         
         {/* Summary stats */}
-        <div className="mt-4 grid grid-cols-3 gap-4 border-t pt-4">
+        <div className="stat-rail divide-none rule-t mt-4 grid grid-cols-3 pt-4">
           <div className="text-center">
-            <p className="kpi-value text-2xl">{weeklyData.length}</p>
-            <p className="text-xs text-muted-foreground">Weeks tracked</p>
+            <p className="kpi-value text-3xl">{weeklyData.length}</p>
+            <p className="section-label mt-1">Weeks tracked</p>
           </div>
           <div className="text-center">
-            <p className="kpi-value text-2xl">{averageScore}</p>
-            <p className="text-xs text-muted-foreground">Average score</p>
+            <p className="kpi-value text-3xl">{averageScore}</p>
+            <p className="section-label mt-1">Average score</p>
           </div>
           <div className="text-center">
-            <p className="kpi-value text-2xl">
+            <p className="kpi-value text-3xl">
               {currentWeek?.score ?? "—"}
             </p>
-            <p className="text-xs text-muted-foreground">Current week</p>
+            <p className="section-label mt-1">Current week</p>
           </div>
         </div>
       </CardContent>

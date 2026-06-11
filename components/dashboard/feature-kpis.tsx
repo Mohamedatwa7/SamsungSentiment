@@ -81,12 +81,12 @@ export function FeatureKPIs({ platformFilter, dateRange, segmentation }: Feature
   )
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 animate-in fade-in duration-500">
       <div>
-        <h2 className="text-lg font-semibold">S26 Keywords</h2>
+        <h2 className="display-title text-xl">S26 Keywords</h2>
         <p className="text-sm text-muted-foreground">Sentiment analysis for key Samsung Galaxy S26 features</p>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="stat-rail divide-none grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {metrics.map(({ cfg, m, posChangeVsLW }) => {
         const Icon = cfg.icon
         const sentimentScore = m.totalComments > 0
@@ -104,32 +104,22 @@ export function FeatureKPIs({ platformFilter, dateRange, segmentation }: Feature
           "text-amber-600 dark:text-amber-500"
 
         return (
-          <Card key={cfg.feature} className="relative overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-500">
-            <div
-              className={cn(
-                "absolute inset-x-0 top-0 h-1",
-                sentimentScore > 30 ? "bg-positive" :
-                sentimentScore > 0 ? "bg-emerald-500" :
-                sentimentScore < -10 ? "bg-negative" : "bg-amber-500",
-              )}
-            />
-            <CardHeader className="pb-3">
-                <div className="flex items-center gap-3">
-                  <div className={cn("flex h-10 w-10 items-center justify-center rounded-lg", cfg.iconBg)}>
-                    <Icon className={cn("h-5 w-5", cfg.iconColor)} />
-                  </div>
+          <Card key={cfg.feature} className="gap-4">
+            <CardHeader>
+                <div className="flex items-center gap-2.5">
+                  <Icon className="h-4 w-4 text-muted-foreground" />
                   <div>
-                    <h3 className="text-base font-semibold">{m.label}</h3>
+                    <h3 className="display-title text-base">{m.label}</h3>
                     <p className="text-xs text-muted-foreground">{cfg.description}</p>
                   </div>
                 </div>
             </CardHeader>
-            <CardContent className="space-y-3 pb-4">
+            <CardContent className="space-y-3">
               {/* Big stat: % positive */}
               <div className="flex items-end justify-between">
                 <div>
                   <div className="flex items-baseline gap-1.5">
-                    <span className={cn("kpi-value text-3xl", scoreColor)}>
+                    <span className={cn("kpi-value text-4xl", scoreColor)}>
                       {m.totalComments > 0 ? `${m.positivePercentage}%` : "—"}
                     </span>
                     <span className="text-xs text-muted-foreground">positive</span>
@@ -153,7 +143,7 @@ export function FeatureKPIs({ platformFilter, dateRange, segmentation }: Feature
               {/* Sentiment bar */}
               {m.totalComments > 0 ? (
                 <div className="space-y-1.5">
-                  <div className="flex h-2 overflow-hidden rounded-full bg-muted">
+                  <div className="flex h-1.5 overflow-hidden bg-muted">
                     <div
                       className="bg-positive transition-all"
                       style={{ width: `${m.positivePercentage}%` }}
@@ -186,7 +176,7 @@ export function FeatureKPIs({ platformFilter, dateRange, segmentation }: Feature
                   </div>
                 </div>
               ) : (
-                <p className="rounded-md border border-dashed border-border bg-muted/30 px-3 py-2 text-center text-xs text-muted-foreground">
+                <p className="rule-t pt-3 text-center text-xs text-muted-foreground">
                   No posts mention this feature in the current filter
                 </p>
               )}
