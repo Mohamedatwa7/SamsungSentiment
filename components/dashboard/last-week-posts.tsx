@@ -125,11 +125,14 @@ function PostCard({ post, index }: { post: RecentActivityPost; index: number }) 
       </div>
 
       {/* Sentiment Breakdown */}
+      {post.totalComments === 0 ? (
+        <p className="mt-3 text-xs italic text-muted-foreground/70">No comments yet</p>
+      ) : (
       <div className="mt-3 space-y-2">
-        <SentimentBar 
-          positive={post.positiveCount} 
-          negative={post.negativeCount} 
-          neutral={post.neutralCount} 
+        <SentimentBar
+          positive={post.positiveCount}
+          negative={post.negativeCount}
+          neutral={post.neutralCount}
         />
         <div className="flex items-center justify-between text-xs">
           <div className="flex items-center gap-3">
@@ -155,6 +158,7 @@ function PostCard({ post, index }: { post: RecentActivityPost; index: number }) 
           </div>
         </div>
       </div>
+      )}
 
       {/* Sample Comments */}
       {post.sampleComments.length > 0 && (
@@ -262,7 +266,9 @@ export function LastWeekPosts({ platformFilter, dateRange }: LastWeekPostsProps)
           sampleComments,
         }
       })
-      .filter((p) => p.totalComments > 0)
+      // Zero-comment posts stay in the list (their latestCommentDate falls
+      // back to the publish date) — "activity" includes posting itself, and
+      // platforms with thin reply volume (X) would otherwise look empty.
       .sort((a, b) => new Date(b.latestCommentDate).getTime() - new Date(a.latestCommentDate).getTime())
   }, [getFilteredPosts, platformFilter, commentsByUrl])
 
@@ -338,7 +344,7 @@ export function LastWeekPosts({ platformFilter, dateRange }: LastWeekPostsProps)
               Recent Activity
             </CardTitle>
             <CardDescription>
-              Posts with comment sentiment
+              Recent posts and their comment sentiment
               {effectiveDateRange?.from && effectiveDateRange?.to && (
                 <span className="ml-1">
                   ({effectiveDateRange.from.toLocaleDateString()} - {effectiveDateRange.to.toLocaleDateString()})
@@ -453,20 +459,21 @@ export function LastWeekPosts({ platformFilter, dateRange }: LastWeekPostsProps)
 
           {/* Posts List */}
           <div className="mb-2 text-xs text-muted-foreground">
-            {posts.length} posts with activity
+            {posts.length} posts
             {timeRange === "all" ? " (all time)" : ` in the last ${timeRange} days`}
+            {posts.length > 200 && " · showing the 200 most recent"}
           </div>
           <ScrollArea className="nice-scroll h-[400px] pr-4">
             <div className="flex flex-col">
               {posts.length > 0 ? (
-                posts.map((post, index) => (
+                posts.slice(0, 200).map((post, index) => (
                   <PostCard key={post.postUrl} post={post} index={index} />
                 ))
               ) : (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                   <Calendar className="h-12 w-12 text-muted-foreground/30 mb-3" />
                   <p className="text-sm text-muted-foreground">
-                    No posts with comments {timeRange === "all" ? "" : `in the last ${timeRange} days`}
+                    No posts {timeRange === "all" ? "" : `in the last ${timeRange} days`}
                   </p>
                 </div>
               )}
