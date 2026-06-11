@@ -67,7 +67,7 @@ export default function HomePage() {
           </p>
         </div>
 
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {/* Dashboard Card */}
           <Link href="/dashboard" className="group animate-in fade-in slide-in-from-bottom-2 duration-500 fill-mode-backwards">
             <Card className="h-full transition-colors duration-200 group-hover:border-foreground/60 group-hover:bg-muted/30">
@@ -88,31 +88,6 @@ export default function HomePage() {
                   <span className="rounded-sm border border-border/70 px-2.5 py-1 text-xs font-medium text-muted-foreground">Sentiment Analysis</span>
                   <span className="rounded-sm border border-border/70 px-2.5 py-1 text-xs font-medium text-muted-foreground">Comments Feed</span>
                   <span className="rounded-sm border border-border/70 px-2.5 py-1 text-xs font-medium text-muted-foreground">Engagement Metrics</span>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-
-          {/* Marketplace Reviews Card */}
-          <Link href="/marketplace" className="group animate-in fade-in slide-in-from-bottom-2 duration-500 delay-100 fill-mode-backwards">
-            <Card className="h-full transition-colors duration-200 group-hover:border-foreground/60 group-hover:bg-muted/30">
-              <CardHeader>
-                <div className="mb-4 text-muted-foreground">
-                  <ShoppingCart className="h-7 w-7" />
-                </div>
-                <CardTitle className="flex items-center gap-2 text-xl">
-                  Marketplace Reviews
-                  <ArrowRight className="h-5 w-5 text-muted-foreground opacity-0 transition-all group-hover:translate-x-1 group-hover:opacity-100" />
-                </CardTitle>
-                <CardDescription className="text-base">
-                  Analyze customer reviews from Amazon and Noon marketplaces. Track ratings, purchase intent, and competitor mentions.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-2">
-                  <span className="rounded-sm border border-border/70 px-2.5 py-1 text-xs font-medium text-muted-foreground">Amazon & Noon</span>
-                  <span className="rounded-sm border border-border/70 px-2.5 py-1 text-xs font-medium text-muted-foreground">Purchase Intent</span>
-                  <span className="rounded-sm border border-border/70 px-2.5 py-1 text-xs font-medium text-muted-foreground">Competitor Analysis</span>
                 </div>
               </CardContent>
             </Card>

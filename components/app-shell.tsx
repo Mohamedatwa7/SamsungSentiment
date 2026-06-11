@@ -47,11 +47,6 @@ const navItems = [
     icon: LayoutDashboard,
   },
   {
-    title: "Marketplace Reviews",
-    href: "/marketplace",
-    icon: ShoppingCart,
-  },
-  {
     title: "S.com Reviews",
     href: "/reviews",
     icon: Star,
@@ -60,11 +55,6 @@ const navItems = [
     title: "AI Chatbot",
     href: "/chatbot",
     icon: MessageSquareText,
-  },
-  {
-    title: "Admin",
-    href: "/admin",
-    icon: Settings,
   },
 ]
 

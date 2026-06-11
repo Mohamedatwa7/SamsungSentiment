@@ -58,22 +58,23 @@ for (const c of fbItems) {
 }
 console.log(`fb comments: ${fbItems.length} items -> ${fbMap.size} unique, upserted ${await upsert([...fbMap.values()])}`)
 
-// X replies
-const xItems = await allRunItems("qhybbvlFivx7AP0Oh")
+// X replies — apidojo/tweet-scraper (conversationIds mode)
+const xItems = await allRunItems("61RPP7dywgiy0JPD0")
 const xMap = new Map()
 for (const r of xItems) {
-  if (!r?.replyId) continue
-  if ((r.author?.screenName || "").toLowerCase() === "samsunggulf") continue
-  xMap.set(String(r.replyId), {
+  if (!r?.id || !r?.isReply) continue
+  if ((r.author?.userName || "").toLowerCase() === "samsunggulf") continue
+  const published = r.createdAt ? new Date(r.createdAt) : null
+  xMap.set(String(r.id), {
     platform: "twitter",
-    external_id: String(r.replyId),
-    external_post_id: String(r.postId || r.inReplyTo || "unknown"),
-    text: r.replyText || "",
-    author_username: r.author?.screenName || "unknown",
+    external_id: String(r.id),
+    external_post_id: String(r.conversationId || r.inReplyToId || "unknown"),
+    text: r.text || r.fullText || "",
+    author_username: r.author?.userName || "unknown",
     author_display_name: r.author?.name,
-    likes_count: r.favouriteCount || 0,
+    likes_count: r.likeCount || 0,
     replies_count: r.replyCount || 0,
-    published_at: typeof r.timestamp === "number" ? new Date(r.timestamp).toISOString() : now,
+    published_at: published && !isNaN(published.getTime()) ? published.toISOString() : now,
     scraped_at: now,
     raw_data: r,
   })

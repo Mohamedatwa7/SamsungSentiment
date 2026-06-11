@@ -13,8 +13,16 @@ import { type DateRange } from "@/components/dashboard/date-filter"
 import { useDashboardData, type CommentPlatform, type Sentiment } from "@/contexts/dashboard-data-context"
 
 interface LastWeekPostsProps {
-  platformFilter?: ("instagram" | "tiktok" | "facebook")[]
+  platformFilter?: ("instagram" | "tiktok" | "facebook" | "twitter")[]
   dateRange?: DateRange
+}
+
+function XIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="currentColor">
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+    </svg>
+  )
 }
 
 interface RecentActivityPost {
@@ -82,6 +90,8 @@ function PostCard({ post, index }: { post: RecentActivityPost; index: number }) 
               <Instagram className="h-4 w-4 text-[#E4405F]" />
             ) : post.platform === "tiktok" ? (
               <Music2 className="h-4 w-4 text-[#00f2ea]" />
+            ) : post.platform === "twitter" ? (
+              <XIcon className="h-4 w-4 text-foreground" />
             ) : (
               <Facebook className="h-4 w-4 text-[#1877F2]" />
             )}
@@ -183,7 +193,7 @@ function PostCard({ post, index }: { post: RecentActivityPost; index: number }) 
   )
 }
 
-type PlatformTab = "all" | "instagram" | "tiktok" | "facebook"
+type PlatformTab = "all" | "instagram" | "tiktok" | "facebook" | "twitter"
 type TimeRange = "7" | "14" | "30" | "90" | "all"
 
 export function LastWeekPosts({ platformFilter, dateRange }: LastWeekPostsProps) {
@@ -291,6 +301,7 @@ export function LastWeekPosts({ platformFilter, dateRange }: LastWeekPostsProps)
     instagram: allPosts.filter(p => p.platform === "instagram").length,
     tiktok: allPosts.filter(p => p.platform === "tiktok").length,
     facebook: allPosts.filter(p => p.platform === "facebook").length,
+    twitter: allPosts.filter(p => p.platform === "twitter").length,
   }), [allPosts])
 
   // Calculate overall stats
@@ -388,6 +399,11 @@ export function LastWeekPosts({ platformFilter, dateRange }: LastWeekPostsProps)
               <Facebook className="h-3.5 w-3.5 text-[#1877F2]" />
               Facebook
               <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">{platformCounts.facebook}</Badge>
+            </TabsTrigger>
+            <TabsTrigger value="twitter" className="gap-1.5 text-xs px-3">
+              <XIcon className="h-3.5 w-3.5" />
+              X
+              <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">{platformCounts.twitter}</Badge>
             </TabsTrigger>
           </TabsList>
         </Tabs>
