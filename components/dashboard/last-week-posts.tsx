@@ -199,7 +199,9 @@ type TimeRange = "7" | "14" | "30" | "90" | "all"
 export function LastWeekPosts({ platformFilter, dateRange }: LastWeekPostsProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [selectedPlatform, setSelectedPlatform] = useState<PlatformTab>("all")
-  const [timeRange, setTimeRange] = useState<TimeRange>("7")
+  // 30 days by default: X replies and Facebook comments arrive in bursts, so a
+  // 7-day window often shows almost nothing for those platforms.
+  const [timeRange, setTimeRange] = useState<TimeRange>("30")
 
   // Pull merged synced + static data from the dashboard context
   const { getFilteredPosts, comments } = useDashboardData()

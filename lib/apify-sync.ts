@@ -503,11 +503,14 @@ export async function startCommentScrapes(daysBack = 3) {
     started.facebookComments = out?.data?.id || null
   }
 
+  // Wider window for X: replies often land days after the tweet, so re-scrape
+  // conversations for the last 14 days of tweets (cheap at per-reply pricing).
+  const xSince = new Date(Date.now() - Math.max(daysBack, 14) * 86400000).toISOString()
   const { data: xPosts } = await supabase
     .from("social_posts")
     .select("external_id")
     .eq("platform", "twitter")
-    .gte("published_at", since)
+    .gte("published_at", xSince)
   const conversationIds = [...new Set((xPosts || []).map((p: any) => String(p.external_id)))]
     .filter((id) => /^\d+$/.test(id))
   if (conversationIds.length > 0) {

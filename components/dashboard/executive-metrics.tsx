@@ -631,6 +631,24 @@ export function CriticalAlerts({ platformFilter, dateRange }: ExecutiveMetricsPr
         const neutral = comments.filter(c => c.sentiment === "neutral").slice(0, 60)
         filtered = [...positive, ...negative, ...neutral]
         break
+      case "platform_negative":
+        // Negativity concentrated on one platform
+        if (alertData) {
+          filtered = comments.filter(c => c.platform === alertData && c.sentiment === "negative")
+        }
+        break
+      case "viral_complaint":
+        // High-visibility negative comments (the ones audiences actually saw)
+        filtered = comments
+          .filter(c => c.sentiment === "negative" && (c.likes || 0) >= 5)
+          .sort((a, b) => (b.likes || 0) - (a.likes || 0))
+        break
+      case "questions":
+        // Comments the LLM flagged as questions — direct response opportunities
+        filtered = comments.filter(c =>
+          (c.sentimentFlags || []).some(f => f.toLowerCase().includes("question"))
+        )
+        break
       case "health_score":
         // Representative sample for the health score: the most visible comments
         // (highest engagement) across all sentiments.
@@ -640,12 +658,34 @@ export function CriticalAlerts({ platformFilter, dateRange }: ExecutiveMetricsPr
         filtered = []
     }
     
-    // Remove duplicates by comment text (normalized)
+    // Quality gate: examples must carry actual signal. Drop emoji-only /
+    // hashtag-only / mention-only comments — they prove engagement, not the
+    // alert's claim.
+    const substantive = filtered.filter(c => {
+      const stripped = (c.text || "")
+        .replace(/[@#]\S+/g, " ") // mentions and hashtags
+        .replace(/https?:\/\/\S+/g, " ")
+        .replace(/[^\p{L}\p{N}]/gu, "") // drop emoji/punctuation
+      return stripped.length >= 8
+    })
+
+    // Aggressive dedupe: normalize away emoji/punctuation/spacing so giveaway
+    // spam variants collapse to one entry, and cap each author at 2 examples
+    // so a single spammer can't fill the list.
     const seen = new Set<string>()
-    const unique = filtered.filter(c => {
-      const normalized = c.text.toLowerCase().trim()
+    const perAuthor: Record<string, number> = {}
+    const unique = substantive.filter(c => {
+      const normalized = (c.text || "")
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}]+/gu, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 90)
       if (seen.has(normalized)) return false
+      const author = (c.username || "").toLowerCase()
+      if ((perAuthor[author] || 0) >= 2) return false
       seen.add(normalized)
+      perAuthor[author] = (perAuthor[author] || 0) + 1
       return true
     })
     
@@ -847,8 +887,90 @@ export function CriticalAlerts({ platformFilter, dateRange }: ExecutiveMetricsPr
       })
     }
 
+    // 9. Third recurring complaint theme, when it also clears the floor.
+    if (topIssues.length > 2 && topIssues[2].count >= issueShareFloor) {
+      const third = topIssues[2]
+      const share = Math.round((third.count / totalComments) * 100)
+      alertList.push({
+        type: "warning",
+        title: `Also Trending: "${third.issue}"`,
+        message: `${third.count.toLocaleString()} comments (${share}%) raise this theme - keep it on the radar`,
+        icon: <BarChart3 className="h-4 w-4" />,
+        alertType: "issue",
+        alertData: third.flag,
+      })
+    }
+
+    // 10. Platform hotspot - negativity concentrated well above the overall rate
+    // on a platform that carries a meaningful share of the conversation.
+    for (const [platform, stats] of Object.entries(commentMetrics.byPlatform)) {
+      if (!stats || stats.total < Math.max(50, totalComments * 0.1)) continue
+      const negRate = Math.round((stats.negative / stats.total) * 100)
+      if (negRate >= commentMetrics.negativeRate + 8 && negRate >= 20) {
+        const label = platform === "twitter" ? "X" : platform.charAt(0).toUpperCase() + platform.slice(1)
+        alertList.push({
+          type: "warning",
+          title: `${label} Negativity Running Hot (${negRate}%)`,
+          message: `Negative share on ${label} is ${negRate}% vs ${commentMetrics.negativeRate}% overall across ${stats.total.toLocaleString()} comments - review what's driving it on this channel`,
+          icon: <TrendingDown className="h-4 w-4" />,
+          alertType: "platform_negative",
+          alertData: platform,
+        })
+      }
+    }
+
+    // 11. Engagement volume momentum vs the previous equal-length period.
+    if (prevMetrics && prevMetrics.total > 0) {
+      const volDelta = Math.round(((totalComments - prevMetrics.total) / prevMetrics.total) * 100)
+      if (volDelta >= 30) {
+        alertList.push({
+          type: "success",
+          title: `Engagement Up ${volDelta}% vs Previous Period`,
+          message: `${totalComments.toLocaleString()} comments vs ${prevMetrics.total.toLocaleString()} - audiences are talking more; capitalize while attention is high`,
+          icon: <TrendingUp className="h-4 w-4" />,
+          alertType: "volume_insight",
+        })
+      } else if (volDelta <= -30) {
+        alertList.push({
+          type: "info",
+          title: `Engagement Down ${Math.abs(volDelta)}% vs Previous Period`,
+          message: `${totalComments.toLocaleString()} comments vs ${prevMetrics.total.toLocaleString()} - posting cadence or content mix may need a refresh`,
+          icon: <TrendingDown className="h-4 w-4" />,
+          alertType: "volume_insight",
+        })
+      }
+    }
+
+    // 12. Viral complaint - a single negative comment with outsized visibility.
+    const topNegative = comments
+      .filter((c) => c.sentiment === "negative" && (c.likes || 0) >= 25)
+      .sort((a, b) => (b.likes || 0) - (a.likes || 0))[0]
+    if (topNegative) {
+      alertList.push({
+        type: "danger",
+        title: `High-Visibility Complaint (${(topNegative.likes || 0).toLocaleString()} likes)`,
+        message: `"${(topNegative.text || "").slice(0, 90)}${(topNegative.text || "").length > 90 ? "…" : ""}" - widely-seen complaints deserve a public response`,
+        icon: <AlertTriangle className="h-4 w-4" />,
+        alertType: "viral_complaint",
+      })
+    }
+
+    // 13. Open questions - direct response/conversion opportunities.
+    const questionCount = comments.filter((c) =>
+      (c.sentimentFlags || []).some((f) => f.toLowerCase().includes("question")),
+    ).length
+    if (questionCount >= Math.max(15, totalComments * 0.02)) {
+      alertList.push({
+        type: "info",
+        title: `${questionCount.toLocaleString()} Customer Questions in Comments`,
+        message: `Audiences are asking about products directly in the comments - answering them publicly converts undecided buyers and lifts sentiment`,
+        icon: <Target className="h-4 w-4" />,
+        alertType: "questions",
+      })
+    }
+
     return alertList
-  }, [commentMetrics, prevMetrics, commentsByProduct, brandHealthScore, topIssues, topPraise])
+  }, [commentMetrics, prevMetrics, commentsByProduct, brandHealthScore, topIssues, topPraise, comments])
 
   return (
     <Card className="animate-in fade-in duration-500">
