@@ -439,14 +439,41 @@ export async function syncTwitterReplies(runCount = RUNS_TO_SYNC) {
   const items = await getRecentRunsItems<any>(SCHEDULED_ACTORS.twitterReplies, runCount)
 
   const byId = new Map<string, any>()
+  const brandTweets = new Map<string, any>()
   for (const r of items) {
-    if (!r?.id || !r?.isReply) continue
-    if ((r.author?.userName || "").toLowerCase() === "samsunggulf") continue
+    if (!r?.id) continue
+    if ((r.author?.userName || "").toLowerCase() === "samsunggulf") {
+      // Samsung's own thread tweets are POSTS the profile scraper misses
+      // (it only returns top-level posts) — capture them here.
+      if (!r.isRetweet) brandTweets.set(String(r.id), r)
+      continue
+    }
+    if (!r.isReply) continue
     byId.set(String(r.id), r)
   }
 
   let inserted = 0
   const errors: string[] = []
+
+  for (const t of brandTweets.values()) {
+    const publishedAt = t.createdAt ? new Date(t.createdAt) : new Date()
+    await supabase
+      .from("social_posts")
+      .upsert({
+        platform: "twitter",
+        external_id: String(t.id),
+        post_url: t.url || t.twitterUrl || `https://x.com/SamsungGulf/status/${t.id}`,
+        caption: t.text || t.fullText || "",
+        media_type: "text",
+        likes_count: t.likeCount || 0,
+        comments_count: t.replyCount || 0,
+        shares_count: t.retweetCount || 0,
+        views_count: Number(t.viewCount) || 0,
+        published_at: isNaN(publishedAt.getTime()) ? new Date().toISOString() : publishedAt.toISOString(),
+        scraped_at: new Date().toISOString(),
+        raw_data: t,
+      }, { onConflict: "platform,external_id" })
+  }
   for (const r of byId.values()) {
     const publishedAt = r.createdAt ? new Date(r.createdAt) : new Date()
     const { error } = await supabase
