@@ -42,12 +42,16 @@ function DashboardContent() {
   // Convert null to undefined for components that expect DateRange | undefined.
   const dateRangeProp = dateRange ?? undefined
 
-  // Filter platform list to only the platforms that have comment data (Instagram, TikTok, Facebook).
-  const commentPlatformFilter: ("instagram" | "tiktok" | "facebook")[] = (
+  // Filter platform list to the platforms that have comment data
+  // (Instagram, TikTok, Facebook, and X replies).
+  const commentPlatformFilter: ("instagram" | "tiktok" | "facebook" | "twitter")[] = (
     selectedPlatforms && selectedPlatforms.length > 0
       ? selectedPlatforms
-      : ["instagram", "tiktok", "facebook"]
-  ).filter((p): p is "instagram" | "tiktok" | "facebook" => p === "instagram" || p === "tiktok" || p === "facebook")
+      : ["instagram", "tiktok", "facebook", "twitter"]
+  ).filter(
+    (p): p is "instagram" | "tiktok" | "facebook" | "twitter" =>
+      p === "instagram" || p === "tiktok" || p === "facebook" || p === "twitter",
+  )
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6">
@@ -56,7 +60,7 @@ function DashboardContent() {
         <p className="section-label">Samsung Gulf · Social Intelligence</p>
         <h1 className="display-title mt-2 text-3xl md:text-4xl">Social Reviews Dashboard</h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground md:text-base">
-          Instagram, TikTok &amp; Facebook comments segmented by department, product and feature
+          Instagram, TikTok, Facebook &amp; X comments segmented by department, product and feature
         </p>
       </div>
 

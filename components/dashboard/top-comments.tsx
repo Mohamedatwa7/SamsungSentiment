@@ -119,13 +119,14 @@ export function TopComments({ platformFilter, dateRange }: TopCommentsProps) {
   
   // Filter comments based on platform filter
   const commentFilter = platformFilter?.filter(
-    (p): p is "instagram" | "tiktok" | "facebook" => p === "instagram" || p === "tiktok" || p === "facebook"
+    (p): p is "instagram" | "tiktok" | "facebook" | "twitter" =>
+      p === "instagram" || p === "tiktok" || p === "facebook" || p === "twitter"
   )
   const { segmentation } = useSegmentation()
 
   // Honor the page-level platform filter; default to all comment platforms.
-  const effectiveFilter: ("instagram" | "tiktok" | "facebook")[] =
-    commentFilter && commentFilter.length > 0 ? commentFilter : ["instagram", "tiktok", "facebook"]
+  const effectiveFilter: ("instagram" | "tiktok" | "facebook" | "twitter")[] =
+    commentFilter && commentFilter.length > 0 ? commentFilter : ["instagram", "tiktok", "facebook", "twitter"]
   const topComments = getTopComments(10, effectiveFilter, dateRange, segmentation)
   const topPositive = getTopPositiveReviews(10, effectiveFilter, dateRange, segmentation)
   const topNegative = getTopNegativeReviews(10, effectiveFilter, dateRange, segmentation)

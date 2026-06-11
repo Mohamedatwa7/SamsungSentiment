@@ -73,7 +73,7 @@ interface ExecutiveMetricsProps {
 // Helper to get comment platform filter
 function getCommentFilter(platformFilter?: Platform[]): CommentPlatform[] | undefined {
   return platformFilter?.filter(
-    (p): p is CommentPlatform => p === "instagram" || p === "tiktok" || p === "facebook"
+    (p): p is CommentPlatform => p === "instagram" || p === "tiktok" || p === "facebook" || p === "twitter"
   )
 }
 
@@ -248,11 +248,13 @@ export function MainKPIs({ platformFilter, dateRange }: ExecutiveMetricsProps) {
   const instagramCount = comments.filter(c => c.platform === "instagram").length
   const tiktokCount = comments.filter(c => c.platform === "tiktok").length
   const facebookCount = comments.filter(c => c.platform === "facebook").length
+  const twitterCount = comments.filter(c => c.platform === "twitter").length
   const total = commentMetrics.total
-  
+
   const instagramPct = total > 0 ? Math.round((instagramCount / total) * 100) : 0
   const tiktokPct = total > 0 ? Math.round((tiktokCount / total) * 100) : 0
   const facebookPct = total > 0 ? Math.round((facebookCount / total) * 100) : 0
+  const twitterPct = total > 0 ? Math.round((twitterCount / total) * 100) : 0
   
   // Positive to Negative ratio
   const posToNegRatio = commentMetrics.negative > 0 
@@ -302,6 +304,7 @@ export function MainKPIs({ platformFilter, dateRange }: ExecutiveMetricsProps) {
             <div className="bg-[#E4405F]" style={{ width: `${instagramPct}%` }} title={`Instagram: ${instagramPct}%`} />
             <div className="bg-[#00f2ea]" style={{ width: `${tiktokPct}%` }} title={`TikTok: ${tiktokPct}%`} />
             <div className="bg-[#1877F2]" style={{ width: `${facebookPct}%` }} title={`Facebook: ${facebookPct}%`} />
+            <div className="bg-foreground" style={{ width: `${twitterPct}%` }} title={`X: ${twitterPct}%`} />
           </div>
           <div className="flex items-center justify-between text-[10px] text-muted-foreground">
             <span className="flex items-center gap-1">
@@ -315,6 +318,10 @@ export function MainKPIs({ platformFilter, dateRange }: ExecutiveMetricsProps) {
             <span className="flex items-center gap-1">
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#1877F2]" />
               FB {facebookPct}%
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-foreground" />
+              X {twitterPct}%
             </span>
           </div>
         </div>

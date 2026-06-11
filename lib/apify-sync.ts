@@ -15,6 +15,11 @@ const SCHEDULED_ACTORS = {
   tiktokPosts: "GdWCkxBtKWOsKjdch",    // TikTok posts/videos scraper for @samsunggulf
   instagramComments: "dIKFJ95TN8YclK2no", // Instagram comments scraper
   instagram: "nH2AHrwxeTRJoN5hX",      // Instagram posts scraper for samsunggulf
+  // URL-driven comment scrapers. These are NOT in the Apify schedule — their
+  // input (recent post URLs) changes daily, so each sync fires fresh runs via
+  // startCommentScrapes() and ingests the previous runs' datasets.
+  facebookComments: "us5srxAYnsrkgUv2v", // apify/facebook-comments-scraper
+  twitterReplies: "qhybbvlFivx7AP0Oh",   // scraper_one/x-post-replies-scraper
 }
 
 const SCHEDULE_ID = "AzNWcc9ZQxFcie6el"
@@ -384,6 +389,146 @@ export async function syncTikTokVideos(runCount = RUNS_TO_SYNC) {
   return { inserted, total: posts.length }
 }
 
+// Ingest Facebook comments from recent facebook-comments-scraper runs.
+// Brand-authored comments are skipped — the page replying to customers is not
+// customer sentiment.
+export async function syncFacebookComments(runCount = RUNS_TO_SYNC) {
+  const supabase = await createClient()
+  const items = await getRecentRunsItems<any>(SCHEDULED_ACTORS.facebookComments, runCount)
+
+  const byId = new Map<string, any>()
+  for (const c of items) {
+    if (c?.error || !c?.commentId) continue
+    if ((c.profileName || "").trim().toLowerCase() === "samsung gulf") continue
+    byId.set(String(c.commentId), c)
+  }
+
+  let inserted = 0
+  const errors: string[] = []
+  for (const c of byId.values()) {
+    const parentUrl = String(c.facebookUrl || c.inputUrl || "")
+    const numericId = parentUrl.match(/\/(\d{10,})/)?.[1]
+    const { error } = await supabase
+      .from("social_comments")
+      .upsert({
+        platform: "facebook",
+        external_id: String(c.commentId),
+        // Numeric id when the URL carries one (reels); otherwise the post URL —
+        // /api/comments resolves either form.
+        external_post_id: numericId || parentUrl || "unknown",
+        text: c.text || "",
+        author_username: c.profileName || "Facebook User",
+        likes_count: c.likesCount || 0,
+        published_at: c.date ? new Date(c.date).toISOString() : new Date().toISOString(),
+        scraped_at: new Date().toISOString(),
+        raw_data: c,
+      }, { onConflict: "platform,external_id" })
+    if (error) errors.push(error.message)
+    else inserted++
+  }
+  if (errors.length > 0) console.log("[v0] FB comments sync errors (first 5):", errors.slice(0, 5))
+  return { inserted, total: items.length }
+}
+
+// Ingest X replies from recent x-post-replies-scraper runs. Replies authored
+// by the brand account itself (thread continuations) are skipped.
+export async function syncTwitterReplies(runCount = RUNS_TO_SYNC) {
+  const supabase = await createClient()
+  const items = await getRecentRunsItems<any>(SCHEDULED_ACTORS.twitterReplies, runCount)
+
+  const byId = new Map<string, any>()
+  for (const r of items) {
+    if (!r?.replyId) continue
+    if ((r.author?.screenName || "").toLowerCase() === "samsunggulf") continue
+    byId.set(String(r.replyId), r)
+  }
+
+  let inserted = 0
+  const errors: string[] = []
+  for (const r of byId.values()) {
+    const { error } = await supabase
+      .from("social_comments")
+      .upsert({
+        platform: "twitter",
+        external_id: String(r.replyId),
+        external_post_id: String(r.postId || r.inReplyTo || "unknown"),
+        text: r.replyText || "",
+        author_username: r.author?.screenName || "unknown",
+        author_display_name: r.author?.name,
+        likes_count: r.favouriteCount || 0,
+        replies_count: r.replyCount || 0,
+        published_at: typeof r.timestamp === "number"
+          ? new Date(r.timestamp).toISOString()
+          : new Date().toISOString(),
+        scraped_at: new Date().toISOString(),
+        raw_data: r,
+      }, { onConflict: "platform,external_id" })
+    if (error) errors.push(error.message)
+    else inserted++
+  }
+  if (errors.length > 0) console.log("[v0] X replies sync errors (first 5):", errors.slice(0, 5))
+  return { inserted, total: items.length }
+}
+
+// Fire comment scrapes for posts published in the last `daysBack` days.
+// Fire-and-forget with charge caps: today's runs are ingested by TOMORROW's
+// sync (getRecentRunsItems), so the cron never waits on them.
+export async function startCommentScrapes(daysBack = 3) {
+  const supabase = await createClient()
+  const since = new Date(Date.now() - daysBack * 86400000).toISOString()
+  const started: Record<string, string | null> = { facebookComments: null, twitterReplies: null }
+
+  const { data: fbPosts } = await supabase
+    .from("social_posts")
+    .select("post_url")
+    .eq("platform", "facebook")
+    .gte("published_at", since)
+    .not("post_url", "is", null)
+  const fbUrls = [...new Set((fbPosts || []).map((p: any) => String(p.post_url).replace(/\/+$/, "")))]
+  if (fbUrls.length > 0) {
+    const res = await fetch(
+      `https://api.apify.com/v2/acts/${SCHEDULED_ACTORS.facebookComments}/runs?token=${APIFY_TOKEN}&maxTotalChargeUsd=2`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          startUrls: fbUrls.map((url) => ({ url })),
+          resultsLimit: 300,
+          includeNestedComments: false,
+        }),
+      },
+    )
+    const out = await res.json().catch(() => null)
+    started.facebookComments = out?.data?.id || null
+  }
+
+  const { data: xPosts } = await supabase
+    .from("social_posts")
+    .select("post_url")
+    .eq("platform", "twitter")
+    .gte("published_at", since)
+    .not("post_url", "is", null)
+  const xUrls = [...new Set((xPosts || []).map((p: any) => String(p.post_url)))]
+  // The replies actor accepts at most 5 post URLs per run — chunk and fire one
+  // capped run per chunk.
+  const runIds: string[] = []
+  for (let i = 0; i < xUrls.length; i += 5) {
+    const res = await fetch(
+      `https://api.apify.com/v2/acts/${SCHEDULED_ACTORS.twitterReplies}/runs?token=${APIFY_TOKEN}&maxTotalChargeUsd=1`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postUrls: xUrls.slice(i, i + 5), resultsLimit: 200 }),
+      },
+    )
+    const out = await res.json().catch(() => null)
+    if (out?.data?.id) runIds.push(out.data.id)
+  }
+  started.twitterReplies = runIds.join(",") || null
+
+  return started
+}
+
 export async function syncFacebookPosts(runCount = RUNS_TO_SYNC) {
   const supabase = await createClient()
   const posts = await getRecentRunsItems<FacebookPost>(SCHEDULED_ACTORS.facebook, runCount)
@@ -518,6 +663,17 @@ export async function syncAllPlatforms(runCount = RUNS_TO_SYNC) {
     // After comments, so real video data overwrites the comment-derived stubs.
     tiktokVideos: await syncTikTokVideos(runCount),
     facebook: await syncFacebookPosts(runCount),
+    facebookComments: await syncFacebookComments(runCount),
+    // X replies arrive as several small runs per day (5-URL actor limit), so
+    // read a deeper run window to cover the same number of days.
+    twitterReplies: await syncTwitterReplies(Math.max(runCount, 15)),
+  }
+
+  // Kick off today's comment scrapes for fresh posts (ingested tomorrow).
+  try {
+    await startCommentScrapes()
+  } catch (e) {
+    console.error("[v0] Failed to start comment scrapes:", e)
   }
 
   // After syncing, analyze any freshly inserted comments so the dashboard never

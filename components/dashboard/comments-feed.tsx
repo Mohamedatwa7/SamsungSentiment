@@ -166,14 +166,14 @@ export function CommentsFeed({ platformFilter, dateRange }: CommentsFeedProps) {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analysisStatus, setAnalysisStatus] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<"all" | Sentiment>("all")
-  const [activePlatform, setActivePlatform] = useState<"all" | "instagram" | "tiktok" | "facebook">("all")
+  const [activePlatform, setActivePlatform] = useState<"all" | "instagram" | "tiktok" | "facebook" | "twitter">("all")
   const [searchQuery, setSearchQuery] = useState("")
   const [activeSearch, setActiveSearch] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
   
   // Convert platform filter to comment platform filter
   const commentPlatformFilter: CommentPlatform[] | undefined = platformFilter?.filter(
-    (p): p is CommentPlatform => p === "instagram" || p === "tiktok" || p === "facebook"
+    (p): p is CommentPlatform => p === "instagram" || p === "tiktok" || p === "facebook" || p === "twitter"
   )
   const { segmentation } = useSegmentation()
   
@@ -267,6 +267,7 @@ export function CommentsFeed({ platformFilter, dateRange }: CommentsFeedProps) {
   const instagramCount = searchedAll.filter(c => c.platform === "instagram").length
   const tiktokCount = searchedAll.filter(c => c.platform === "tiktok").length
   const facebookCount = searchedAll.filter(c => c.platform === "facebook").length
+  const twitterCount = searchedAll.filter(c => c.platform === "twitter").length
 
   // Sentiment metrics reflect the current search + platform selection.
   const displayMetrics = useMemo(() => {
@@ -445,6 +446,17 @@ export function CommentsFeed({ platformFilter, dateRange }: CommentsFeedProps) {
             <Facebook className="h-4 w-4" />
             Facebook ({facebookCount})
           </Button>
+          <Button
+            variant={activePlatform === "twitter" ? "default" : "outline"}
+            size="sm"
+            onClick={() => { setActivePlatform("twitter"); setCurrentPage(1); }}
+            className="flex-1 gap-1.5"
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+            </svg>
+            X ({twitterCount})
+          </Button>
         </div>
 
         {/* Sentiment Summary */}
@@ -573,7 +585,7 @@ interface CommentsSentimentSummaryProps {
 export function CommentsSentimentSummary({ platformFilter, dateRange }: CommentsSentimentSummaryProps) {
   // Convert platform filter to comment platform filter
   const commentPlatformFilter: CommentPlatform[] | undefined = platformFilter?.filter(
-    (p): p is CommentPlatform => p === "instagram" || p === "tiktok" || p === "facebook"
+    (p): p is CommentPlatform => p === "instagram" || p === "tiktok" || p === "facebook" || p === "twitter"
   )
   const { segmentation } = useSegmentation()
   const { getCommentMetrics } = useDashboardData()
