@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { Heart, ThumbsUp, ThumbsDown, Minus, ExternalLink, Instagram, Music2, Facebook, Trophy, TrendingUp, ChevronDown, ChevronUp } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -9,9 +9,26 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
-import { getTopComments, getTopPositiveReviews, getTopNegativeReviews, type Comment, type Sentiment } from "@/lib/comments-data"
+import { type Sentiment } from "@/lib/comments-data"
 import { type DateRange } from "@/components/dashboard/date-filter"
 import { useSegmentation } from "@/components/dashboard/segmentation-filter"
+import { useDashboardData, type Comment } from "@/contexts/dashboard-data-context"
+
+// Collapse near-identical texts, keeping the highest-engagement copy.
+function dedupeByText(comments: Comment[]): Comment[] {
+  const seen = new Map<string, Comment>()
+  for (const c of comments) {
+    const key = (c.text || "")
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}]+/gu, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 120)
+    const prev = seen.get(key)
+    if (!prev || (c.likes || 0) > (prev.likes || 0)) seen.set(key, c)
+  }
+  return [...seen.values()]
+}
 
 function SentimentBadge({ sentiment }: { sentiment: Sentiment }) {
   return (
@@ -127,9 +144,28 @@ export function TopComments({ platformFilter, dateRange }: TopCommentsProps) {
   // Honor the page-level platform filter; default to all comment platforms.
   const effectiveFilter: ("instagram" | "tiktok" | "facebook" | "twitter")[] =
     commentFilter && commentFilter.length > 0 ? commentFilter : ["instagram", "tiktok", "facebook", "twitter"]
-  const topComments = getTopComments(10, effectiveFilter, dateRange, segmentation)
-  const topPositive = getTopPositiveReviews(10, effectiveFilter, dateRange, segmentation)
-  const topNegative = getTopNegativeReviews(10, effectiveFilter, dateRange, segmentation)
+
+  // LIVE data from the dashboard context (/api/comments) — the static
+  // normalized file is frozen at build time and misses DB-side corrections.
+  const { getFilteredComments } = useDashboardData()
+  const filtered = useMemo(
+    () => getFilteredComments(effectiveFilter, dateRange ?? null, segmentation),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [getFilteredComments, JSON.stringify(effectiveFilter), dateRange, segmentation],
+  )
+  const byLikes = (a: Comment, b: Comment) => (b.likes || 0) - (a.likes || 0)
+  const topComments = useMemo(
+    () => dedupeByText(filtered.filter((c) => (c.text || "").length > 10)).sort(byLikes).slice(0, 10),
+    [filtered],
+  )
+  const topPositive = useMemo(
+    () => dedupeByText(filtered.filter((c) => c.sentiment === "positive" && (c.text || "").length > 20)).sort(byLikes).slice(0, 10),
+    [filtered],
+  )
+  const topNegative = useMemo(
+    () => dedupeByText(filtered.filter((c) => c.sentiment === "negative" && (c.text || "").length > 20)).sort(byLikes).slice(0, 10),
+    [filtered],
+  )
   
   const displayedComments = activeTab === "all" 
     ? topComments 

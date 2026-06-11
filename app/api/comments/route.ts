@@ -46,6 +46,21 @@ async function fetchAll(
   return all
 }
 
+// Flagship-feature detection so feature-level KPIs work on live data.
+const FEATURE_RULES: { pattern: RegExp; feature: string }[] = [
+  { pattern: /nightography|night\s*mode|night\s*photo/i, feature: "nightography" },
+  { pattern: /privacy\s*display|privacy\s*screen/i, feature: "privacy_display" },
+  { pattern: /horizontal\s*lock|super\s*steady/i, feature: "horizontal_lock" },
+  { pattern: /galaxy\s*ai|ai\s*feature|photo\s*assist/i, feature: "galaxy_ai" },
+]
+function extractFeatures(text: string): string[] {
+  const out: string[] = []
+  for (const rule of FEATURE_RULES) {
+    if (rule.pattern.test(text)) out.push(rule.feature)
+  }
+  return out
+}
+
 // Lightweight keyword fallback ONLY for comments that have not been analyzed
 // by the LLM yet (sentiment column is null). Stored LLM sentiment is preferred.
 function fallbackSentiment(text: string): "positive" | "negative" | "neutral" {
@@ -146,7 +161,7 @@ export async function GET(_request: NextRequest) {
         department: classification.department,
         productCategory: classification.category,
         productModel: classification.model,
-        features: [],
+        features: extractFeatures(p.caption || ""),
         source: "synced",
       }
     })
@@ -198,7 +213,7 @@ export async function GET(_request: NextRequest) {
         sentimentScore: c.sentiment_score ?? null,
         sentimentFlags: c.flags || [],
         likes: c.likes_count || 0,
-        features: c.features || [],
+        features: [...new Set([...(c.features || []), ...extractFeatures(c.text || "")])],
         productModel: c.product_model || null,
         department: c.department || null,
         source: "synced",

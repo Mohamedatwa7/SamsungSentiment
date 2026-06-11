@@ -5,8 +5,9 @@ import { Moon, ShieldCheck, RotateCcw, ArrowUpRight, ArrowDownRight, Minus, Spar
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
-import { getFeatureMetrics, type CommentPlatform, type FeatureKey, type Segmentation } from "@/lib/comments-data"
-import { type DateRange } from "@/components/dashboard/date-filter"
+import { FEATURE_LABELS, type CommentPlatform, type FeatureKey, type Segmentation } from "@/lib/comments-data"
+import { type DateRange, isWithinDateRange } from "@/components/dashboard/date-filter"
+import { useDashboardData, type Comment } from "@/contexts/dashboard-data-context"
 
 interface FeatureKPIsProps {
   platformFilter?: CommentPlatform[]
@@ -65,20 +66,40 @@ function getLastWeekRange(): { from: Date; to: Date } {
 
 export function FeatureKPIs({ platformFilter, dateRange, segmentation }: FeatureKPIsProps) {
   const lastWeekRange = useMemo(() => getLastWeekRange(), [])
-  
-  const metrics = useMemo(
-    () =>
-      FEATURES.map((cfg) => {
-        const m = getFeatureMetrics(cfg.feature, platformFilter, dateRange, segmentation)
-        const mLastWeek = getFeatureMetrics(cfg.feature, platformFilter, lastWeekRange, segmentation)
-        
-        // Calculate week-over-week change in positive percentage
-        const posChangeVsLW = m.positivePercentage - mLastWeek.positivePercentage
-        
-        return { cfg, m, mLastWeek, posChangeVsLW }
-      }),
-    [platformFilter, dateRange, segmentation, lastWeekRange],
-  )
+
+  // LIVE data from the dashboard context — the static normalized file is
+  // frozen at build time and misses DB-side sentiment corrections.
+  const { getFilteredComments } = useDashboardData()
+
+  const metrics = useMemo(() => {
+    const inRange = getFilteredComments(platformFilter, dateRange ?? null, segmentation)
+    const lastWeek = getFilteredComments(platformFilter, null, segmentation).filter((c) =>
+      isWithinDateRange(c.createdAt, { ...lastWeekRange, label: "last week" }),
+    )
+
+    const featureStats = (comments: Comment[], feature: FeatureKey) => {
+      const fc = comments.filter((c) => c.features?.includes(feature))
+      const total = fc.length
+      const positiveCount = fc.filter((c) => c.sentiment === "positive").length
+      const negativeCount = fc.filter((c) => c.sentiment === "negative").length
+      return {
+        label: FEATURE_LABELS[feature],
+        totalComments: total,
+        positiveCount,
+        negativeCount,
+        neutralCount: total - positiveCount - negativeCount,
+        positivePercentage: total > 0 ? Math.round((positiveCount / total) * 100) : 0,
+        negativePercentage: total > 0 ? Math.round((negativeCount / total) * 100) : 0,
+      }
+    }
+
+    return FEATURES.map((cfg) => {
+      const m = featureStats(inRange, cfg.feature)
+      const mLastWeek = featureStats(lastWeek, cfg.feature)
+      const posChangeVsLW = m.positivePercentage - mLastWeek.positivePercentage
+      return { cfg, m, mLastWeek, posChangeVsLW }
+    })
+  }, [getFilteredComments, platformFilter, dateRange, segmentation, lastWeekRange])
 
   return (
     <div className="space-y-4 animate-in fade-in duration-500">
