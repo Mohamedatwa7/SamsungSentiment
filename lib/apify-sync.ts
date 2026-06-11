@@ -138,9 +138,9 @@ async function getRecentRunsItems<T>(actorId: string, runCount = RUNS_TO_SYNC): 
   return all
 }
 
-export async function syncTwitterPosts() {
+export async function syncTwitterPosts(runCount = RUNS_TO_SYNC) {
   const supabase = await createClient()
-  const posts = await getRecentRunsItems<TwitterPost>(SCHEDULED_ACTORS.twitter)
+  const posts = await getRecentRunsItems<TwitterPost>(SCHEDULED_ACTORS.twitter, runCount)
   let inserted = 0, updated = 0
   const errors: string[] = []
   
@@ -213,9 +213,9 @@ export async function syncTwitterPosts() {
   return { inserted, updated, total: posts.length }
 }
 
-export async function syncInstagramPosts() {
+export async function syncInstagramPosts(runCount = RUNS_TO_SYNC) {
   const supabase = await createClient()
-  const posts = await getRecentRunsItems<InstagramPost>(SCHEDULED_ACTORS.instagram)
+  const posts = await getRecentRunsItems<InstagramPost>(SCHEDULED_ACTORS.instagram, runCount)
   let inserted = 0
   
   for (const post of posts) {
@@ -243,7 +243,7 @@ export async function syncInstagramPosts() {
 }
 
 // TikTok actor returns COMMENTS, not posts
-export async function syncTikTokPosts() {
+export async function syncTikTokPosts(runCount = RUNS_TO_SYNC) {
   const supabase = await createClient()
 
   // The TikTok actor scrapes comments, not posts
@@ -257,7 +257,7 @@ export async function syncTikTokPosts() {
     author_username: string
     author_display_name: string
     comment_language: string
-  }>(SCHEDULED_ACTORS.tiktok)
+  }>(SCHEDULED_ACTORS.tiktok, runCount)
 
   // Consecutive runs re-scrape the same recent videos, so dedupe by comment id
   // (newest scrape wins) before hitting Supabase.
@@ -340,9 +340,9 @@ export async function syncTikTokPosts() {
 
 // TikTok posts scraper (clockworks/tiktok-scraper) — real video data (caption,
 // plays, likes) that overwrites the stub rows synthesized from comments.
-export async function syncTikTokVideos() {
+export async function syncTikTokVideos(runCount = RUNS_TO_SYNC) {
   const supabase = await createClient()
-  const posts = await getRecentRunsItems<TikTokPost>(SCHEDULED_ACTORS.tiktokPosts)
+  const posts = await getRecentRunsItems<TikTokPost>(SCHEDULED_ACTORS.tiktokPosts, runCount)
   let inserted = 0
   const errors: string[] = []
 
@@ -383,9 +383,9 @@ export async function syncTikTokVideos() {
   return { inserted, total: posts.length }
 }
 
-export async function syncFacebookPosts() {
+export async function syncFacebookPosts(runCount = RUNS_TO_SYNC) {
   const supabase = await createClient()
-  const posts = await getRecentRunsItems<FacebookPost>(SCHEDULED_ACTORS.facebook)
+  const posts = await getRecentRunsItems<FacebookPost>(SCHEDULED_ACTORS.facebook, runCount)
   let inserted = 0
   
   for (const post of posts) {
@@ -411,7 +411,7 @@ export async function syncFacebookPosts() {
   return { inserted, total: posts.length }
 }
 
-export async function syncInstagramComments() {
+export async function syncInstagramComments(runCount = RUNS_TO_SYNC) {
   const supabase = await createClient()
   const comments = await getRecentRunsItems<{
     id: string
@@ -421,7 +421,7 @@ export async function syncInstagramComments() {
     likesCount: number
     postUrl: string
     postId?: string
-  }>(SCHEDULED_ACTORS.instagramComments)
+  }>(SCHEDULED_ACTORS.instagramComments, runCount)
 
   console.log("[v0] Instagram Comments fetched:", comments.length)
   if (comments.length > 0) {
@@ -451,9 +451,11 @@ export async function syncInstagramComments() {
     const postIdFromUrl = rawComment.postUrl ? String(rawComment.postUrl).match(/\/p\/([^\/]+)/)?.[1] : undefined
     const externalPostId = String(postId || postIdFromUrl || "unknown")
     
-    // Generate unique comment ID: combine post shortcode + username + timestamp hash
-    // Instagram Comments actor doesn't provide a unique comment ID
-    const uniqueKey = `${externalPostId}_${commentatorUsername}_${commentTimestamp || Date.now()}`
+    // Generate unique comment ID: combine post shortcode + username + timestamp
+    // (Instagram Comments actor doesn't provide one). The fallback must be
+    // STABLE across syncs — Date.now() would mint a fresh id every run and
+    // re-insert the same comment as a duplicate each day.
+    const uniqueKey = `${externalPostId}_${commentatorUsername}_${commentTimestamp || commentText.slice(0, 40)}`
     const commentId = rawComment.id || rawComment.pk || rawComment.cid || uniqueKey
     
     if (!commentId) {
@@ -494,15 +496,17 @@ export async function syncInstagramComments() {
   return { inserted, total: comments.length }
 }
 
-export async function syncAllPlatforms() {
+// `runCount` lets a manual backfill ingest deeper history (e.g. every run
+// since the schedule was created) instead of the default recent window.
+export async function syncAllPlatforms(runCount = RUNS_TO_SYNC) {
   const results = {
-    twitter: await syncTwitterPosts(),
-    instagram: await syncInstagramPosts(),
-    instagramComments: await syncInstagramComments(),
-    tiktok: await syncTikTokPosts(),
+    twitter: await syncTwitterPosts(runCount),
+    instagram: await syncInstagramPosts(runCount),
+    instagramComments: await syncInstagramComments(runCount),
+    tiktok: await syncTikTokPosts(runCount),
     // After comments, so real video data overwrites the comment-derived stubs.
-    tiktokVideos: await syncTikTokVideos(),
-    facebook: await syncFacebookPosts(),
+    tiktokVideos: await syncTikTokVideos(runCount),
+    facebook: await syncFacebookPosts(runCount),
   }
 
   // After syncing, analyze any freshly inserted comments so the dashboard never

@@ -26,7 +26,8 @@ async function writeNormalizedData(data: unknown) {
 }
 
 // The actual sync work, shared by the cron (GET) and manual (POST) entry points.
-async function runFullSync() {
+// `runsToSync` (optional) deepens the per-actor run window for backfills.
+async function runFullSync(runsToSync?: number) {
   const supabase = await createClient()
 
   // Log sync start
@@ -41,7 +42,7 @@ async function runFullSync() {
     .single()
 
   // Sync all platforms
-  const results = await syncAllPlatforms()
+  const results = await syncAllPlatforms(runsToSync)
 
   // Calculate totals
   const totalInserted = Object.values(results)
@@ -133,17 +134,23 @@ export async function POST(request: NextRequest) {
     // Optional: verify cron secret for automated runs
     const authHeader = request.headers.get("authorization")
     const cronSecret = process.env.CRON_SECRET
+    const body = await request.json().catch(() => ({}))
 
     // If CRON_SECRET is set, verify it (for external schedulers)
     if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
       // Allow requests without auth for manual triggers from admin page
-      const body = await request.json().catch(() => ({}))
       if (!body.manual) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
       }
     }
 
-    const result = await runFullSync()
+    // Optional backfill depth: number of Apify runs per actor to ingest.
+    const runsToSync =
+      typeof body.runsToSync === "number"
+        ? Math.max(1, Math.min(200, Math.floor(body.runsToSync)))
+        : undefined
+
+    const result = await runFullSync(runsToSync)
     return NextResponse.json(result)
   } catch (error) {
     console.error("Sync error:", error)
