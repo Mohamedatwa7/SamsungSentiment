@@ -468,9 +468,6 @@ export function BrandHealthGauge({ platformFilter, dateRange }: ExecutiveMetrics
                   )
                 })}
               </div>
-              <p className="mt-3 text-[10px] leading-relaxed text-muted-foreground">
-                {"Score = Σ(βᵢ · cᵢ · Sᵢ) / Σ(βᵢ · cᵢ), where βᵢ is strategic weight (MX 70% / VD 20% / HA 10%, split by volume), cᵢ is statistical confidence, Sᵢ is sentiment score."}
-              </p>
             </div>
           )}
         </div>
