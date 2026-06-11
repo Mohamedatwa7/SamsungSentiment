@@ -64,6 +64,20 @@ CRITICAL CONTEXT:
 - "غالي/expensive" = price complaint → negative + price_complaint.
 - Pure emoji ❤️/🔥 = positive. Asking price/specs calmly = neutral.
 - Sarcasm like "يعني؟ طيب وبعدين" or "wow great job 🙄" = negative.
+- AI BACKLASH is negative: complaints about Samsung using AI-generated content
+  ("no AI", "stop using AI", "this is AI 💀", "press F no AI", "AI slop") =
+  negative + flag ai_content_backlash. Praise of AI features remains positive.
+- Competitor-favoring memes/jokes = negative: "New iPhone 17 🗿", "switching to
+  Apple", "iPhone better" → negative + comparison_iphone. A joke at APPLE'S
+  expense that favors Samsung = positive.
+- Mockery of the product or the ad = negative even when phrased as a joke:
+  "just make it a TV at this point", "that's a tablet not a phone", clown/moai
+  emojis (🤡🗿💀 used mockingly), "who asked".
+- INTERNET SLANG that reads negative literally but is PRAISE: "i'm dead 😭",
+  "this ate", "cooked them", "insane 🔥", "no way this is real" (amazement),
+  "shut up and take my money" = positive.
+- Demanding/impatient release questions ("one ui 9???", "when in my country??",
+  "still waiting...") = mildly negative (frustration), not neutral.
 
 Always return EXACTLY one result object per input item, echoing back its integer index "i".`
 
