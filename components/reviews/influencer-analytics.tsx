@@ -30,6 +30,7 @@ import {
   type InfluencerInsight,
 } from "@/lib/influencer-data"
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell } from "recharts"
+import { cn } from "@/lib/utils"
 
 // Influencer KPIs
 export function InfluencerKPIs() {
