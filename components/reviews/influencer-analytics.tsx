@@ -56,7 +56,12 @@ export function InfluencerKPIs() {
     return Math.round(total / comparison.length)
   }, [comparison])
   
-  const topPerformer = comparison[0]
+  // Highest share of positive comments (comparison[] itself is sorted by
+  // comment-health score, which is not the same ranking).
+  const topPositive = useMemo(
+    () => [...comparison].sort((a, b) => b.positivePercent - a.positivePercent)[0],
+    [comparison],
+  )
   
   const kpis = [
     {
@@ -81,9 +86,9 @@ export function InfluencerKPIs() {
       bgColor: avgHealth >= 70 ? "bg-positive/10" : avgHealth >= 50 ? "bg-amber-500/10" : "bg-negative/10"
     },
     {
-      title: "Top Performer",
-      value: topPerformer?.name || "-",
-      subValue: topPerformer ? `${topPerformer.positivePercent}% positive` : "",
+      title: "Most Positive Comments",
+      value: topPositive?.name || "-",
+      subValue: topPositive ? `${topPositive.positivePercent}% positive` : "",
       icon: CheckCircle2,
       color: "text-positive",
       bgColor: "bg-positive/10"
@@ -520,6 +525,7 @@ function CommentDialog({
 export function InfluencerAnalytics() {
   const [selectedInsight, setSelectedInsight] = useState<InfluencerInsight | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [category, setCategory] = useState<"tech" | "lifestyle">("tech")
   
   const handleInsightClick = (insight: InfluencerInsight) => {
     setSelectedInsight(insight)
@@ -538,43 +544,48 @@ export function InfluencerAnalytics() {
           <TabsTrigger value="comparison">Comparison</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="individual" className="mt-6 space-y-8">
-          {/* Tech influencers — dedicated review accounts */}
-          <div className="space-y-4">
-            <div>
-              <p className="section-label">Tech Influencers</p>
-              <p className="text-sm text-muted-foreground">
-                Dedicated tech review accounts — all Samsung coverage tracked
-              </p>
+        <TabsContent value="individual" className="mt-6 space-y-5">
+          {/* Tech / Lifestyle segmented switch */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.03] p-1">
+              <button
+                onClick={() => setCategory("tech")}
+                className={cn(
+                  "rounded-full px-4 py-1.5 text-sm font-medium transition-all",
+                  category === "tech"
+                    ? "bg-primary/20 text-foreground shadow-[0_0_14px_var(--glow-primary)]"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                Tech Influencers
+              </button>
+              <button
+                onClick={() => setCategory("lifestyle")}
+                className={cn(
+                  "rounded-full px-4 py-1.5 text-sm font-medium transition-all",
+                  category === "lifestyle"
+                    ? "bg-primary/20 text-foreground shadow-[0_0_14px_var(--glow-primary)]"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                Lifestyle Influencers
+              </button>
             </div>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {techIds.map(id => (
-                <InfluencerCard
-                  key={id}
-                  influencerId={id}
-                  onInsightClick={handleInsightClick}
-                />
-              ))}
-            </div>
+            <p className="text-sm text-muted-foreground">
+              {category === "tech"
+                ? "Dedicated tech review accounts — all Samsung coverage tracked"
+                : "General lifestyle accounts — only their Galaxy S26 content is tracked"}
+            </p>
           </div>
 
-          {/* Lifestyle influencers — only their Galaxy S26 videos are tracked */}
-          <div className="space-y-4 rule-t pt-6">
-            <div>
-              <p className="section-label">Lifestyle Influencers</p>
-              <p className="text-sm text-muted-foreground">
-                General lifestyle accounts — only their Galaxy S26 content is tracked
-              </p>
-            </div>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {lifestyleIds.map(id => (
-                <InfluencerCard
-                  key={id}
-                  influencerId={id}
-                  onInsightClick={handleInsightClick}
-                />
-              ))}
-            </div>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {(category === "tech" ? techIds : lifestyleIds).map(id => (
+              <InfluencerCard
+                key={id}
+                influencerId={id}
+                onInsightClick={handleInsightClick}
+              />
+            ))}
           </div>
         </TabsContent>
         
