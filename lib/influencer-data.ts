@@ -3,8 +3,15 @@ import slorksData from "@/data/influencer-slorks.json"
 import mohamedhakimData from "@/data/influencer-mohamedhakim.json"
 import ahmedaliData from "@/data/influencer-ahmedali.json"
 import omardizerData from "@/data/influencer-omardizer.json"
+import osamaqaqData from "@/data/influencer-osamaqaq.json"
+import husamkwaikData from "@/data/influencer-husamkwaik.json"
+import leenjadaanData from "@/data/influencer-leenjadaan.json"
+import danaindxbData from "@/data/influencer-danaindxb.json"
+import yourkuyamicoData from "@/data/influencer-yourkuyamico.json"
 
-// Influencer metadata
+// Influencer metadata.
+// category: "tech" = the original review-focused accounts; "lifestyle" =
+// general accounts where ONLY their S26-related videos are tracked.
 export const INFLUENCERS = {
   slorks: {
     id: "slorks",
@@ -12,6 +19,7 @@ export const INFLUENCERS = {
     handle: "@slorks",
     engagementRate: 6.0,
     platform: "Instagram" as const,
+    category: "tech" as const,
   },
   raqamitv: {
     id: "raqamitv",
@@ -19,6 +27,7 @@ export const INFLUENCERS = {
     handle: "@raqamitv",
     engagementRate: 3.0,
     platform: "Instagram" as const,
+    category: "tech" as const,
   },
   omardizer: {
     id: "omardizer",
@@ -26,6 +35,7 @@ export const INFLUENCERS = {
     handle: "@omardizer",
     engagementRate: 5.0,
     platform: "Instagram" as const,
+    category: "tech" as const,
   },
   ahmedali: {
     id: "ahmedali",
@@ -33,6 +43,7 @@ export const INFLUENCERS = {
     handle: "@a7medali",
     engagementRate: 3.2,
     platform: "Instagram" as const,
+    category: "tech" as const,
   },
   mohamedhakim: {
     id: "mohamedhakim",
@@ -40,10 +51,52 @@ export const INFLUENCERS = {
     handle: "@mohamedhakim",
     engagementRate: 2.3,
     platform: "Instagram" as const,
+    category: "tech" as const,
+  },
+  osamaqaq: {
+    id: "osamaqaq",
+    name: "Osama Kak",
+    handle: "@osamaqaq",
+    engagementRate: 4.1, // avg engagement on the tracked S26 reel vs 242k followers
+    platform: "Instagram" as const,
+    category: "lifestyle" as const,
+  },
+  husamkwaik: {
+    id: "husamkwaik",
+    name: "Husam Kwaik",
+    handle: "@husamkwaik",
+    engagementRate: 0,
+    platform: "Instagram" as const,
+    category: "lifestyle" as const,
+  },
+  leenjadaan: {
+    id: "leenjadaan",
+    name: "Leen Jadaan",
+    handle: "@leenjadaan",
+    engagementRate: 0,
+    platform: "Instagram" as const,
+    category: "lifestyle" as const,
+  },
+  danaindxb: {
+    id: "danaindxb",
+    name: "Danah Alshayji",
+    handle: "@danaindxb",
+    engagementRate: 0,
+    platform: "Instagram" as const,
+    category: "lifestyle" as const,
+  },
+  yourkuyamico: {
+    id: "yourkuyamico",
+    name: "Michael Banua",
+    handle: "@yourkuyamico",
+    engagementRate: 0,
+    platform: "Instagram" as const,
+    category: "lifestyle" as const,
   },
 } as const
 
 export type InfluencerId = keyof typeof INFLUENCERS
+export type InfluencerCategory = "tech" | "lifestyle"
 
 export interface InfluencerComment {
   id: string
@@ -193,6 +246,11 @@ export function getInfluencerComments(influencerId: InfluencerId): InfluencerCom
     cachedComments.set("mohamedhakim", normalizeComments(mohamedhakimData as RawCommentV1[], "mohamedhakim"))
     cachedComments.set("ahmedali", normalizeComments(ahmedaliData as RawCommentV1[], "ahmedali"))
     cachedComments.set("omardizer", normalizeComments(omardizerData as RawCommentV1[], "omardizer"))
+    cachedComments.set("osamaqaq", normalizeComments(osamaqaqData as RawCommentV1[], "osamaqaq"))
+    cachedComments.set("husamkwaik", normalizeComments(husamkwaikData as RawCommentV1[], "husamkwaik"))
+    cachedComments.set("leenjadaan", normalizeComments(leenjadaanData as RawCommentV1[], "leenjadaan"))
+    cachedComments.set("danaindxb", normalizeComments(danaindxbData as RawCommentV1[], "danaindxb"))
+    cachedComments.set("yourkuyamico", normalizeComments(yourkuyamicoData as RawCommentV1[], "yourkuyamico"))
   }
   
   return cachedComments.get(influencerId) || []

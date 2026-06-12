@@ -132,7 +132,30 @@ function InfluencerCard({
   const influencer = INFLUENCERS[influencerId]
   const metrics = useMemo(() => getInfluencerMetrics(influencerId), [influencerId])
   const insights = useMemo(() => getInfluencerInsights(influencerId), [influencerId])
-  
+
+  // Lifestyle accounts where no qualifying S26 video has been found yet get a
+  // clear pending state instead of a wall of zero metrics.
+  if (metrics.totalComments === 0) {
+    return (
+      <Card className="overflow-hidden">
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between">
+            <div>
+              <CardTitle className="text-lg">{influencer.name}</CardTitle>
+              <CardDescription className="text-sm">{influencer.handle}</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <p className="rule-t pt-4 text-sm text-muted-foreground">
+            No Galaxy S26 content detected on this account yet. Tracking is active —
+            data appears here as soon as a qualifying video is found.
+          </p>
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <Card className="overflow-hidden">
       <CardHeader className="pb-3">
@@ -504,7 +527,9 @@ export function InfluencerAnalytics() {
   }
   
   const influencerIds = Object.keys(INFLUENCERS) as InfluencerId[]
-  
+  const techIds = influencerIds.filter((id) => INFLUENCERS[id].category === "tech")
+  const lifestyleIds = influencerIds.filter((id) => INFLUENCERS[id].category === "lifestyle")
+
   return (
     <div className="space-y-6">
       <Tabs defaultValue="individual" className="w-full">
@@ -512,17 +537,44 @@ export function InfluencerAnalytics() {
           <TabsTrigger value="individual">Individual Influencers</TabsTrigger>
           <TabsTrigger value="comparison">Comparison</TabsTrigger>
         </TabsList>
-        
-        <TabsContent value="individual" className="mt-6 space-y-6">
-          {/* Individual Influencer Cards */}
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {influencerIds.map(id => (
-              <InfluencerCard 
-                key={id} 
-                influencerId={id} 
-                onInsightClick={handleInsightClick}
-              />
-            ))}
+
+        <TabsContent value="individual" className="mt-6 space-y-8">
+          {/* Tech influencers — dedicated review accounts */}
+          <div className="space-y-4">
+            <div>
+              <p className="section-label">Tech Influencers</p>
+              <p className="text-sm text-muted-foreground">
+                Dedicated tech review accounts — all Samsung coverage tracked
+              </p>
+            </div>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {techIds.map(id => (
+                <InfluencerCard
+                  key={id}
+                  influencerId={id}
+                  onInsightClick={handleInsightClick}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Lifestyle influencers — only their Galaxy S26 videos are tracked */}
+          <div className="space-y-4 rule-t pt-6">
+            <div>
+              <p className="section-label">Lifestyle Influencers</p>
+              <p className="text-sm text-muted-foreground">
+                General lifestyle accounts — only their Galaxy S26 content is tracked
+              </p>
+            </div>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {lifestyleIds.map(id => (
+                <InfluencerCard
+                  key={id}
+                  influencerId={id}
+                  onInsightClick={handleInsightClick}
+                />
+              ))}
+            </div>
           </div>
         </TabsContent>
         
