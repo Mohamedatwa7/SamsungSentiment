@@ -3,11 +3,11 @@ import slorksData from "@/data/influencer-slorks.json"
 import mohamedhakimData from "@/data/influencer-mohamedhakim.json"
 import ahmedaliData from "@/data/influencer-ahmedali.json"
 import omardizerData from "@/data/influencer-omardizer.json"
-import osamaqaqData from "@/data/influencer-osamaqaq.json"
-import husamkwaikData from "@/data/influencer-husamkwaik.json"
-import leenjadaanData from "@/data/influencer-leenjadaan.json"
-import danaindxbData from "@/data/influencer-danaindxb.json"
-import yourkuyamicoData from "@/data/influencer-yourkuyamico.json"
+import pixels100Data from "@/data/influencer-pixels100.json"
+import yazxanData from "@/data/influencer-yazxan.json"
+import farhaahmdData from "@/data/influencer-farhaahmd.json"
+import hazansasouData from "@/data/influencer-hazansasou.json"
+import basharkkData from "@/data/influencer-basharkk.json"
 
 // Influencer metadata.
 // category: "tech" = the original review-focused accounts; "lifestyle" =
@@ -53,43 +53,45 @@ export const INFLUENCERS = {
     platform: "Instagram" as const,
     category: "tech" as const,
   },
-  osamaqaq: {
-    id: "osamaqaq",
-    name: "Osama Kak",
-    handle: "@osamaqaq",
-    engagementRate: 4.1, // avg engagement on the tracked S26 reel vs 242k followers
+  // Engagement rates = average likes+comments on their tracked S26 posts
+  // divided by followers (computed from the June 2026 scrape).
+  pixels100: {
+    id: "pixels100",
+    name: "Mostafa Eldiasty",
+    handle: "@100.pixels",
+    engagementRate: 5.8,
     platform: "Instagram" as const,
     category: "lifestyle" as const,
   },
-  husamkwaik: {
-    id: "husamkwaik",
-    name: "Husam Kwaik",
-    handle: "@husamkwaik",
-    engagementRate: 0,
+  yazxan: {
+    id: "yazxan",
+    name: "Yazan Attal",
+    handle: "@yazxan",
+    engagementRate: 2.3,
     platform: "Instagram" as const,
     category: "lifestyle" as const,
   },
-  leenjadaan: {
-    id: "leenjadaan",
-    name: "Leen Jadaan",
-    handle: "@leenjadaan",
-    engagementRate: 0,
+  farhaahmd: {
+    id: "farhaahmd",
+    name: "Farha Ahmad",
+    handle: "@farhaahmd",
+    engagementRate: 2.8,
     platform: "Instagram" as const,
     category: "lifestyle" as const,
   },
-  danaindxb: {
-    id: "danaindxb",
-    name: "Danah Alshayji",
-    handle: "@danaindxb",
-    engagementRate: 0,
+  hazansasou: {
+    id: "hazansasou",
+    name: "Hazan Sasou",
+    handle: "@hazansasou_",
+    engagementRate: 12.4,
     platform: "Instagram" as const,
     category: "lifestyle" as const,
   },
-  yourkuyamico: {
-    id: "yourkuyamico",
-    name: "Michael Banua",
-    handle: "@yourkuyamico",
-    engagementRate: 0,
+  basharkk: {
+    id: "basharkk",
+    name: "Bashar Kayal",
+    handle: "@basharkk",
+    engagementRate: 5.8,
     platform: "Instagram" as const,
     category: "lifestyle" as const,
   },
@@ -246,11 +248,11 @@ export function getInfluencerComments(influencerId: InfluencerId): InfluencerCom
     cachedComments.set("mohamedhakim", normalizeComments(mohamedhakimData as RawCommentV1[], "mohamedhakim"))
     cachedComments.set("ahmedali", normalizeComments(ahmedaliData as RawCommentV1[], "ahmedali"))
     cachedComments.set("omardizer", normalizeComments(omardizerData as RawCommentV1[], "omardizer"))
-    cachedComments.set("osamaqaq", normalizeComments(osamaqaqData as RawCommentV1[], "osamaqaq"))
-    cachedComments.set("husamkwaik", normalizeComments(husamkwaikData as RawCommentV1[], "husamkwaik"))
-    cachedComments.set("leenjadaan", normalizeComments(leenjadaanData as RawCommentV1[], "leenjadaan"))
-    cachedComments.set("danaindxb", normalizeComments(danaindxbData as RawCommentV1[], "danaindxb"))
-    cachedComments.set("yourkuyamico", normalizeComments(yourkuyamicoData as RawCommentV1[], "yourkuyamico"))
+    cachedComments.set("pixels100", normalizeComments(pixels100Data as RawCommentV1[], "pixels100"))
+    cachedComments.set("yazxan", normalizeComments(yazxanData as RawCommentV1[], "yazxan"))
+    cachedComments.set("farhaahmd", normalizeComments(farhaahmdData as RawCommentV1[], "farhaahmd"))
+    cachedComments.set("hazansasou", normalizeComments(hazansasouData as RawCommentV1[], "hazansasou"))
+    cachedComments.set("basharkk", normalizeComments(basharkkData as RawCommentV1[], "basharkk"))
   }
   
   return cachedComments.get(influencerId) || []

@@ -2,7 +2,9 @@
 // coauthors, across one or more datasets. Prints candidates for curation.
 // Run: node --env-file=.env.local scripts/detect-samsung-posts.mjs <dsId> [dsId2...]
 const T = process.env.APIFY_API_TOKEN
-const HANDLES = new Set(["osamaqaq", "husamkwaik", "leenjadaan", "danaindxb", "yourkuyamico"])
+const HANDLES = new Set(
+  (process.env.HANDLES || "100.pixels,yazxan,farhaahmd,hazansasou_,basharkk").split(","),
+)
 
 const items = []
 for (const ds of process.argv.slice(2)) {
