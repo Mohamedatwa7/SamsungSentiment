@@ -20,6 +20,10 @@ const APIFY_TOKEN = process.env.APIFY_API_TOKEN
 // runs per actor, so sharing an actor would cross-contaminate both pipelines.
 export const UNPACKED_ACTORS = {
   instagramHashtag: "reGe1ST3OBgYZSsZJ", // apify/instagram-hashtag-scraper
+  // Posts that mention/tag @samsunggulf — the hashtag feeds surface global
+  // noise and bury small Gulf creators, but every campaign post tags the
+  // brand, so the mentions feed is the higher-recall channel.
+  instagramMentions: "zTSjdcGqjg6KEIBlt", // apify/instagram-tagged-scraper
   instagramComments: "SbK00X0JYCPblD2wp", // apify/instagram-comment-scraper
   tiktokHashtag: "f1ZeP0K58iwlqG2pY", // clockworks/tiktok-hashtag-scraper
   tiktokComments: "BDec00yAmCm1QbMEI", // clockworks/tiktok-comments-scraper
@@ -132,6 +136,10 @@ export async function startUnpackedPostScrapes() {
     hashtags: CAMPAIGN_HASHTAGS,
     resultsLimit: 250,
   })
+  started.instagramMentions = await startActorRun(UNPACKED_ACTORS.instagramMentions, {
+    username: ["samsunggulf"],
+    resultsLimit: 250,
+  })
   started.tiktokHashtag = await startActorRun(UNPACKED_ACTORS.tiktokHashtag, {
     hashtags: CAMPAIGN_HASHTAGS,
     resultsPerPage: 250,
@@ -158,10 +166,10 @@ interface UnpackedInstagramPost {
 
 export async function syncUnpackedInstagramPosts(runCount = RUNS_TO_SYNC) {
   const supabase = await createClient()
-  const items = await getRecentRunsItems<UnpackedInstagramPost>(
-    UNPACKED_ACTORS.instagramHashtag,
-    runCount,
-  )
+  const items = [
+    ...(await getRecentRunsItems<UnpackedInstagramPost>(UNPACKED_ACTORS.instagramHashtag, runCount)),
+    ...(await getRecentRunsItems<UnpackedInstagramPost>(UNPACKED_ACTORS.instagramMentions, runCount)),
+  ]
   const matched = items.filter((p) => matchesCampaign(p.caption))
 
   let inserted = 0
