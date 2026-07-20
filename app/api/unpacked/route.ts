@@ -107,10 +107,12 @@ export async function GET() {
         avatar = raw.authorMeta?.avatar || null
       }
 
-      const likes = p.likes_count || 0
-      const commentsCount = p.comments_count || 0
-      const shares = p.shares_count || 0
-      const views = p.views_count || 0
+      // Instagram reports likesCount: -1 when the creator hides like counts —
+      // clamp so hidden metrics read as 0 instead of corrupting engagement.
+      const likes = Math.max(0, p.likes_count || 0)
+      const commentsCount = Math.max(0, p.comments_count || 0)
+      const shares = Math.max(0, p.shares_count || 0)
+      const views = Math.max(0, p.views_count || 0)
       const engagementCount = likes + commentsCount + shares
 
       const video: UnpackedVideo = {
