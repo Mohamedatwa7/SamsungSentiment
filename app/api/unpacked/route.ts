@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { instagramShortcodeToId, instagramShortcodeFromUrl } from "@/lib/instagram-id"
-import { campaignEnded, CAMPAIGN_END, UNPACKED_ID_PREFIX, stripUnpackedPrefix } from "@/lib/unpacked-sync"
+import {
+  campaignEnded,
+  CAMPAIGN_END,
+  UNPACKED_ID_PREFIX,
+  stripUnpackedPrefix,
+  isExcludedCreator,
+} from "@/lib/unpacked-sync"
 import type {
   UnpackedComment,
   UnpackedPayload,
@@ -127,6 +133,9 @@ export async function GET() {
         displayName = raw.authorMeta?.nickName || raw.authorMeta?.name || "TikTok creator"
         avatar = raw.authorMeta?.avatar || null
       }
+
+      // Removed-by-request creators: never rendered, even if a row lingers.
+      if (isExcludedCreator(username)) continue
 
       // Instagram reports likesCount: -1 when the creator hides like counts —
       // clamp so hidden metrics read as 0 instead of corrupting engagement.

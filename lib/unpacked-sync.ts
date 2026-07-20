@@ -63,6 +63,24 @@ export function stripUnpackedPrefix(id: string): string {
   return id.startsWith(UNPACKED_ID_PREFIX) ? id.slice(UNPACKED_ID_PREFIX.length) : id
 }
 
+// Creators excluded from the campaign tracker by request (removed 2026-07-20:
+// agency/aggregator accounts and creators outside the teaser roster). Their
+// posts are skipped at ingest AND filtered in /api/unpacked, so they stay
+// gone even if an old row lingers in the database.
+export const EXCLUDED_CREATORS = new Set([
+  "aesectorsignals",
+  "uniquetalents.me",
+  "abodelrahman_mohamed",
+  "joycegchamoun",
+  "farhaahmd",
+  "yazxan",
+  "basharkk",
+])
+
+export function isExcludedCreator(username: string | null | undefined): boolean {
+  return EXCLUDED_CREATORS.has((username || "").toLowerCase().trim().replace(/^@/, ""))
+}
+
 // ---------------------------------------------------------------------------
 // Apify helpers
 // ---------------------------------------------------------------------------
@@ -171,7 +189,9 @@ export async function syncUnpackedInstagramPosts(runCount = RUNS_TO_SYNC) {
     ...(await getRecentRunsItems<UnpackedInstagramPost>(UNPACKED_ACTORS.instagramHashtag, runCount)),
     ...(await getRecentRunsItems<UnpackedInstagramPost>(UNPACKED_ACTORS.instagramMentions, runCount)),
   ]
-  const matched = items.filter((p) => matchesCampaign(p.caption))
+  const matched = items.filter(
+    (p) => matchesCampaign(p.caption) && !isExcludedCreator(p.ownerUsername),
+  )
 
   let inserted = 0
   const errors: string[] = []
@@ -225,7 +245,9 @@ export async function syncUnpackedTikTokPosts(runCount = RUNS_TO_SYNC) {
     UNPACKED_ACTORS.tiktokHashtag,
     runCount,
   )
-  const matched = items.filter((p) => matchesCampaign(p.text))
+  const matched = items.filter(
+    (p) => matchesCampaign(p.text) && !isExcludedCreator(p.authorMeta?.name),
+  )
 
   let inserted = 0
   const errors: string[] = []
