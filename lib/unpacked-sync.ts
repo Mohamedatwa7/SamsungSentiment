@@ -34,18 +34,28 @@ export function campaignEnded(now = new Date()): boolean {
   return now.getTime() >= CAMPAIGN_END.getTime()
 }
 
-// A caption qualifies when it carries at least 2 of the 3 campaign markers.
-// Hashtag feeds guarantee one marker by construction; requiring a second one
-// drops bystanders who happen to use a single tag.
-const CAMPAIGN_MARKERS = [/newshape/i, /galaxy\s*unpacked/i, /samsung\s*gulf/i]
+// A caption qualifies only when it tags @samsunggulf AND carries a campaign
+// hashtag. The hashtag feeds are global — Samsung's regional accounts and
+// fans worldwide use #newshape/#galaxyunpacked too — so the Gulf mention is
+// the discriminator that isolates OUR influencers' posts.
+const GULF_MARKER = /samsung\s*gulf/i
+const HASHTAG_MARKERS = [/newshape/i, /galaxy\s*unpacked/i]
 
 export function matchesCampaign(caption: string | null | undefined): boolean {
   const text = caption || ""
-  let hits = 0
-  for (const marker of CAMPAIGN_MARKERS) {
-    if (marker.test(text)) hits++
-  }
-  return hits >= 2
+  return GULF_MARKER.test(text) && HASHTAG_MARKERS.some((m) => m.test(text))
+}
+
+// Campaign rows share social_posts/social_comments with the brand sync. The
+// external_id prefix is the queryable marker: a LIKE scan on the text column
+// is fast, while filtering on raw_data->>_unpacked exceeds the Postgres
+// statement timeout (JSONB detoast across 16k+ rows). The raw_data flag is
+// still written — /api/comments uses it (as a cheap projection) to exclude
+// campaign rows from the Social Reviews dashboard.
+export const UNPACKED_ID_PREFIX = "unpacked_"
+
+export function stripUnpackedPrefix(id: string): string {
+  return id.startsWith(UNPACKED_ID_PREFIX) ? id.slice(UNPACKED_ID_PREFIX.length) : id
 }
 
 // ---------------------------------------------------------------------------
@@ -163,7 +173,7 @@ export async function syncUnpackedInstagramPosts(runCount = RUNS_TO_SYNC) {
       .upsert(
         {
           platform: "instagram",
-          external_id: String(externalId),
+          external_id: UNPACKED_ID_PREFIX + String(externalId),
           post_url: post.url || (post.shortCode ? `https://www.instagram.com/p/${post.shortCode}/` : ""),
           caption: post.caption || "",
           media_type: post.type || "Video",
@@ -216,7 +226,7 @@ export async function syncUnpackedTikTokPosts(runCount = RUNS_TO_SYNC) {
       .upsert(
         {
           platform: "tiktok",
-          external_id: String(post.id),
+          external_id: UNPACKED_ID_PREFIX + String(post.id),
           post_url: post.webVideoUrl || `https://www.tiktok.com/@${author || "user"}/video/${post.id}`,
           caption: post.text || "",
           media_type: "video",
@@ -257,7 +267,7 @@ async function getUnpackedPostRows(): Promise<UnpackedPostRow[]> {
   const { data, error } = await supabase
     .from("social_posts")
     .select("external_id,platform,post_url")
-    .eq("raw_data->>_unpacked", "true")
+    .like("external_id", `${UNPACKED_ID_PREFIX}%`)
   if (error) {
     console.error("[unpacked] Failed to read unpacked posts:", error.message)
     return []
@@ -270,7 +280,8 @@ async function getUnpackedPostRows(): Promise<UnpackedPostRow[]> {
 function buildPostKeySet(rows: UnpackedPostRow[]): Set<string> {
   const keys = new Set<string>()
   for (const row of rows) {
-    const extId = String(row.external_id || "")
+    // Comments reference videos by their REAL platform id, not the prefixed one.
+    const extId = stripUnpackedPrefix(String(row.external_id || ""))
     if (extId) keys.add(extId)
     const url = (row.post_url || "").replace(/\/+$/, "")
     if (url) keys.add(url)
@@ -365,7 +376,7 @@ export async function syncUnpackedInstagramComments(runCount = RUNS_TO_SYNC) {
       .upsert(
         {
           platform: "instagram",
-          external_id: String(commentId),
+          external_id: UNPACKED_ID_PREFIX + String(commentId),
           external_post_id: numericPostId || shortcode,
           text,
           author_username: c.ownerUsername || "unknown",
@@ -432,7 +443,7 @@ export async function syncUnpackedTikTokComments(runCount = RUNS_TO_SYNC) {
       .upsert(
         {
           platform: "tiktok",
-          external_id: String(commentId),
+          external_id: UNPACKED_ID_PREFIX + String(commentId),
           external_post_id: videoId,
           text,
           author_username: author,

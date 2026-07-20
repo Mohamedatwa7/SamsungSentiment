@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { instagramShortcodeToId, instagramShortcodeFromUrl } from "@/lib/instagram-id"
-import { campaignEnded, CAMPAIGN_END } from "@/lib/unpacked-sync"
+import { campaignEnded, CAMPAIGN_END, UNPACKED_ID_PREFIX, stripUnpackedPrefix } from "@/lib/unpacked-sync"
 import type {
   UnpackedComment,
   UnpackedPayload,
@@ -44,7 +44,7 @@ export async function GET() {
         "external_id,platform,post_url,caption,media_url,likes_count,comments_count," +
           "shares_count,views_count,published_at,raw_data",
       )
-      .eq("raw_data->>_unpacked", "true")
+      .like("external_id", `${UNPACKED_ID_PREFIX}%`)
       .limit(2000)
     if (postError) throw new Error(postError.message)
     const postRows = (postData || []) as any[]
@@ -56,7 +56,7 @@ export async function GET() {
       const { data, error } = await supabase
         .from("social_comments")
         .select(COMMENT_COLUMNS)
-        .eq("raw_data->>_unpacked", "true")
+        .like("external_id", `${UNPACKED_ID_PREFIX}%`)
         .order("id", { ascending: true })
         .range(from, from + PAGE_SIZE - 1)
       if (error) {
@@ -81,7 +81,9 @@ export async function GET() {
       const raw = (p.raw_data || {}) as any
       const platform = p.platform as "instagram" | "tiktok"
       const url = p.post_url || ""
-      const externalId = String(p.external_id || "")
+      // Real platform id — comments reference videos by this, not the
+      // unpacked_-prefixed row key.
+      const externalId = stripUnpackedPrefix(String(p.external_id || ""))
 
       let embedUrl = ""
       let username = "unknown"
