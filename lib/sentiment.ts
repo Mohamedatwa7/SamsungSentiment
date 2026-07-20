@@ -76,6 +76,10 @@ CRITICAL CONTEXT:
 - INTERNET SLANG that reads negative literally but is PRAISE: "i'm dead 😭",
   "this ate", "cooked them", "insane 🔥", "no way this is real" (amazement),
   "shut up and take my money" = positive.
+- ANTICIPATION for a teaser/launch is positive hype, NOT neutral: "can't
+  wait", "waiting for this", "so excited", "countdown", "منتظرين", "متحمس",
+  "شوقتونا", "ترقبوا", "ما أقدر أنتظر", wishing luck ("بالتوفيق") = positive
+  + flag hype. Only cold factual questions with zero excitement are neutral.
 - Demanding/impatient release questions ("one ui 9???", "when in my country??",
   "still waiting...") = mildly negative (frustration), not neutral.
 

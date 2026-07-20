@@ -10,7 +10,8 @@
 // never mixes with the Social Reviews dashboard.
 
 import { createClient } from "@/lib/supabase/server"
-import { getLatestRuns, getDatasetItems, analyzeUnanalyzedComments } from "@/lib/apify-sync"
+import { getLatestRuns, getDatasetItems } from "@/lib/apify-sync"
+import { analyzeComments } from "@/lib/sentiment"
 import { instagramShortcodeToId, instagramShortcodeFromUrl } from "@/lib/instagram-id"
 
 const APIFY_TOKEN = process.env.APIFY_API_TOKEN
@@ -503,19 +504,15 @@ export async function syncUnpacked(opts: { wait?: boolean; runsToSync?: number }
     tiktokComments = await syncUnpackedTikTokComments(2)
   }
 
-  // Phase 3 — LLM sentiment on anything not yet analyzed (same pipeline and
-  // model as the Social Reviews dashboard). Loops until the backlog is empty
-  // or the function's 300s ceiling approaches, so a burst of fresh comments
-  // (first campaign days, event day) is fully scored in one sync — unanalyzed
-  // comments read as keyword-fallback "neutral" on the dashboard until scored.
+  // Phase 3 — LLM sentiment on campaign comments not yet analyzed (same
+  // model/prompt as the Social Reviews dashboard). Targets unpacked rows
+  // explicitly: the shared analyzeUnanalyzedComments picks arbitrary rows
+  // table-wide, and a standing backlog of failing brand comments starves the
+  // campaign rows behind it. Unanalyzed comments read as keyword-fallback
+  // "neutral" on the dashboard until scored.
   let sentimentAnalyzed = 0
-  const analyzeDeadline = startedAt + 240000
   try {
-    while (Date.now() < analyzeDeadline) {
-      const n = await analyzeUnanalyzedComments(500)
-      sentimentAnalyzed += n
-      if (n === 0) break
-    }
+    sentimentAnalyzed = await analyzeUnpackedComments(startedAt + 240000)
   } catch (e) {
     console.error("[unpacked] Post-sync sentiment analysis failed:", e)
   }
@@ -529,4 +526,63 @@ export async function syncUnpacked(opts: { wait?: boolean; runsToSync?: number }
     sentimentAnalyzed,
     syncedAt: new Date().toISOString(),
   }
+}
+
+// Analyze unanalyzed CAMPAIGN comments until the backlog is empty or the
+// deadline approaches. Returns the number successfully persisted.
+export async function analyzeUnpackedComments(deadlineMs: number): Promise<number> {
+  const supabase = await createClient()
+  let persisted = 0
+
+  while (Date.now() < deadlineMs) {
+    const { data: rows, error } = await supabase
+      .from("social_comments")
+      .select("external_id, text")
+      .like("external_id", `${UNPACKED_ID_PREFIX}%`)
+      .is("sentiment_analyzed_at", null)
+      .not("text", "is", null)
+      .limit(400)
+    if (error) {
+      console.error("[unpacked] analyze select failed:", error.message)
+      break
+    }
+
+    const toAnalyze = (rows || [])
+      .filter((r: any) => (r.text || "").trim().length > 0)
+      .map((r: any) => ({ id: r.external_id as string, text: r.text as string }))
+    if (toAnalyze.length === 0) break
+
+    const now = new Date().toISOString()
+    let successes = 0
+    await analyzeComments(toAnalyze, {
+      batchSize: 25,
+      delayMs: 300,
+      concurrency: 4,
+      onBatch: async (batchResults) => {
+        // Failed placeholders are skipped so those comments retry next sync.
+        const real = batchResults.filter((res) => !res.failed)
+        await Promise.all(
+          real.map((res) =>
+            supabase
+              .from("social_comments")
+              .update({
+                sentiment: res.sentiment,
+                sentiment_score: res.score,
+                flags: res.flags,
+                sentiment_analyzed_at: now,
+              })
+              .eq("external_id", res.id),
+          ),
+        )
+        successes += real.length
+        persisted += real.length
+      },
+    })
+
+    // Every batch failed (rate limit / outage) — stop instead of spinning on
+    // the same rows until the deadline.
+    if (successes === 0) break
+  }
+
+  return persisted
 }
