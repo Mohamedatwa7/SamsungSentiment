@@ -14,11 +14,12 @@ const PAGE_SIZE = 1000
 // raw_data subfields the post-resolver needs are projected out individually.
 const POST_COLUMNS =
   "external_id,platform,post_url,caption,likes_count,views_count,published_at," +
-  "short_code:raw_data->>shortCode"
+  "short_code:raw_data->>shortCode,unpacked:raw_data->>_unpacked"
 const COMMENT_COLUMNS =
   "external_id,external_post_id,platform,text,author_username,published_at," +
   "sentiment,sentiment_score,sentiment_analyzed_at,flags,likes_count,features," +
-  "product_model,department,raw_post_ref:raw_data->>postId,raw_post_url:raw_data->>postUrl"
+  "product_model,department,raw_post_ref:raw_data->>postId,raw_post_url:raw_data->>postUrl," +
+  "unpacked:raw_data->>_unpacked"
 
 async function fetchAll(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -116,10 +117,16 @@ export async function GET(_request: NextRequest) {
   try {
     const supabase = await createClient()
 
-    const [supabasePosts, supabaseComments] = await Promise.all([
+    const [supabasePostsAll, supabaseCommentsAll] = await Promise.all([
       fetchAll(supabase, "social_posts", POST_COLUMNS),
       fetchAll(supabase, "social_comments", COMMENT_COLUMNS),
     ])
+
+    // Galaxy Unpacked campaign rows (influencer videos + their comments) live
+    // in the same tables tagged raw_data._unpacked — they belong to /unpacked,
+    // not the Social Reviews dashboard.
+    const supabasePosts = supabasePostsAll.filter((p: any) => p.unpacked !== "true")
+    const supabaseComments = supabaseCommentsAll.filter((c: any) => c.unpacked !== "true")
 
     // Map posts. Register every alias a comment might use to reference its
     // parent post — external id, Instagram shortcode AND numeric media id

@@ -4,7 +4,7 @@ import Link from "next/link"
 import Image from "next/image"
 import useSWR from "swr"
 import { useEffect, useRef, useState } from "react"
-import { ArrowRight, ArrowUpRight, LayoutDashboard, MessageSquareText, Star } from "lucide-react"
+import { ArrowRight, ArrowUpRight, Clapperboard, LayoutDashboard, MessageSquareText, Star } from "lucide-react"
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
@@ -62,6 +62,15 @@ const MODULES = [
     description:
       "Ask anything about Samsung Gulf customer sentiment in natural language. Answers grounded in the full comment corpus with citations.",
     tags: ["Natural Language", "Cited Answers", "Gulf Focus"],
+  },
+  {
+    index: "04",
+    title: "Galaxy Unpacked",
+    href: "/unpacked",
+    icon: Clapperboard,
+    description:
+      "Influencer campaign tracker — every #newshape × @samsunggulf video on Instagram and TikTok with playable embeds, engagement rates and AI comment sentiment.",
+    tags: ["#NewShape", "Instagram + TikTok", "2× Daily Sync"],
   },
 ]
 

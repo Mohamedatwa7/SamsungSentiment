@@ -3,6 +3,10 @@
     {
       "path": "/api/apify/sync",
       "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/unpacked/sync",
+      "schedule": "0 5,10 * * *"
     }
   ]
 }

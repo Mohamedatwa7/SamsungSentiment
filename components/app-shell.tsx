@@ -5,6 +5,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
 import {
+  Clapperboard,
   LayoutDashboard,
   MessageSquareText,
   Home,
@@ -27,6 +28,7 @@ const navItems = [
   { title: "Social Reviews Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { title: "S.com Reviews", href: "/reviews", icon: Star },
   { title: "AI Chatbot", href: "/chatbot", icon: MessageSquareText },
+  { title: "Galaxy Unpacked", href: "/unpacked", icon: Clapperboard },
 ]
 
 /* Floating glass dock — vertical rail on desktop (left, vertically centered),
