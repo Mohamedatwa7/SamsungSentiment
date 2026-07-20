@@ -224,9 +224,10 @@ export async function GET() {
 
     return NextResponse.json(payload, {
       headers: {
-        // Data changes only on the twice-daily sync — same edge-cache policy
-        // as /api/comments.
-        "Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600",
+        // Short cache: syncs land twice a day but sentiment back-fills in the
+        // minutes after each one — an hour-long stale window (as /api/comments
+        // uses) made the page show mid-sync snapshots with zeroed counts.
+        "Cache-Control": "public, s-maxage=120, stale-while-revalidate=600",
       },
     })
   } catch (error) {

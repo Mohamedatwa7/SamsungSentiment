@@ -481,6 +481,7 @@ export async function syncUnpackedTikTokComments(runCount = RUNS_TO_SYNC) {
 // ingested in the same call so a first setup populates immediately.
 export async function syncUnpacked(opts: { wait?: boolean; runsToSync?: number } = {}) {
   const runCount = opts.runsToSync ?? RUNS_TO_SYNC
+  const startedAt = Date.now()
 
   // Phase 1 — campaign videos
   let instagramPosts = await syncUnpackedInstagramPosts(runCount)
@@ -503,10 +504,18 @@ export async function syncUnpacked(opts: { wait?: boolean; runsToSync?: number }
   }
 
   // Phase 3 — LLM sentiment on anything not yet analyzed (same pipeline and
-  // model as the Social Reviews dashboard).
+  // model as the Social Reviews dashboard). Loops until the backlog is empty
+  // or the function's 300s ceiling approaches, so a burst of fresh comments
+  // (first campaign days, event day) is fully scored in one sync — unanalyzed
+  // comments read as keyword-fallback "neutral" on the dashboard until scored.
   let sentimentAnalyzed = 0
+  const analyzeDeadline = startedAt + 240000
   try {
-    sentimentAnalyzed = await analyzeUnanalyzedComments(1500)
+    while (Date.now() < analyzeDeadline) {
+      const n = await analyzeUnanalyzedComments(500)
+      sentimentAnalyzed += n
+      if (n === 0) break
+    }
   } catch (e) {
     console.error("[unpacked] Post-sync sentiment analysis failed:", e)
   }
