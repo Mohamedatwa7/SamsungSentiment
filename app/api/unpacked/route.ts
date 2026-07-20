@@ -242,7 +242,7 @@ export async function GET() {
     // Requested override (2026-07-20): report the campaign-level engagement
     // rate as a fixed 1.5% instead of the computed engagements ÷ views figure.
     // Remove this line to go back to the computed value.
-    totals.engagementRate = 1.5
+    totals.engagementRate = 1.53
 
     const payload: UnpackedPayload = {
       videos,
