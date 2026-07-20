@@ -33,39 +33,60 @@ function fallbackSentiment(text: string): UnpackedSentiment {
   return "neutral"
 }
 
+// The first scan after idle pays cold I/O and can trip the DB's statement
+// timeout; the aborted attempt still warms the buffer cache, so a short-delay
+// retry succeeds. Never return partial data — a half-empty payload would get
+// edge-cached and show zeroed metrics for minutes.
+async function withRetry<T>(
+  label: string,
+  fn: () => PromiseLike<{ data: T | null; error: { message: string } | null }>,
+  attempts = 3,
+): Promise<T> {
+  let lastError = "unknown"
+  for (let i = 0; i < attempts; i++) {
+    const { data, error } = await fn()
+    if (!error) return (data || []) as T
+    lastError = error.message
+    console.error(`[unpacked] ${label} attempt ${i + 1} failed:`, error.message)
+    await new Promise((r) => setTimeout(r, 500))
+  }
+  throw new Error(`${label} failed after ${attempts} attempts: ${lastError}`)
+}
+
 export async function GET() {
   try {
     const supabase = await createClient()
 
     // Campaign videos are few — a single page is plenty.
-    const { data: postData, error: postError } = await supabase
-      .from("social_posts")
-      .select(
-        "external_id,platform,post_url,caption,media_url,likes_count,comments_count," +
-          "shares_count,views_count,published_at,raw_data",
-      )
-      .like("external_id", `${UNPACKED_ID_PREFIX}%`)
-      .limit(2000)
-    if (postError) throw new Error(postError.message)
-    const postRows = (postData || []) as any[]
+    const postRows = await withRetry<any[]>("posts query", () =>
+      supabase
+        .from("social_posts")
+        .select(
+          "external_id,platform,post_url,caption,media_url,likes_count,comments_count," +
+            "shares_count,views_count,published_at,raw_data",
+        )
+        .like("external_id", `${UNPACKED_ID_PREFIX}%`)
+        .limit(2000),
+    )
 
-    // Comments can grow into the thousands — paginate.
+    // Comments can grow into the thousands — paginate. Order by external_id,
+    // NOT id: ORDER BY the pkey makes Postgres walk the pkey index evaluating
+    // the LIKE against every row; external_id has no usable index so it
+    // seq-scans and sorts only the matches.
     const commentRows: any[] = []
     let from = 0
     while (true) {
-      const { data, error } = await supabase
-        .from("social_comments")
-        .select(COMMENT_COLUMNS)
-        .like("external_id", `${UNPACKED_ID_PREFIX}%`)
-        .order("id", { ascending: true })
-        .range(from, from + PAGE_SIZE - 1)
-      if (error) {
-        console.error("[unpacked] Comment fetch error:", error.message)
-        break
-      }
-      if (!data || data.length === 0) break
-      commentRows.push(...data)
-      if (data.length < PAGE_SIZE) break
+      const page = await withRetry<any[]>("comments query", () =>
+        supabase
+          .from("social_comments")
+          .select(COMMENT_COLUMNS)
+          .like("external_id", `${UNPACKED_ID_PREFIX}%`)
+          .order("external_id", { ascending: true })
+          .range(from, from + PAGE_SIZE - 1),
+      )
+      if (page.length === 0) break
+      commentRows.push(...page)
+      if (page.length < PAGE_SIZE) break
       from += PAGE_SIZE
     }
 
