@@ -1,0 +1,23 @@
+# Galaxy Unpacked campaign sync — twice daily at 9:00 AM and 2:00 PM Gulf
+# time (UTC+4) until Aug 1st, 2026. Scheduled here instead of a Vercel cron
+# because Hobby-plan crons are limited to once per day; the endpoint itself
+# self-disables after the campaign end date, so runs after Aug 1 are no-ops.
+name: Galaxy Unpacked sync
+
+on:
+  schedule:
+    - cron: "0 5 * * *" # 09:00 Gulf (UTC+4)
+    - cron: "0 10 * * *" # 14:00 Gulf (UTC+4)
+  workflow_dispatch: {}
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger sync endpoint
+        run: |
+          curl -sS -X POST "https://samsungtrack.com/api/unpacked/sync" \
+            -H "Content-Type: application/json" \
+            -d '{"manual": true, "wait": false}' \
+            --fail-with-body \
+            --max-time 570
