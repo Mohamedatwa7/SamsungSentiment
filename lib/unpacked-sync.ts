@@ -126,13 +126,15 @@ export async function waitForRuns(runIds: (string | null)[], timeoutMs: number):
 
 export async function startUnpackedPostScrapes() {
   const started: Record<string, string | null> = {}
+  // Deep limits: around the July 22 event the tags get busy and Gulf
+  // influencer posts must not fall outside the scraped window.
   started.instagramHashtag = await startActorRun(UNPACKED_ACTORS.instagramHashtag, {
     hashtags: CAMPAIGN_HASHTAGS,
-    resultsLimit: 100,
+    resultsLimit: 250,
   })
   started.tiktokHashtag = await startActorRun(UNPACKED_ACTORS.tiktokHashtag, {
     hashtags: CAMPAIGN_HASHTAGS,
-    resultsPerPage: 100,
+    resultsPerPage: 250,
   })
   return started
 }
