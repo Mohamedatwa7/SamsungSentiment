@@ -7,6 +7,7 @@ import {
   UNPACKED_ID_PREFIX,
   stripUnpackedPrefix,
   isExcludedCreator,
+  isInCampaignWindow,
 } from "@/lib/unpacked-sync"
 import type {
   UnpackedComment,
@@ -139,6 +140,8 @@ export async function GET() {
       // Deleted/private videos (flagged by the sync's oEmbed check) — drop
       // the card instead of rendering an embed error page.
       if (raw._unavailable) continue
+      // Pre-campaign videos that slipped in before the date-window filter.
+      if (!isInCampaignWindow(p.published_at)) continue
 
       // Instagram reports likesCount: -1 when the creator hides like counts —
       // clamp so hidden metrics read as 0 instead of corrupting engagement.

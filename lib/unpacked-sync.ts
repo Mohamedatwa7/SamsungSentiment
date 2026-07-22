@@ -47,6 +47,17 @@ const SCRAPE_HASHTAGS = [...CAMPAIGN_HASHTAGS, "samsunggulf"]
 // The twice-daily schedule stops on Aug 1st, 2026 (Gulf time, UTC+4).
 export const CAMPAIGN_END = new Date("2026-08-01T00:00:00+04:00")
 
+// Teaser campaign started mid-July — the #samsunggulf feed also surfaces the
+// brand's older collabs (S25/S26 era) which match the markers but are not
+// this campaign.
+export const CAMPAIGN_START = new Date("2026-07-10T00:00:00+04:00")
+
+export function isInCampaignWindow(publishedAt: string | Date | null | undefined): boolean {
+  if (!publishedAt) return false
+  const t = new Date(publishedAt).getTime()
+  return !isNaN(t) && t >= CAMPAIGN_START.getTime()
+}
+
 export function campaignEnded(now = new Date()): boolean {
   return now.getTime() >= CAMPAIGN_END.getTime()
 }
@@ -209,7 +220,10 @@ export async function syncUnpackedInstagramPosts(runCount = RUNS_TO_SYNC) {
     ...(await getRecentRunsItems<UnpackedInstagramPost>(UNPACKED_ACTORS.instagramMentions, runCount)),
   ]
   const matched = items.filter(
-    (p) => matchesCampaign(p.caption) && !isExcludedCreator(p.ownerUsername),
+    (p) =>
+      matchesCampaign(p.caption) &&
+      !isExcludedCreator(p.ownerUsername) &&
+      isInCampaignWindow(p.timestamp),
   )
 
   let inserted = 0
@@ -281,7 +295,10 @@ export async function syncUnpackedTikTokPosts(runCount = RUNS_TO_SYNC) {
       matchesCampaign(tiktokCampaignText(p)) &&
       !isExcludedCreator(p.authorMeta?.name) &&
       // The brand's own videos belong to the Social Reviews pipeline.
-      (p.authorMeta?.name || "").toLowerCase() !== "samsunggulf",
+      (p.authorMeta?.name || "").toLowerCase() !== "samsunggulf" &&
+      isInCampaignWindow(
+        p.createTimeISO || (p.createTime ? new Date(p.createTime * 1000) : null),
+      ),
   )
 
   let inserted = 0
