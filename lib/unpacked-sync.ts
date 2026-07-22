@@ -39,6 +39,11 @@ export const UNPACKED_ACTORS = {
 
 export const CAMPAIGN_HASHTAGS = ["newshape", "galaxyunpacked"]
 
+// Feeds to scrape (wider than the marker rule): creators who hashtag the
+// brand itself surface in #samsunggulf even when the campaign tags are
+// buried in ranked feeds. The marker rule still decides what qualifies.
+const SCRAPE_HASHTAGS = [...CAMPAIGN_HASHTAGS, "samsunggulf"]
+
 // The twice-daily schedule stops on Aug 1st, 2026 (Gulf time, UTC+4).
 export const CAMPAIGN_END = new Date("2026-08-01T00:00:00+04:00")
 
@@ -159,7 +164,7 @@ export async function startUnpackedPostScrapes() {
   // Deep limits: around the July 22 event the tags get busy and Gulf
   // influencer posts must not fall outside the scraped window.
   started.instagramHashtag = await startActorRun(UNPACKED_ACTORS.instagramHashtag, {
-    hashtags: CAMPAIGN_HASHTAGS,
+    hashtags: SCRAPE_HASHTAGS,
     resultsLimit: 250,
   })
   started.instagramMentions = await startActorRun(UNPACKED_ACTORS.instagramMentions, {
@@ -167,11 +172,11 @@ export async function startUnpackedPostScrapes() {
     resultsLimit: 250,
   })
   started.tiktokHashtag = await startActorRun(UNPACKED_ACTORS.tiktokHashtag, {
-    hashtags: CAMPAIGN_HASHTAGS,
+    hashtags: SCRAPE_HASHTAGS,
     resultsPerPage: 250,
   })
   started.tiktokSearch = await startActorRun(UNPACKED_ACTORS.tiktokSearch, {
-    searchQueries: ["samsunggulf"],
+    searchQueries: ["samsunggulf", "@samsunggulf"],
     searchSection: "/video",
     videoSearchSorting: "LATEST",
     videoSearchDateFilter: "PAST_MONTH",
