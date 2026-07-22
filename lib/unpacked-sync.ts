@@ -27,6 +27,13 @@ export const UNPACKED_ACTORS = {
   instagramMentions: "zTSjdcGqjg6KEIBlt", // apify/instagram-tagged-scraper
   instagramComments: "SbK00X0JYCPblD2wp", // apify/instagram-comment-scraper
   tiktokHashtag: "f1ZeP0K58iwlqG2pY", // clockworks/tiktok-hashtag-scraper
+  // clockworks/tiktok-scraper in keyword-search mode — TikTok's hashtag feed
+  // is popularity-ranked and buries small Gulf creators, but searching
+  // "samsunggulf" surfaces the mention-tagged campaign videos. This IS the
+  // brand sync's actor (SCHEDULED_ACTORS.tiktokPosts): sharing is safe only
+  // because the brand sync keeps authorMeta.name === "samsunggulf" items and
+  // this pipeline drops them.
+  tiktokSearch: "GdWCkxBtKWOsKjdch",
   tiktokComments: "BDec00yAmCm1QbMEI", // clockworks/tiktok-comments-scraper
 }
 
@@ -163,6 +170,13 @@ export async function startUnpackedPostScrapes() {
     hashtags: CAMPAIGN_HASHTAGS,
     resultsPerPage: 250,
   })
+  started.tiktokSearch = await startActorRun(UNPACKED_ACTORS.tiktokSearch, {
+    searchQueries: ["samsunggulf"],
+    searchSection: "/video",
+    videoSearchSorting: "LATEST",
+    videoSearchDateFilter: "PAST_MONTH",
+    resultsPerPage: 150,
+  })
   return started
 }
 
@@ -237,16 +251,32 @@ interface UnpackedTikTokPost {
   createTimeISO?: string
   authorMeta?: { name?: string; nickName?: string; avatar?: string; fans?: number }
   videoMeta?: { coverUrl?: string }
+  hashtags?: { name?: string }[]
+  mentions?: string[]
+}
+
+// Markers can live outside the caption text — TikTok items carry hashtags and
+// mentions as separate arrays — so match against all of them combined.
+function tiktokCampaignText(p: UnpackedTikTokPost): string {
+  return [
+    p.text || "",
+    ...(p.hashtags || []).map((h) => `#${h?.name || ""}`),
+    ...(p.mentions || []),
+  ].join(" ")
 }
 
 export async function syncUnpackedTikTokPosts(runCount = RUNS_TO_SYNC) {
   const supabase = await createClient()
-  const items = await getRecentRunsItems<UnpackedTikTokPost>(
-    UNPACKED_ACTORS.tiktokHashtag,
-    runCount,
-  )
+  const items = [
+    ...(await getRecentRunsItems<UnpackedTikTokPost>(UNPACKED_ACTORS.tiktokHashtag, runCount)),
+    ...(await getRecentRunsItems<UnpackedTikTokPost>(UNPACKED_ACTORS.tiktokSearch, runCount)),
+  ]
   const matched = items.filter(
-    (p) => matchesCampaign(p.text) && !isExcludedCreator(p.authorMeta?.name),
+    (p) =>
+      matchesCampaign(tiktokCampaignText(p)) &&
+      !isExcludedCreator(p.authorMeta?.name) &&
+      // The brand's own videos belong to the Social Reviews pipeline.
+      (p.authorMeta?.name || "").toLowerCase() !== "samsunggulf",
   )
 
   let inserted = 0
@@ -516,6 +546,14 @@ export async function syncUnpacked(opts: { wait?: boolean; runsToSync?: number }
     tiktokPosts = await syncUnpackedTikTokPosts(2)
   }
 
+  // Deleted/private videos get flagged so the dashboard drops their cards.
+  let unavailableMarked = 0
+  try {
+    unavailableMarked = await markUnavailableTikTokVideos()
+  } catch (e) {
+    console.error("[unpacked] Availability check failed:", e)
+  }
+
   // Phase 2 — comments on those videos
   let instagramComments = await syncUnpackedInstagramComments(runCount)
   let tiktokComments = await syncUnpackedTikTokComments(runCount)
@@ -545,9 +583,46 @@ export async function syncUnpacked(opts: { wait?: boolean; runsToSync?: number }
     instagramComments,
     tiktokComments,
     startedRuns: { ...postRuns, ...commentRuns },
+    unavailableMarked,
     sentimentAnalyzed,
     syncedAt: new Date().toISOString(),
   }
+}
+
+// Detect deleted/private TikTok videos via TikTok's public oEmbed endpoint
+// (400/404 for gone videos) and mark them raw_data._unavailable so the
+// dashboard drops the card instead of rendering an embed error page. Only
+// explicit 400/404 marks a video — transient failures must not hide content.
+export async function markUnavailableTikTokVideos(): Promise<number> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("social_posts")
+    .select("id, post_url, raw_data")
+    .like("external_id", `${UNPACKED_ID_PREFIX}%`)
+    .eq("platform", "tiktok")
+  if (error || !data) return 0
+
+  let marked = 0
+  for (const row of data as any[]) {
+    const raw = row.raw_data || {}
+    if (raw._unavailable || !row.post_url) continue
+    try {
+      const res = await fetch(
+        `https://www.tiktok.com/oembed?url=${encodeURIComponent(row.post_url)}`,
+        { headers: { "User-Agent": "Mozilla/5.0" } },
+      )
+      if (res.status === 400 || res.status === 404) {
+        await supabase
+          .from("social_posts")
+          .update({ raw_data: { ...raw, _unavailable: true } })
+          .eq("id", row.id)
+        marked++
+      }
+    } catch {
+      // network hiccup — leave the video visible, recheck next sync
+    }
+  }
+  return marked
 }
 
 // Analyze unanalyzed CAMPAIGN comments until the backlog is empty or the

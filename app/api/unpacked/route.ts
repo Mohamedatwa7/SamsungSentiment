@@ -136,6 +136,9 @@ export async function GET() {
 
       // Removed-by-request creators: never rendered, even if a row lingers.
       if (isExcludedCreator(username)) continue
+      // Deleted/private videos (flagged by the sync's oEmbed check) — drop
+      // the card instead of rendering an embed error page.
+      if (raw._unavailable) continue
 
       // Instagram reports likesCount: -1 when the creator hides like counts —
       // clamp so hidden metrics read as 0 instead of corrupting engagement.

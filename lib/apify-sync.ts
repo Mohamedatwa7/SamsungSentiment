@@ -357,6 +357,10 @@ export async function syncTikTokVideos(runCount = RUNS_TO_SYNC) {
   for (const post of posts) {
     const p = post as any
     if (!post.id) continue
+    // Only the brand's own videos. The Galaxy Unpacked pipeline also runs
+    // this actor (keyword-search mode for influencer discovery), and its runs
+    // must not be ingested here as brand posts.
+    if ((post.authorMeta?.name || "").toLowerCase() !== "samsunggulf") continue
 
     const { error } = await supabase
       .from("social_posts")
