@@ -537,15 +537,18 @@ export async function syncUnpackedTikTokComments(runCount = RUNS_TO_SYNC) {
 // cycles' completed runs, then fire fresh scrapes for the NEXT cycle to
 // ingest. With `wait: true` (manual trigger) the fresh runs are polled and
 // ingested in the same call so a first setup populates immediately.
-export async function syncUnpacked(opts: { wait?: boolean; runsToSync?: number } = {}) {
+export async function syncUnpacked(
+  opts: { wait?: boolean; runsToSync?: number; ingestOnly?: boolean } = {},
+) {
   const runCount = opts.runsToSync ?? RUNS_TO_SYNC
   const startedAt = Date.now()
 
-  // Phase 1 — campaign videos
+  // Phase 1 — campaign videos. ingestOnly harvests completed Apify runs
+  // (dataset reads are free) without starting new paid actor runs.
   let instagramPosts = await syncUnpackedInstagramPosts(runCount)
   let tiktokPosts = await syncUnpackedTikTokPosts(runCount)
-  const postRuns = await startUnpackedPostScrapes()
-  if (opts.wait) {
+  const postRuns = opts.ingestOnly ? {} : await startUnpackedPostScrapes()
+  if (opts.wait && !opts.ingestOnly) {
     await waitForRuns(Object.values(postRuns), 150000)
     instagramPosts = await syncUnpackedInstagramPosts(2)
     tiktokPosts = await syncUnpackedTikTokPosts(2)
@@ -562,8 +565,8 @@ export async function syncUnpacked(opts: { wait?: boolean; runsToSync?: number }
   // Phase 2 — comments on those videos
   let instagramComments = await syncUnpackedInstagramComments(runCount)
   let tiktokComments = await syncUnpackedTikTokComments(runCount)
-  const commentRuns = await startUnpackedCommentScrapes()
-  if (opts.wait) {
+  const commentRuns = opts.ingestOnly ? {} : await startUnpackedCommentScrapes()
+  if (opts.wait && !opts.ingestOnly) {
     await waitForRuns(Object.values(commentRuns), 100000)
     instagramComments = await syncUnpackedInstagramComments(2)
     tiktokComments = await syncUnpackedTikTokComments(2)

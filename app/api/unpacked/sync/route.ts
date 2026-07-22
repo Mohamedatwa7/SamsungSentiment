@@ -26,6 +26,8 @@ export async function POST(request: NextRequest) {
 
     const result = await syncUnpacked({
       wait: body.wait !== false,
+      // Harvest completed Apify runs without starting new paid actor runs.
+      ingestOnly: body.ingestOnly === true,
       runsToSync:
         typeof body.runsToSync === "number"
           ? Math.max(1, Math.min(100, Math.floor(body.runsToSync)))
