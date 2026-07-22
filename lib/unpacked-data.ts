@@ -68,6 +68,39 @@ export interface UnpackedPayload {
   }
 }
 
+// Recompute campaign totals for a (possibly platform-filtered) video subset —
+// mirrors the aggregation in /api/unpacked.
+export function computeTotals(videos: UnpackedVideo[]): UnpackedTotals {
+  const totals: UnpackedTotals = {
+    videos: videos.length,
+    influencers: new Set(videos.map((v) => `${v.platform}:${v.influencer.username}`)).size,
+    views: 0,
+    likes: 0,
+    comments: 0,
+    shares: 0,
+    engagements: 0,
+    engagementRate: null,
+    scrapedComments: 0,
+    analyzedComments: 0,
+    sentiment: { positive: 0, neutral: 0, negative: 0 },
+  }
+  for (const v of videos) {
+    totals.views += v.views
+    totals.likes += v.likes
+    totals.comments += v.commentsCount
+    totals.shares += v.sharesCount
+    totals.engagements += v.engagementCount
+    totals.scrapedComments += v.comments.length
+    totals.analyzedComments += v.comments.filter((c) => c.analyzed).length
+    totals.sentiment.positive += v.sentiment.positive
+    totals.sentiment.neutral += v.sentiment.neutral
+    totals.sentiment.negative += v.sentiment.negative
+  }
+  totals.engagementRate =
+    totals.views > 0 ? Math.round((totals.engagements / totals.views) * 10000) / 100 : null
+  return totals
+}
+
 export function formatCompact(num: number): string {
   if (num >= 1_000_000) return (num / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M"
   if (num >= 1_000) return (num / 1_000).toFixed(1).replace(/\.0$/, "") + "K"

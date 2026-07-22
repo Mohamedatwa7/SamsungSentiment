@@ -1,9 +1,11 @@
 "use client"
 
+import { useMemo, useState } from "react"
 import useSWR from "swr"
 import { CalendarClock, Clapperboard } from "lucide-react"
 
-import type { UnpackedPayload } from "@/lib/unpacked-data"
+import { cn } from "@/lib/utils"
+import { computeTotals, formatCompact, type UnpackedPayload } from "@/lib/unpacked-data"
 import { UnpackedKPIs } from "@/components/unpacked/unpacked-kpis"
 import { UnpackedVideoCards } from "@/components/unpacked/unpacked-video-cards"
 import { UnpackedCommentsFeed } from "@/components/unpacked/unpacked-comments-feed"
@@ -24,13 +26,24 @@ function LoadingState() {
   )
 }
 
+type PlatformFilter = "all" | "instagram" | "tiktok"
+
 export default function GalaxyUnpackedPage() {
   const { data, error, isLoading } = useSWR<UnpackedPayload>("/api/unpacked", fetcher, {
     revalidateOnFocus: false,
     dedupingInterval: 60000,
   })
+  const [platform, setPlatform] = useState<PlatformFilter>("all")
 
   const hasData = !!data && !("error" in (data as object)) && data.videos !== undefined
+
+  // Platform filter drives everything below it — KPIs, cards, comments feed.
+  const filtered = useMemo<UnpackedPayload | null>(() => {
+    if (!hasData || !data) return null
+    if (platform === "all") return data
+    const videos = data.videos.filter((v) => v.platform === platform)
+    return { ...data, videos, totals: computeTotals(videos) }
+  }, [data, hasData, platform])
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6">
@@ -74,19 +87,55 @@ export default function GalaxyUnpackedPage() {
         </div>
       )}
 
-      {!isLoading && hasData && data.videos.length > 0 && (
+      {!isLoading && hasData && data.videos.length > 0 && filtered && (
         <>
+          {/* Platform filter — drives KPIs, video cards and the comments feed */}
+          <div className="sticky top-14 z-20 -mx-4 border-y border-white/[0.06] bg-background/70 px-4 py-2.5 backdrop-blur-xl md:-mx-6 md:px-6">
+            <div className="flex items-center gap-2">
+              <span className="section-label mr-1">Platform</span>
+              {(
+                [
+                  { key: "all", label: "All", count: data.videos.length },
+                  {
+                    key: "instagram",
+                    label: "Instagram",
+                    count: data.videos.filter((v) => v.platform === "instagram").length,
+                  },
+                  {
+                    key: "tiktok",
+                    label: "TikTok",
+                    count: data.videos.filter((v) => v.platform === "tiktok").length,
+                  },
+                ] as { key: PlatformFilter; label: string; count: number }[]
+              ).map((f) => (
+                <button
+                  key={f.key}
+                  type="button"
+                  onClick={() => setPlatform(f.key)}
+                  className={cn(
+                    "rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors",
+                    platform === f.key
+                      ? "border-primary/50 bg-primary/15 text-foreground shadow-[0_0_16px_var(--glow-primary)]"
+                      : "border-white/[0.08] bg-white/[0.03] text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {f.label} ({formatCompact(f.count)})
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Overall totals — views, likes, comments, engagements, blended ER */}
-          <UnpackedKPIs data={data} />
+          <UnpackedKPIs data={filtered} />
 
           {/* One card per influencer video: playable embed, ER + comment count */}
           <div>
             <p className="section-label accent-top mb-4 pt-3">Influencer Videos</p>
-            <UnpackedVideoCards videos={data.videos} />
+            <UnpackedVideoCards videos={filtered.videos} />
           </div>
 
           {/* Every scraped comment with AI sentiment */}
-          <UnpackedCommentsFeed data={data} />
+          <UnpackedCommentsFeed data={filtered} />
         </>
       )}
     </div>
