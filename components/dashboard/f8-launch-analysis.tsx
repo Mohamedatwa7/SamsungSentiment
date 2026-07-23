@@ -34,7 +34,6 @@ import { cn } from "@/lib/utils"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { type DateRange } from "@/components/dashboard/date-filter"
 import { useDashboardData, type Comment, type CommentPlatform } from "@/contexts/dashboard-data-context"
 import type { UnpackedPayload, UnpackedVideo } from "@/lib/unpacked-data"
@@ -344,9 +343,16 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
   const { getFilteredComments } = useDashboardData()
   const [activeDevice, setActiveDevice] = useState<string>("all")
   const [source, setSource] = useState<SourceFilter>("combined")
-  // "all" or a Gulf-day start timestamp (ms) — narrows every stat below to
-  // comments posted on that day.
-  const [dayFilter, setDayFilter] = useState<string>("all")
+  // Selected Gulf-day start timestamps (ms). Empty set = all days. Multiple
+  // days can be active at once — every stat narrows to their union.
+  const [selectedDays, setSelectedDays] = useState<Set<string>>(new Set())
+  const toggleDay = (key: string) =>
+    setSelectedDays((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
   const [drilldown, setDrilldown] = useState<DrilldownState | null>(null)
 
   // Translation (Arabic/other → English) with a per-comment cache so nothing
@@ -487,14 +493,17 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
     const buyingTopic = TOPICS.find((t) => t.key === "buying")!
     const competitionTopic = TOPICS.find((t) => t.key === "competition")!
 
-    const dayStart = dayFilter === "all" ? null : Number(dayFilter)
-    const dayEnd = dayStart === null ? null : dayStart + 86400000
+    const dayWindows = [...selectedDays].map((key) => {
+      const start = Number(key)
+      return { start, end: start + 86400000 }
+    })
 
     for (const { comment: c, device } of corpus) {
-      // Date filter narrows everything — device cards included.
-      if (dayStart !== null) {
+      // Date filter narrows everything — device cards included. Multiple
+      // selected days act as a union.
+      if (dayWindows.length > 0) {
         const t = new Date(c.createdAt).getTime()
-        if (isNaN(t) || t < dayStart || t >= (dayEnd as number)) continue
+        if (isNaN(t) || !dayWindows.some((w) => t >= w.start && t < w.end)) continue
       }
       const inSelection = activeDevice === "all" || device.key === activeDevice
 
@@ -610,7 +619,7 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
       topPositive,
       topNegative,
     }
-  }, [getFilteredComments, platformFilter, activeDevice, source, dayFilter, influencerComments])
+  }, [getFilteredComments, platformFilter, activeDevice, source, selectedDays, influencerComments])
 
   const { overall } = analysis
   const netSentiment = pct(overall.positive, overall.total) - pct(overall.negative, overall.total)
@@ -668,22 +677,34 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
         </div>
         {/* Audience source — Samsung's own channels vs influencer campaign videos */}
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          <Select value={dayFilter} onValueChange={setDayFilter}>
-            <SelectTrigger className="order-last h-7 w-auto gap-1.5 rounded-full border-white/[0.08] bg-white/[0.03] px-3 text-xs">
-              <span className="text-muted-foreground">Date:</span>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all" className="text-xs">
-                All days since launch
-              </SelectItem>
-              {launchDays().map((d) => (
-                <SelectItem key={d.key} value={d.key} className="text-xs">
-                  {d.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <span className="section-label order-last ml-2">Date</span>
+          <button
+            type="button"
+            onClick={() => setSelectedDays(new Set())}
+            className={cn(
+              "order-last rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+              selectedDays.size === 0
+                ? "border-primary/50 bg-primary/15 text-foreground"
+                : "border-white/[0.08] bg-white/[0.03] text-muted-foreground hover:text-foreground",
+            )}
+          >
+            All days
+          </button>
+          {launchDays().map((d) => (
+            <button
+              key={d.key}
+              type="button"
+              onClick={() => toggleDay(d.key)}
+              className={cn(
+                "order-last rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                selectedDays.has(d.key)
+                  ? "border-primary/50 bg-primary/15 text-foreground"
+                  : "border-white/[0.08] bg-white/[0.03] text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {d.label}
+            </button>
+          ))}
           <button
             type="button"
             onClick={() => setShowTranslations((v) => !v)}
