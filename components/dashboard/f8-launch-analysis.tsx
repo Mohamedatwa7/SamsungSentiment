@@ -4,8 +4,12 @@ import { useEffect, useMemo, useState } from "react"
 import useSWR from "swr"
 import {
   CartesianGrid,
+  Cell,
+  Legend,
   Line,
   LineChart,
+  Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip as RechartsTooltip,
   XAxis,
@@ -126,6 +130,110 @@ const GENERAL_BUCKET: DeviceDef = {
 }
 
 const CAMPAIGN_GENERIC = /galaxy\s*unpacked|galaxyunpacked|new\s*shape|newshape|\bff8\b/i
+
+// Launch-vs-launch comparison windows (Gulf time). Last year's Unpacked
+// launched the Fold 7 / Flip 7 on July 9th, 2025.
+const F7_WINDOW = {
+  start: new Date("2025-07-09T00:00:00+04:00"),
+  end: new Date("2025-07-11T00:00:00+04:00"),
+}
+const F8_WINDOW = {
+  start: new Date("2026-07-22T00:00:00+04:00"),
+  end: new Date("2026-07-24T00:00:00+04:00"),
+}
+const FOLDABLE_MARKERS = /fold|flip|فولد|فليب|فلب|unpacked|انباكد|أنباكد/i
+
+function foldableLaunchSplit(
+  comments: Comment[],
+  window: { start: Date; end: Date },
+): { positive: number; neutral: number; negative: number; total: number } {
+  const out = { positive: 0, neutral: 0, negative: 0, total: 0 }
+  for (const c of comments) {
+    const t = new Date(c.createdAt).getTime()
+    if (isNaN(t) || t < window.start.getTime() || t >= window.end.getTime()) continue
+    if (!FOLDABLE_MARKERS.test(c.text || "") && !FOLDABLE_MARKERS.test(c.postCaption || "")) continue
+    out.total++
+    out[c.sentiment]++
+  }
+  return out
+}
+
+const PIE_COLORS: Record<string, string> = {
+  Positive: "var(--positive)",
+  Neutral: "oklch(0.6 0.015 260)",
+  Negative: "var(--negative)",
+}
+
+function LaunchPie({
+  title,
+  subtitle,
+  split,
+}: {
+  title: string
+  subtitle: string
+  split: { positive: number; neutral: number; negative: number; total: number }
+}) {
+  const data = [
+    { name: "Positive", value: split.positive },
+    { name: "Neutral", value: split.neutral },
+    { name: "Negative", value: split.negative },
+  ].filter((d) => d.value > 0)
+
+  return (
+    <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-4">
+      <p className="text-sm font-semibold">{title}</p>
+      <p className="text-xs text-muted-foreground">{subtitle}</p>
+      {split.total === 0 ? (
+        <p className="py-12 text-center text-xs text-muted-foreground">
+          No foldable-related comments captured in this window.
+        </p>
+      ) : (
+        <>
+          <div className="h-[220px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={data}
+                  dataKey="value"
+                  nameKey="name"
+                  innerRadius={48}
+                  outerRadius={78}
+                  paddingAngle={2}
+                  strokeWidth={0}
+                >
+                  {data.map((d) => (
+                    <Cell key={d.name} fill={PIE_COLORS[d.name]} />
+                  ))}
+                </Pie>
+                <RechartsTooltip
+                  formatter={(value: number, name: string) => [
+                    `${value.toLocaleString()} (${Math.round((value / split.total) * 100)}%)`,
+                    name,
+                  ]}
+                  contentStyle={{
+                    background: "rgba(10,12,19,0.95)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: "0.75rem",
+                    fontSize: "12px",
+                  }}
+                />
+                <Legend
+                  formatter={(value: string) => <span style={{ fontSize: 11 }}>{value}</span>}
+                  iconSize={8}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="flex justify-between text-[11px]">
+            <span className="text-positive">{pct(split.positive, split.total)}% positive</span>
+            <span className="text-muted-foreground">{split.total.toLocaleString()} comments</span>
+            <span className="text-negative">{pct(split.negative, split.total)}% negative</span>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
 
 // Business topics tracked across launch conversation. LLM flags supplement
 // the keyword patterns where available.
@@ -260,7 +368,8 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
     // launch day on a post whose caption names a device. The dashboard's
     // date filter is deliberately NOT applied — this section tracks the
     // launch, not the filtered window.
-    const brand = source === "influencers" ? [] : getFilteredComments(platformFilter, undefined, undefined)
+    const brandAll = getFilteredComments(platformFilter, undefined, undefined)
+    const brand = source === "influencers" ? [] : brandAll
     const influencers =
       source === "samsung"
         ? []
@@ -425,6 +534,11 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
       .sort((a, b) => b.likes - a.likes)
       .slice(0, 3)
 
+    // Launch-vs-launch pies. F7 always reads the brand corpus — influencer
+    // tracking didn't exist in July 2025. F8 follows the current selection.
+    const f7Split = foldableLaunchSplit(brandAll, F7_WINDOW)
+    const f8Split = foldableLaunchSplit(selectionComments, F8_WINDOW)
+
     return {
       overall,
       devices: [...byDevice.values()],
@@ -433,6 +547,8 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
       mostPraised,
       leastPraised,
       mostNeutral,
+      f7Split,
+      f8Split,
       topicComments,
       selectionComments,
       purchaseComments,
@@ -839,6 +955,23 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
                 </div>
               </div>
             )}
+
+            {/* Launch vs launch — F7 (2025) sentiment against FF8 (2026) */}
+            <div>
+              <p className="section-label mb-3">Launch vs Launch — Sentiment Split</p>
+              <div className="grid gap-3 md:grid-cols-2">
+                <LaunchPie
+                  title="Fold 7 / Flip 7 Launch"
+                  subtitle="July 9–10, 2025 · Samsung socials"
+                  split={analysis.f7Split}
+                />
+                <LaunchPie
+                  title="Fold 8 / Fold 8 Ultra / Flip 8 Launch"
+                  subtitle="July 22–23, 2026 · current selection"
+                  split={analysis.f8Split}
+                />
+              </div>
+            </div>
 
             {/* Voice of the customer */}
             <div className="grid gap-4 md:grid-cols-2">
