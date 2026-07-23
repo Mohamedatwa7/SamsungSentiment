@@ -34,6 +34,7 @@ import { cn } from "@/lib/utils"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { type DateRange } from "@/components/dashboard/date-filter"
 import { useDashboardData, type Comment, type CommentPlatform } from "@/contexts/dashboard-data-context"
 import type { UnpackedPayload, UnpackedVideo } from "@/lib/unpacked-data"
@@ -80,6 +81,21 @@ function mapInfluencerComments(payloads: (UnpackedPayload | { videos?: UnpackedV
 }
 
 type SourceFilter = "combined" | "samsung" | "influencers"
+
+// Day options since launch (Gulf days), for the section's date filter.
+function launchDays(): { key: string; label: string }[] {
+  const out: { key: string; label: string }[] = []
+  const dayMs = 86400000
+  const elapsed = Math.max(1, Math.floor((Date.now() - LAUNCH_DATE.getTime()) / dayMs) + 1)
+  for (let i = 0; i < elapsed; i++) {
+    const d = new Date(LAUNCH_DATE.getTime() + i * dayMs)
+    out.push({
+      key: String(d.getTime()),
+      label: d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "Asia/Dubai" }),
+    })
+  }
+  return out
+}
 
 // Galaxy Unpacked — July 22nd, 2026. Devices launched: Z Fold 8, Z Fold 8
 // Ultra, Z Flip 8.
@@ -328,6 +344,9 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
   const { getFilteredComments } = useDashboardData()
   const [activeDevice, setActiveDevice] = useState<string>("all")
   const [source, setSource] = useState<SourceFilter>("combined")
+  // "all" or a Gulf-day start timestamp (ms) — narrows every stat below to
+  // comments posted on that day.
+  const [dayFilter, setDayFilter] = useState<string>("all")
   const [drilldown, setDrilldown] = useState<DrilldownState | null>(null)
 
   // Translation (Arabic/other → English) with a per-comment cache so nothing
@@ -468,7 +487,15 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
     const buyingTopic = TOPICS.find((t) => t.key === "buying")!
     const competitionTopic = TOPICS.find((t) => t.key === "competition")!
 
+    const dayStart = dayFilter === "all" ? null : Number(dayFilter)
+    const dayEnd = dayStart === null ? null : dayStart + 86400000
+
     for (const { comment: c, device } of corpus) {
+      // Date filter narrows everything — device cards included.
+      if (dayStart !== null) {
+        const t = new Date(c.createdAt).getTime()
+        if (isNaN(t) || t < dayStart || t >= (dayEnd as number)) continue
+      }
       const inSelection = activeDevice === "all" || device.key === activeDevice
 
       const dev = byDevice.get(device.key)!
@@ -583,7 +610,7 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
       topPositive,
       topNegative,
     }
-  }, [getFilteredComments, platformFilter, activeDevice, source, influencerComments])
+  }, [getFilteredComments, platformFilter, activeDevice, source, dayFilter, influencerComments])
 
   const { overall } = analysis
   const netSentiment = pct(overall.positive, overall.total) - pct(overall.negative, overall.total)
@@ -641,6 +668,22 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
         </div>
         {/* Audience source — Samsung's own channels vs influencer campaign videos */}
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <Select value={dayFilter} onValueChange={setDayFilter}>
+            <SelectTrigger className="order-last h-7 w-auto gap-1.5 rounded-full border-white/[0.08] bg-white/[0.03] px-3 text-xs">
+              <span className="text-muted-foreground">Date:</span>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="text-xs">
+                All days since launch
+              </SelectItem>
+              {launchDays().map((d) => (
+                <SelectItem key={d.key} value={d.key} className="text-xs">
+                  {d.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <button
             type="button"
             onClick={() => setShowTranslations((v) => !v)}
