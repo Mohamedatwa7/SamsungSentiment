@@ -14,12 +14,18 @@ const PAGE_SIZE = 500
 // Narrow column lists — selecting * would drag the full raw_data JSONB for
 // tens of thousands of rows and blow Supabase's statement timeout. The two
 // raw_data subfields the post-resolver needs are projected out individually.
-const POST_COLUMNS =
-  "external_id,platform,post_url,caption,likes_count,views_count,published_at," +
-  "short_code:raw_data->>shortCode,unpacked:raw_data->>_unpacked," +
-  "owner_ig:raw_data->>ownerUsername,owner_tt:raw_data->authorMeta->>name," +
-  "owner_fb:raw_data->>pageName,owner_tw:raw_data->author->>userName," +
-  "src_input:raw_data->>inputUrl,src_fb:raw_data->>facebookUrl"
+// Per-platform column lists: JSONB projections are the expensive part of the
+// scan (each one detoasts raw_data per row), so every platform only pays for
+// the author fields it actually needs. Twitter needs none — the post URL
+// carries the profile.
+const POST_BASE_COLUMNS =
+  "external_id,platform,post_url,caption,likes_count,views_count,published_at"
+const POST_COLUMNS_BY_PLATFORM: Record<string, string> = {
+  instagram: `${POST_BASE_COLUMNS},short_code:raw_data->>shortCode,owner_ig:raw_data->>ownerUsername`,
+  tiktok: `${POST_BASE_COLUMNS},owner_tt:raw_data->authorMeta->>name`,
+  facebook: `${POST_BASE_COLUMNS},owner_fb:raw_data->>pageName,src_input:raw_data->>inputUrl,src_fb:raw_data->>facebookUrl`,
+  twitter: POST_BASE_COLUMNS,
+}
 
 // The tables also hold retailer/operator accounts (Xcite, Sharaf DG, Ooredoo,
 // Zain, stc, Omantel, du, Vodafone, e&, ...) from other scrapes. This
@@ -48,29 +54,32 @@ function isBrandPost(p: any): boolean {
 const COMMENT_COLUMNS =
   "external_id,external_post_id,platform,text,author_username,published_at," +
   "sentiment,sentiment_score,sentiment_analyzed_at,flags,likes_count,features," +
-  "product_model,department,raw_post_ref:raw_data->>postId,raw_post_url:raw_data->>postUrl," +
-  "unpacked:raw_data->>_unpacked"
+  "product_model,department,raw_post_ref:raw_data->>postId,raw_post_url:raw_data->>postUrl"
 
 async function fetchAll(
   supabase: Awaited<ReturnType<typeof createClient>>,
   table: string,
   columns: string,
+  platform?: string,
 ): Promise<any[]> {
-  // Pages with many JSONB projections can trip the statement timeout on a
-  // cold cache; the failed attempt warms the buffers, so retry before giving
-  // up — and NEVER return partial data (a truncated payload gets edge-cached
-  // and silently hides most of the corpus).
+  // Pages with JSONB projections can trip the statement timeout on a cold
+  // cache; the failed attempt warms the buffers, so retry before giving up —
+  // and NEVER return partial data (a truncated payload gets edge-cached and
+  // silently hides most of the corpus). Galaxy Unpacked / FF8 roster rows are
+  // excluded with cheap text predicates, not JSONB reads.
   const fetchPage = async (from: number): Promise<any[]> => {
     let lastError = ""
     for (let attempt = 0; attempt < 5; attempt++) {
-      const { data, error } = await supabase
+      let q = supabase
         .from(table)
         .select(columns)
-        .order("id", { ascending: true })
-        .range(from, from + PAGE_SIZE - 1)
+        .not("external_id", "like", "unpacked\\_%")
+        .not("external_id", "like", "roster\\_%")
+      if (platform) q = q.eq("platform", platform)
+      const { data, error } = await q.order("id", { ascending: true }).range(from, from + PAGE_SIZE - 1)
       if (!error) return data || []
       lastError = error.message
-      console.error(`[v0] ${table} page at ${from} attempt ${attempt + 1} failed:`, error.message)
+      console.error(`[v0] ${table}/${platform || "all"} page at ${from} attempt ${attempt + 1} failed:`, error.message)
       await new Promise((r) => setTimeout(r, 600))
     }
     throw new Error(`Fetching ${table} failed at offset ${from}: ${lastError}`)
@@ -163,21 +172,21 @@ export async function GET(_request: NextRequest) {
   try {
     const supabase = await createClient()
 
-    const [supabasePostsAll, supabaseCommentsAll] = await Promise.all([
-      fetchAll(supabase, "social_posts", POST_COLUMNS),
-      fetchAll(supabase, "social_comments", COMMENT_COLUMNS),
-    ])
-
-    // Galaxy Unpacked campaign rows (influencer videos + their comments) live
-    // in the same tables tagged raw_data._unpacked — they belong to /unpacked,
-    // not the Social Reviews dashboard.
-    const nonUnpackedPosts = supabasePostsAll.filter((p: any) => p.unpacked !== "true")
-    const supabaseComments = supabaseCommentsAll.filter((c: any) => c.unpacked !== "true")
+    // Posts platform-by-platform (each with minimal projections), then
+    // comments — all strictly sequential: concurrent statements contend for
+    // cold buffers and trip the DB timeout. Unpacked/roster rows are excluded
+    // SQL-side.
+    const igPosts = await fetchAll(supabase, "social_posts", POST_COLUMNS_BY_PLATFORM.instagram, "instagram")
+    const ttPosts = await fetchAll(supabase, "social_posts", POST_COLUMNS_BY_PLATFORM.tiktok, "tiktok")
+    const fbPosts = await fetchAll(supabase, "social_posts", POST_COLUMNS_BY_PLATFORM.facebook, "facebook")
+    const twPosts = await fetchAll(supabase, "social_posts", POST_COLUMNS_BY_PLATFORM.twitter, "twitter")
+    const supabaseComments = await fetchAll(supabase, "social_comments", COMMENT_COLUMNS)
+    const allPosts = [...igPosts, ...ttPosts, ...fbPosts, ...twPosts]
 
     // Strictly @samsunggulf. Excluded (retailer/operator) posts still register
     // their aliases below so their comments can be dropped too.
-    const supabasePosts = nonUnpackedPosts.filter(isBrandPost)
-    const excludedPosts = nonUnpackedPosts.filter((p: any) => !isBrandPost(p))
+    const supabasePosts = allPosts.filter(isBrandPost)
+    const excludedPosts = allPosts.filter((p: any) => !isBrandPost(p))
 
     // Map posts. Register every alias a comment might use to reference its
     // parent post — external id, Instagram shortcode AND numeric media id
