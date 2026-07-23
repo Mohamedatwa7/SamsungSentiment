@@ -13,6 +13,7 @@ import { createClient } from "@/lib/supabase/server"
 import { getLatestRuns, getDatasetItems } from "@/lib/apify-sync"
 import { analyzeComments } from "@/lib/sentiment"
 import { instagramShortcodeToId, instagramShortcodeFromUrl } from "@/lib/instagram-id"
+import { syncRoster, ROSTER_ID_PREFIX } from "@/lib/roster-sync"
 
 const APIFY_TOKEN = process.env.APIFY_API_TOKEN
 
@@ -589,15 +590,25 @@ export async function syncUnpacked(
     tiktokComments = await syncUnpackedTikTokComments(2)
   }
 
-  // Phase 3 — LLM sentiment on campaign comments not yet analyzed (same
-  // model/prompt as the Social Reviews dashboard). Targets unpacked rows
-  // explicitly: the shared analyzeUnanalyzedComments picks arbitrary rows
-  // table-wide, and a standing backlog of failing brand comments starves the
-  // campaign rows behind it. Unanalyzed comments read as keyword-fallback
+  // FF8 influencer roster rides the same schedule (see lib/roster-sync.ts).
+  let roster: Awaited<ReturnType<typeof syncRoster>> | { error: string } = { error: "failed" }
+  try {
+    roster = await syncRoster({ ingestOnly: opts.ingestOnly })
+  } catch (e) {
+    console.error("[roster] Sync failed:", e)
+  }
+
+  // Phase 3 — LLM sentiment on campaign + roster comments not yet analyzed
+  // (same model/prompt as the Social Reviews dashboard). Targets prefixed
+  // rows explicitly: the shared analyzeUnanalyzedComments picks arbitrary
+  // rows table-wide, and a standing backlog of failing brand comments starves
+  // these rows behind it. Unanalyzed comments read as keyword-fallback
   // "neutral" on the dashboard until scored.
   let sentimentAnalyzed = 0
   try {
-    sentimentAnalyzed = await analyzeUnpackedComments(startedAt + 240000)
+    const deadline = startedAt + 240000
+    sentimentAnalyzed = await analyzeUnpackedComments(deadline, UNPACKED_ID_PREFIX)
+    sentimentAnalyzed += await analyzeUnpackedComments(deadline, ROSTER_ID_PREFIX)
   } catch (e) {
     console.error("[unpacked] Post-sync sentiment analysis failed:", e)
   }
@@ -607,6 +618,7 @@ export async function syncUnpacked(
     tiktokPosts,
     instagramComments,
     tiktokComments,
+    roster,
     startedRuns: { ...postRuns, ...commentRuns },
     unavailableMarked,
     sentimentAnalyzed,
@@ -650,9 +662,12 @@ export async function markUnavailableTikTokVideos(): Promise<number> {
   return marked
 }
 
-// Analyze unanalyzed CAMPAIGN comments until the backlog is empty or the
-// deadline approaches. Returns the number successfully persisted.
-export async function analyzeUnpackedComments(deadlineMs: number): Promise<number> {
+// Analyze unanalyzed prefixed (campaign/roster) comments until the backlog
+// is empty or the deadline approaches. Returns the number persisted.
+export async function analyzeUnpackedComments(
+  deadlineMs: number,
+  prefix: string = UNPACKED_ID_PREFIX,
+): Promise<number> {
   const supabase = await createClient()
   let persisted = 0
 
@@ -660,7 +675,7 @@ export async function analyzeUnpackedComments(deadlineMs: number): Promise<numbe
     const { data: rows, error } = await supabase
       .from("social_comments")
       .select("external_id, text")
-      .like("external_id", `${UNPACKED_ID_PREFIX}%`)
+      .like("external_id", `${prefix}%`)
       .is("sentiment_analyzed_at", null)
       .not("text", "is", null)
       .limit(400)

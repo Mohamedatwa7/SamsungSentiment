@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import useSWR from "swr"
 import {
   CartesianGrid,
   Line,
@@ -29,6 +30,48 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { type DateRange } from "@/components/dashboard/date-filter"
 import { useDashboardData, type Comment, type CommentPlatform } from "@/contexts/dashboard-data-context"
+import type { UnpackedPayload, UnpackedVideo } from "@/lib/unpacked-data"
+
+const swrFetcher = (url: string) => fetch(url).then((r) => r.json())
+
+// Influencer campaign comments (Galaxy Unpacked tracker + FF8 roster) mapped
+// into the dashboard Comment shape so the same device/topic analysis runs on
+// them. Deduped by raw comment id — the same comment can be ingested by both
+// influencer pipelines under different prefixes.
+function mapInfluencerComments(payloads: (UnpackedPayload | { videos?: UnpackedVideo[] } | undefined)[]): Comment[] {
+  const seen = new Set<string>()
+  const out: Comment[] = []
+  for (const payload of payloads) {
+    for (const v of payload?.videos || []) {
+      for (const c of v.comments) {
+        const rawId = c.id.replace(/^(unpacked_|roster_)/, "")
+        if (seen.has(rawId)) continue
+        seen.add(rawId)
+        out.push({
+          id: c.id,
+          platform: v.platform,
+          text: c.text,
+          username: c.username,
+          postCaption: v.caption,
+          postUrl: v.url,
+          sentiment: c.sentiment,
+          sentimentFlags: [] as any,
+          product: "General",
+          productModel: "General",
+          productCategory: "Other",
+          department: "Brand",
+          features: [],
+          likes: c.likes,
+          createdAt: c.publishedAt || "",
+          source: "synced",
+        })
+      }
+    }
+  }
+  return out
+}
+
+type SourceFilter = "combined" | "samsung" | "influencers"
 
 // Galaxy Unpacked — July 22nd, 2026. Devices launched: Z Fold 8, Z Fold 8
 // Ultra, Z Flip 8.
@@ -139,7 +182,22 @@ interface F8LaunchAnalysisProps {
 export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
   const { getFilteredComments } = useDashboardData()
   const [activeDevice, setActiveDevice] = useState<string>("all")
+  const [source, setSource] = useState<SourceFilter>("combined")
   const [drilldown, setDrilldown] = useState<DrilldownState | null>(null)
+
+  // Influencer campaign data (Galaxy Unpacked tracker + FF8 roster)
+  const { data: unpackedData } = useSWR<UnpackedPayload>("/api/unpacked", swrFetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 60000,
+  })
+  const { data: rosterData } = useSWR<{ videos?: UnpackedVideo[] }>("/api/roster", swrFetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 60000,
+  })
+  const influencerComments = useMemo(
+    () => mapInfluencerComments([unpackedData, rosterData]),
+    [unpackedData, rosterData],
+  )
 
   const analysis = useMemo(() => {
     // Launch conversation corpus: every comment that names a device (any
@@ -147,7 +205,14 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
     // launch day on a post whose caption names a device. The dashboard's
     // date filter is deliberately NOT applied — this section tracks the
     // launch, not the filtered window.
-    const all = getFilteredComments(platformFilter, undefined, undefined)
+    const brand = source === "influencers" ? [] : getFilteredComments(platformFilter, undefined, undefined)
+    const influencers =
+      source === "samsung"
+        ? []
+        : platformFilter && platformFilter.length > 0
+          ? influencerComments.filter((c) => platformFilter.includes(c.platform))
+          : influencerComments
+    const all = [...brand, ...influencers]
 
     const matchDevice = (text: string, sinceLaunch: boolean): DeviceDef | null => {
       for (const d of DEVICES) {
@@ -303,7 +368,7 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
       topPositive,
       topNegative,
     }
-  }, [getFilteredComments, platformFilter, activeDevice])
+  }, [getFilteredComments, platformFilter, activeDevice, source, influencerComments])
 
   const { overall } = analysis
   const netSentiment = pct(overall.positive, overall.total) - pct(overall.negative, overall.total)
@@ -351,6 +416,31 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
             ))}
           </div>
         </div>
+        {/* Audience source — Samsung's own channels vs influencer campaign videos */}
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <span className="section-label mr-1">Source</span>
+          {(
+            [
+              { key: "combined", label: "Samsung Socials & Influencers" },
+              { key: "samsung", label: "Samsung Socials Only" },
+              { key: "influencers", label: "Influencers Only" },
+            ] as { key: SourceFilter; label: string }[]
+          ).map((s) => (
+            <button
+              key={s.key}
+              type="button"
+              onClick={() => setSource(s.key)}
+              className={cn(
+                "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                source === s.key
+                  ? "border-accent/50 bg-accent/15 text-foreground"
+                  : "border-white/[0.08] bg-white/[0.03] text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
       </CardHeader>
 
       <CardContent className="space-y-6">
@@ -361,7 +451,7 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
         ) : (
           <>
             {/* Headline KPIs — every tile opens the comments behind it */}
-            <div className="stat-rail divide-none grid grid-cols-2 gap-y-6 lg:grid-cols-5">
+            <div className="stat-rail divide-none grid grid-cols-2 gap-y-6 lg:grid-cols-3 xl:grid-cols-6">
               <button
                 type="button"
                 className={kpiTileClass}
@@ -386,6 +476,21 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
                   <ThumbsUp className="h-3.5 w-3.5" /> Positive
                 </p>
                 <p className="kpi-value mt-1 text-3xl text-positive">{pct(overall.positive, overall.total)}%</p>
+              </button>
+              <button
+                type="button"
+                className={kpiTileClass}
+                onClick={() =>
+                  openDrilldown(
+                    "Negative Launch Comments",
+                    analysis.selectionComments.filter((c) => c.sentiment === "negative"),
+                  )
+                }
+              >
+                <p className="section-label flex items-center gap-1.5">
+                  <ThumbsDown className="h-3.5 w-3.5" /> Negative
+                </p>
+                <p className="kpi-value mt-1 text-3xl text-negative">{pct(overall.negative, overall.total)}%</p>
               </button>
               <button
                 type="button"

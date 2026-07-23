@@ -15,6 +15,7 @@ import { TopComments } from "@/components/dashboard/top-comments"
 import { LastWeekPosts } from "@/components/dashboard/last-week-posts"
 import { F8LaunchAnalysis } from "@/components/dashboard/f8-launch-analysis"
 import { InfluencerAnalytics, InfluencerKPIs } from "@/components/reviews/influencer-analytics"
+import { FF8Roster } from "@/components/reviews/ff8-roster"
 import { PlatformFilter, usePlatformFilter } from "@/components/dashboard/platform-filter"
 import { DateFilter, useDateFilter } from "@/components/dashboard/date-filter"
 import { DashboardExportButton } from "@/components/dashboard/export-button"
@@ -155,6 +156,11 @@ function DashboardContent() {
 
         {/* Influencers Tab */}
         <TabsContent value="influencers" className="mt-6 space-y-6">
+          {/* FF8 launch campaign roster — live scraped data */}
+          <Suspense fallback={<ChartSkeleton />}>
+            <FF8Roster />
+          </Suspense>
+
           {/* Influencer KPIs */}
           <Suspense fallback={<ChartSkeleton />}>
             <InfluencerKPIs />
