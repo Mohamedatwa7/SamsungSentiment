@@ -6,8 +6,11 @@ name: Galaxy Unpacked sync
 
 on:
   schedule:
-    - cron: "0 5 * * *" # 09:00 Gulf (UTC+4)
-    - cron: "0 10 * * *" # 14:00 Gulf (UTC+4)
+    # GitHub queues on-the-hour cron slots behind heavy load (observed ~2.5h
+    # late on "0 5"). Off-peak minutes fire near-immediately, so schedule 20
+    # minutes early at an odd minute — lands right around the target time.
+    - cron: "40 4 * * *" # target 09:00 Dubai (UTC+4)
+    - cron: "40 9 * * *" # target 14:00 Dubai (UTC+4)
   workflow_dispatch: {}
 
 jobs:
