@@ -15,6 +15,7 @@ import {
   Flame,
   Heart,
   MessageSquare,
+  Minus,
   Rocket,
   ShoppingCart,
   Swords,
@@ -24,6 +25,8 @@ import {
 
 import { cn } from "@/lib/utils"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { type DateRange } from "@/components/dashboard/date-filter"
 import { useDashboardData, type Comment, type CommentPlatform } from "@/contexts/dashboard-data-context"
 
@@ -116,6 +119,18 @@ function SplitBar({ positive, neutral, negative }: { positive: number; neutral: 
   )
 }
 
+function SentimentIcon({ sentiment }: { sentiment: string }) {
+  if (sentiment === "positive") return <ThumbsUp className="h-3 w-3 shrink-0 text-positive" />
+  if (sentiment === "negative") return <ThumbsDown className="h-3 w-3 shrink-0 text-negative" />
+  return <Minus className="h-3 w-3 shrink-0 text-muted-foreground" />
+}
+
+interface DrilldownState {
+  title: string
+  subtitle: string
+  comments: Comment[]
+}
+
 interface F8LaunchAnalysisProps {
   platformFilter?: CommentPlatform[]
   dateRange?: DateRange
@@ -124,6 +139,7 @@ interface F8LaunchAnalysisProps {
 export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
   const { getFilteredComments } = useDashboardData()
   const [activeDevice, setActiveDevice] = useState<string>("all")
+  const [drilldown, setDrilldown] = useState<DrilldownState | null>(null)
 
   const analysis = useMemo(() => {
     // Launch conversation corpus: every comment that names a device (any
@@ -163,9 +179,6 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
       }
     }
 
-    const filtered =
-      activeDevice === "all" ? corpus : corpus.filter((e) => e.device.key === activeDevice)
-
     // Overall + per-device sentiment
     const overall = { total: 0, positive: 0, negative: 0, neutral: 0 }
     const byDevice = new Map<string, DeviceStats>(
@@ -173,18 +186,23 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
     )
     const deviceTopicCounts = new Map<string, Map<string, number>>()
 
-    // Topics
+    // Topics + the comments behind every number (for drill-down dialogs)
     const topics = new Map<string, TopicStats>(
       TOPICS.map((t) => [t.key, { key: t.key, label: t.label, total: 0, positive: 0, negative: 0, neutral: 0 }]),
     )
+    const topicComments = new Map<string, Comment[]>(TOPICS.map((t) => [t.key, []]))
 
-    let purchaseIntent = 0
-    let competitorMentions = 0
+    const selectionComments: Comment[] = []
+    const purchaseComments: Comment[] = []
+    const competitorComments: Comment[] = []
 
     // Daily sentiment trend (from 2 days pre-launch)
     const trendStart = new Date(LAUNCH_DATE)
     trendStart.setDate(trendStart.getDate() - 2)
     const daily = new Map<string, { day: string; total: number; positive: number; negative: number }>()
+
+    const buyingTopic = TOPICS.find((t) => t.key === "buying")!
+    const competitionTopic = TOPICS.find((t) => t.key === "competition")!
 
     for (const { comment: c, device } of corpus) {
       const inSelection = activeDevice === "all" || device.key === activeDevice
@@ -195,6 +213,7 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
 
       if (!inSelection) continue
 
+      selectionComments.push(c)
       overall.total++
       overall[c.sentiment]++
 
@@ -206,15 +225,15 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
         const stats = topics.get(t.key)!
         stats.total++
         stats[c.sentiment]++
+        topicComments.get(t.key)!.push(c)
         let m = deviceTopicCounts.get(device.key)
         if (!m) deviceTopicCounts.set(device.key, (m = new Map()))
         m.set(t.key, (m.get(t.key) || 0) + 1)
       }
 
-      if (flags.includes("purchase_intent") || TOPICS.find((t) => t.key === "buying")!.pattern.test(text))
-        purchaseIntent++
-      if (TOPICS.find((t) => t.key === "competition")!.pattern.test(text) || flags.some((f) => f.startsWith("comparison")))
-        competitorMentions++
+      if (flags.includes("purchase_intent") || buyingTopic.pattern.test(text)) purchaseComments.push(c)
+      if (competitionTopic.pattern.test(text) || flags.some((f) => f.startsWith("comparison")))
+        competitorComments.push(c)
 
       const created = new Date(c.createdAt)
       if (!isNaN(created.getTime()) && created >= trendStart) {
@@ -245,23 +264,26 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
 
     const topicList = [...topics.values()].filter((t) => t.total > 0)
     const discussed = [...topicList].sort((a, b) => b.total - a.total)
-    // Praise rankings need a minimum sample so a 2-comment topic can't win.
-    const ranked = topicList.filter((t) => t.total >= 5)
-    const mostPraised = [...ranked].sort((a, b) => pct(b.positive, b.total) - pct(a.positive, a.total)).slice(0, 3)
-    const leastPraised = [...ranked]
-      .sort((a, b) => pct(b.negative, b.total) - pct(a.negative, a.total) || pct(a.positive, a.total) - pct(b.positive, b.total))
+    // Ranked by VOLUME of positive/negative comments (not percentage), so the
+    // heavily-discussed topics rank consistently with the discussed list.
+    const mostPraised = [...topicList]
+      .filter((t) => t.positive > 0)
+      .sort((a, b) => b.positive - a.positive || pct(b.positive, b.total) - pct(a.positive, a.total))
+      .slice(0, 3)
+    const leastPraised = [...topicList]
+      .filter((t) => t.negative > 0)
+      .sort((a, b) => b.negative - a.negative || pct(b.negative, b.total) - pct(a.negative, a.total))
       .slice(0, 3)
 
     const trend = [...daily.entries()]
       .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([, v]) => ({ ...v, positivePercent: pct(v.positive, v.total) }))
 
-    const selection = filtered.map((e) => e.comment)
-    const topPositive = selection
+    const topPositive = selectionComments
       .filter((c) => c.sentiment === "positive" && (c.text || "").trim().length > 4)
       .sort((a, b) => b.likes - a.likes)
       .slice(0, 3)
-    const topNegative = selection
+    const topNegative = selectionComments
       .filter((c) => c.sentiment === "negative" && (c.text || "").trim().length > 4)
       .sort((a, b) => b.likes - a.likes)
       .slice(0, 3)
@@ -273,8 +295,10 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
       discussed,
       mostPraised,
       leastPraised,
-      purchaseIntent,
-      competitorMentions,
+      topicComments,
+      selectionComments,
+      purchaseComments,
+      competitorComments,
       trend,
       topPositive,
       topNegative,
@@ -283,6 +307,18 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
 
   const { overall } = analysis
   const netSentiment = pct(overall.positive, overall.total) - pct(overall.negative, overall.total)
+
+  const byLikes = (list: Comment[]) => [...list].sort((a, b) => b.likes - a.likes)
+
+  const openDrilldown = (title: string, comments: Comment[], subtitle?: string) =>
+    setDrilldown({
+      title,
+      subtitle: subtitle ?? `${comments.length.toLocaleString()} comments`,
+      comments: byLikes(comments).slice(0, 300),
+    })
+
+  const kpiTileClass =
+    "rounded-lg px-4 py-2 text-left transition-colors hover:bg-white/[0.04] cursor-pointer first:pl-0 first:rounded-l-none"
 
   return (
     <Card className="glass-panel animate-in fade-in duration-500">
@@ -294,7 +330,7 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
               Galaxy F8 Launch Analysis
             </CardTitle>
             <CardDescription>
-              Z Fold 8 · Z Fold 8 Ultra · Z Flip 8 — Unpacked, July 22nd · live comment intelligence
+              Z Fold 8 · Z Fold 8 Ultra · Z Flip 8 — Unpacked, July 22nd · click any number to see its comments
             </CardDescription>
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -324,21 +360,44 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
           </p>
         ) : (
           <>
-            {/* Headline KPIs */}
+            {/* Headline KPIs — every tile opens the comments behind it */}
             <div className="stat-rail divide-none grid grid-cols-2 gap-y-6 lg:grid-cols-5">
-              <div className="px-4 py-1 first:pl-0">
+              <button
+                type="button"
+                className={kpiTileClass}
+                onClick={() => openDrilldown("Launch Comments", analysis.selectionComments)}
+              >
                 <p className="section-label flex items-center gap-1.5">
                   <MessageSquare className="h-3.5 w-3.5" /> Launch Comments
                 </p>
                 <p className="kpi-value mt-1 text-3xl">{overall.total.toLocaleString()}</p>
-              </div>
-              <div className="px-4 py-1">
+              </button>
+              <button
+                type="button"
+                className={kpiTileClass}
+                onClick={() =>
+                  openDrilldown(
+                    "Positive Launch Comments",
+                    analysis.selectionComments.filter((c) => c.sentiment === "positive"),
+                  )
+                }
+              >
                 <p className="section-label flex items-center gap-1.5">
                   <ThumbsUp className="h-3.5 w-3.5" /> Positive
                 </p>
                 <p className="kpi-value mt-1 text-3xl text-positive">{pct(overall.positive, overall.total)}%</p>
-              </div>
-              <div className="px-4 py-1">
+              </button>
+              <button
+                type="button"
+                className={kpiTileClass}
+                onClick={() =>
+                  openDrilldown(
+                    "Net Sentiment — Positive & Negative Comments",
+                    analysis.selectionComments.filter((c) => c.sentiment !== "neutral"),
+                    `${overall.positive.toLocaleString()} positive vs ${overall.negative.toLocaleString()} negative`,
+                  )
+                }
+              >
                 <p className="section-label flex items-center gap-1.5">
                   <Heart className="h-3.5 w-3.5" /> Net Sentiment
                 </p>
@@ -346,21 +405,31 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
                   {netSentiment > 0 ? "+" : ""}
                   {netSentiment}%
                 </p>
-              </div>
-              <div className="px-4 py-1">
+              </button>
+              <button
+                type="button"
+                className={kpiTileClass}
+                onClick={() => openDrilldown("Purchase Intent Comments", analysis.purchaseComments)}
+              >
                 <p className="section-label flex items-center gap-1.5">
                   <ShoppingCart className="h-3.5 w-3.5" /> Purchase Intent
                 </p>
-                <p className="kpi-value mt-1 text-3xl">{analysis.purchaseIntent.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground">{pct(analysis.purchaseIntent, overall.total)}% of launch talk</p>
-              </div>
-              <div className="px-4 py-1">
+                <p className="kpi-value mt-1 text-3xl">{analysis.purchaseComments.length.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">
+                  {pct(analysis.purchaseComments.length, overall.total)}% of launch talk
+                </p>
+              </button>
+              <button
+                type="button"
+                className={kpiTileClass}
+                onClick={() => openDrilldown("Competitor Comparison Comments", analysis.competitorComments)}
+              >
                 <p className="section-label flex items-center gap-1.5">
                   <Swords className="h-3.5 w-3.5" /> Competitor Pressure
                 </p>
-                <p className="kpi-value mt-1 text-3xl">{analysis.competitorMentions.toLocaleString()}</p>
+                <p className="kpi-value mt-1 text-3xl">{analysis.competitorComments.length.toLocaleString()}</p>
                 <p className="text-xs text-muted-foreground">iPhone/rival comparisons</p>
-              </div>
+              </button>
             </div>
 
             {/* Per-device share of voice + sentiment */}
@@ -395,43 +464,79 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
               ))}
             </div>
 
-            {/* Most discussed topics */}
+            {/* Most discussed topics — click a row for its comments, hover the
+                bar for the exact split */}
             <div>
               <p className="section-label mb-3 flex items-center gap-1.5">
                 <Flame className="h-3.5 w-3.5" /> Most Discussed Topics
               </p>
-              <div className="space-y-2">
-                {analysis.discussed.slice(0, 8).map((t) => (
-                  <div key={t.key} className="flex items-center gap-3">
-                    <span className="w-44 shrink-0 truncate text-xs text-muted-foreground">{t.label}</span>
-                    <div className="flex-1">
-                      <SplitBar positive={t.positive} neutral={t.neutral} negative={t.negative} />
-                    </div>
-                    <span className="w-14 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
-                      {t.total.toLocaleString()}
-                    </span>
-                  </div>
-                ))}
-              </div>
+              <TooltipProvider delayDuration={100}>
+                <div className="space-y-1">
+                  {analysis.discussed.slice(0, 8).map((t) => (
+                    <Tooltip key={t.key}>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            openDrilldown(
+                              t.label,
+                              analysis.topicComments.get(t.key) || [],
+                              `${t.positive} positive · ${t.neutral} neutral · ${t.negative} negative`,
+                            )
+                          }
+                          className="flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-white/[0.04]"
+                        >
+                          <span className="w-44 shrink-0 truncate text-xs text-muted-foreground">{t.label}</span>
+                          <div className="flex-1">
+                            <SplitBar positive={t.positive} neutral={t.neutral} negative={t.negative} />
+                          </div>
+                          <span className="w-14 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
+                            {t.total.toLocaleString()}
+                          </span>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="text-xs">
+                        <span className="text-positive">{t.positive} positive</span>
+                        {" · "}
+                        <span>{t.neutral} neutral</span>
+                        {" · "}
+                        <span className="text-negative">{t.negative} negative</span>
+                      </TooltipContent>
+                    </Tooltip>
+                  ))}
+                </div>
+              </TooltipProvider>
             </div>
 
-            {/* Most / least praised */}
+            {/* Most / least praised — ranked by positive/negative comment
+                volume so they align with the discussed list; click for the
+                comments behind the number */}
             <div className="grid gap-4 md:grid-cols-2">
               <div className="rounded-xl border border-positive/20 bg-positive/[0.04] p-4">
                 <p className="section-label mb-3 flex items-center gap-1.5 text-positive">
                   <Award className="h-3.5 w-3.5" /> Most Praised
                 </p>
-                <div className="space-y-2.5">
+                <div className="space-y-1">
                   {analysis.mostPraised.map((t) => (
-                    <div key={t.key} className="flex items-center justify-between gap-2 text-sm">
+                    <button
+                      key={t.key}
+                      type="button"
+                      onClick={() =>
+                        openDrilldown(
+                          `${t.label} — Positive Comments`,
+                          (analysis.topicComments.get(t.key) || []).filter((c) => c.sentiment === "positive"),
+                        )
+                      }
+                      className="flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition-colors hover:bg-positive/10"
+                    >
                       <span>{t.label}</span>
                       <span className="text-xs font-semibold text-positive">
-                        {pct(t.positive, t.total)}% positive · {t.total} mentions
+                        {t.positive} positive · {pct(t.positive, t.total)}% of {t.total}
                       </span>
-                    </div>
+                    </button>
                   ))}
                   {analysis.mostPraised.length === 0 && (
-                    <p className="text-xs text-muted-foreground">Not enough topic mentions yet.</p>
+                    <p className="text-xs text-muted-foreground">No positive topic mentions yet.</p>
                   )}
                 </div>
               </div>
@@ -439,17 +544,27 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
                 <p className="section-label mb-3 flex items-center gap-1.5 text-negative">
                   <ThumbsDown className="h-3.5 w-3.5" /> Least Praised
                 </p>
-                <div className="space-y-2.5">
+                <div className="space-y-1">
                   {analysis.leastPraised.map((t) => (
-                    <div key={t.key} className="flex items-center justify-between gap-2 text-sm">
+                    <button
+                      key={t.key}
+                      type="button"
+                      onClick={() =>
+                        openDrilldown(
+                          `${t.label} — Negative Comments`,
+                          (analysis.topicComments.get(t.key) || []).filter((c) => c.sentiment === "negative"),
+                        )
+                      }
+                      className="flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition-colors hover:bg-negative/10"
+                    >
                       <span>{t.label}</span>
                       <span className="text-xs font-semibold text-negative">
-                        {pct(t.negative, t.total)}% negative · {t.total} mentions
+                        {t.negative} negative · {pct(t.negative, t.total)}% of {t.total}
                       </span>
-                    </div>
+                    </button>
                   ))}
                   {analysis.leastPraised.length === 0 && (
-                    <p className="text-xs text-muted-foreground">Not enough topic mentions yet.</p>
+                    <p className="text-xs text-muted-foreground">No negative topic mentions yet.</p>
                   )}
                 </div>
               </div>
@@ -528,6 +643,38 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
           </>
         )}
       </CardContent>
+
+      {/* Drill-down: the comments behind whichever number was clicked */}
+      <Dialog open={!!drilldown} onOpenChange={(open) => !open && setDrilldown(null)}>
+        <DialogContent className="max-h-[80vh] max-w-2xl overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>{drilldown?.title}</DialogTitle>
+            <DialogDescription>{drilldown?.subtitle}</DialogDescription>
+          </DialogHeader>
+          <div className="-mr-2 max-h-[60vh] space-y-2 overflow-y-auto pr-2">
+            {drilldown?.comments.length === 0 && (
+              <p className="py-8 text-center text-sm text-muted-foreground">No comments in this bucket.</p>
+            )}
+            {drilldown?.comments.map((c) => (
+              <div key={c.id} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-medium text-muted-foreground">
+                      @{c.username} · {c.platform}
+                    </p>
+                    <p className="mt-1 text-sm leading-relaxed">{c.text}</p>
+                  </div>
+                  <SentimentIcon sentiment={c.sentiment} />
+                </div>
+                <div className="mt-2 flex items-center gap-3 text-[11px] text-muted-foreground">
+                  <span>♥ {c.likes}</span>
+                  {c.createdAt && <span>{new Date(c.createdAt).toLocaleDateString()}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }
