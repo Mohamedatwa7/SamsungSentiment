@@ -211,11 +211,15 @@ function LaunchPie({
                     name,
                   ]}
                   contentStyle={{
-                    background: "rgba(10,12,19,0.95)",
-                    border: "1px solid rgba(255,255,255,0.1)",
+                    background: "rgba(10,12,19,0.97)",
+                    border: "1px solid rgba(255,255,255,0.15)",
                     borderRadius: "0.75rem",
                     fontSize: "12px",
                   }}
+                  // Recharts colors tooltip text with the slice fill by
+                  // default — unreadable on the dark panel. Force white.
+                  itemStyle={{ color: "rgba(255,255,255,0.95)" }}
+                  labelStyle={{ color: "rgba(255,255,255,0.7)" }}
                 />
                 <Legend
                   formatter={(value: string) => <span style={{ fontSize: 11 }}>{value}</span>}
