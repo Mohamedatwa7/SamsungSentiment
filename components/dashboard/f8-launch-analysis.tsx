@@ -58,7 +58,9 @@ function mapInfluencerComments(payloads: (UnpackedPayload | { videos?: UnpackedV
           sentimentFlags: [] as any,
           product: "General",
           productModel: "General",
-          productCategory: "Other",
+          // Marker: influencer campaign videos are FF8 content by definition,
+          // so their comments qualify regardless of the launch date gate.
+          productCategory: "InfluencerCampaign",
           department: "Brand",
           features: [],
           likes: c.likes,
@@ -109,6 +111,19 @@ const DEVICES: DeviceDef[] = [
     genericPattern: /\bz?\s*flip\b|فليب/i,
   },
 ]
+
+// Launch conversation that doesn't name a specific device — reactions to
+// teaser/launch content ("new shape", Unpacked posts). Counted in the overall
+// analysis and shown as its own share-of-voice bucket.
+const GENERAL_BUCKET: DeviceDef = {
+  key: "general",
+  name: "Launch — No Device Named",
+  short: "General",
+  pattern: /$^/,
+  genericPattern: /$^/,
+}
+
+const CAMPAIGN_GENERIC = /galaxy\s*unpacked|galaxyunpacked|new\s*shape|newshape|\bff8\b/i
 
 // Business topics tracked across launch conversation. LLM flags supplement
 // the keyword patterns where available.
@@ -231,23 +246,34 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
     for (const c of all) {
       const created = new Date(c.createdAt)
       const sinceLaunch = !isNaN(created.getTime()) && created >= LAUNCH_DATE
-      const own = matchDevice(c.text || "", sinceLaunch)
+      // Influencer campaign videos are FF8 content by definition (teasers
+      // included), so their comments qualify regardless of the launch gate.
+      const isCampaign = c.productCategory === "InfluencerCampaign"
+      const own = matchDevice(c.text || "", sinceLaunch || isCampaign)
       if (own) {
         corpus.push({ comment: c, device: own })
         continue
       }
       // No device in the comment itself — attribute via the parent post's
-      // caption for post-launch comments (reacting to a launch post).
-      if (sinceLaunch && c.postCaption) {
+      // caption; comments on campaign/launch posts that name no device land
+      // in the General bucket instead of being dropped.
+      if ((sinceLaunch || isCampaign) && c.postCaption) {
         const viaPost = matchDevice(c.postCaption, true)
-        if (viaPost) corpus.push({ comment: c, device: viaPost })
+        if (viaPost) {
+          corpus.push({ comment: c, device: viaPost })
+        } else if (isCampaign || CAMPAIGN_GENERIC.test(c.postCaption)) {
+          corpus.push({ comment: c, device: GENERAL_BUCKET })
+        }
       }
     }
 
     // Overall + per-device sentiment
     const overall = { total: 0, positive: 0, negative: 0, neutral: 0 }
     const byDevice = new Map<string, DeviceStats>(
-      DEVICES.map((d) => [d.key, { def: d, total: 0, positive: 0, negative: 0, neutral: 0, topTopic: null }]),
+      [...DEVICES, GENERAL_BUCKET].map((d) => [
+        d.key,
+        { def: d, total: 0, positive: 0, negative: 0, neutral: 0, topTopic: null },
+      ]),
     )
     const deviceTopicCounts = new Map<string, Map<string, number>>()
 
@@ -339,6 +365,12 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
       .filter((t) => t.negative > 0)
       .sort((a, b) => b.negative - a.negative || pct(b.negative, b.total) - pct(a.negative, a.total))
       .slice(0, 3)
+    // Heavily-discussed but sentiment-flat topics (questions, availability
+    // asks) — the neutral side of the conversation.
+    const mostNeutral = [...topicList]
+      .filter((t) => t.neutral > 0)
+      .sort((a, b) => b.neutral - a.neutral || pct(b.neutral, b.total) - pct(a.neutral, a.total))
+      .slice(0, 3)
 
     const trend = [...daily.entries()]
       .sort((a, b) => a[0].localeCompare(b[0]))
@@ -360,6 +392,7 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
       discussed,
       mostPraised,
       leastPraised,
+      mostNeutral,
       topicComments,
       selectionComments,
       purchaseComments,
@@ -399,7 +432,7 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
             </CardDescription>
           </div>
           <div className="flex flex-wrap gap-1.5">
-            {[{ key: "all", short: "All Devices" }, ...DEVICES].map((d) => (
+            {[{ key: "all", short: "All Devices" }, ...DEVICES, GENERAL_BUCKET].map((d) => (
               <button
                 key={d.key}
                 type="button"
@@ -538,7 +571,7 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
             </div>
 
             {/* Per-device share of voice + sentiment */}
-            <div className="grid gap-3 md:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {analysis.devices.map((d) => (
                 <div
                   key={d.def.key}
@@ -613,10 +646,10 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
               </TooltipProvider>
             </div>
 
-            {/* Most / least praised — ranked by positive/negative comment
-                volume so they align with the discussed list; click for the
-                comments behind the number */}
-            <div className="grid gap-4 md:grid-cols-2">
+            {/* Most praised / most neutral / least praised — ranked by
+                comment volume so they align with the discussed list; click
+                for the comments behind each number */}
+            <div className="grid gap-4 md:grid-cols-3">
               <div className="rounded-xl border border-positive/20 bg-positive/[0.04] p-4">
                 <p className="section-label mb-3 flex items-center gap-1.5 text-positive">
                   <Award className="h-3.5 w-3.5" /> Most Praised
@@ -642,6 +675,34 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
                   ))}
                   {analysis.mostPraised.length === 0 && (
                     <p className="text-xs text-muted-foreground">No positive topic mentions yet.</p>
+                  )}
+                </div>
+              </div>
+              <div className="rounded-xl border border-white/[0.1] bg-white/[0.02] p-4">
+                <p className="section-label mb-3 flex items-center gap-1.5">
+                  <Minus className="h-3.5 w-3.5" /> Most Neutral
+                </p>
+                <div className="space-y-1">
+                  {analysis.mostNeutral.map((t) => (
+                    <button
+                      key={t.key}
+                      type="button"
+                      onClick={() =>
+                        openDrilldown(
+                          `${t.label} — Neutral Comments`,
+                          (analysis.topicComments.get(t.key) || []).filter((c) => c.sentiment === "neutral"),
+                        )
+                      }
+                      className="flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition-colors hover:bg-white/[0.06]"
+                    >
+                      <span>{t.label}</span>
+                      <span className="text-xs font-semibold text-muted-foreground">
+                        {t.neutral} neutral · {pct(t.neutral, t.total)}% of {t.total}
+                      </span>
+                    </button>
+                  ))}
+                  {analysis.mostNeutral.length === 0 && (
+                    <p className="text-xs text-muted-foreground">No neutral topic mentions yet.</p>
                   )}
                 </div>
               </div>
