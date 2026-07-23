@@ -14,10 +14,26 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger sync endpoint
+      # Fires fresh scrapes and ingests the previous cycle's completed runs.
+      - name: Trigger sync (fires scrapes)
         run: |
           curl -sS -X POST "https://samsungtrack.com/api/unpacked/sync" \
             -H "Content-Type: application/json" \
             -d '{"manual": true, "wait": false}' \
+            --fail-with-body \
+            --max-time 570
+
+      # Let the freshly fired scrape runs finish.
+      - name: Wait for scrapes
+        run: sleep 420
+
+      # Harvest the fresh runs in the SAME cycle (dataset reads are free on
+      # Apify — no new actor runs are started). Without this, each run's own
+      # scrape results would only appear at the NEXT scheduled run.
+      - name: Ingest fresh results
+        run: |
+          curl -sS -X POST "https://samsungtrack.com/api/unpacked/sync" \
+            -H "Content-Type: application/json" \
+            -d '{"manual": true, "ingestOnly": true}' \
             --fail-with-body \
             --max-time 570
