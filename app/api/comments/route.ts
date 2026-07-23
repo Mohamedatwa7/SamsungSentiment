@@ -58,18 +58,30 @@ async function fetchAll(
   let from = 0
   while (true) {
     // Order by primary key — fast btree scan; the dashboard sorts client-side.
-    const { data, error } = await supabase
-      .from(table)
-      .select(columns)
-      .order("id", { ascending: true })
-      .range(from, from + PAGE_SIZE - 1)
-    if (error) {
-      console.error(`[v0] Error fetching ${table}:`, error.message)
-      break
+    // Pages with many JSONB projections can trip the statement timeout on a
+    // cold cache; the failed attempt warms the buffers, so retry before
+    // giving up — and NEVER return partial data (a truncated payload gets
+    // edge-cached and silently hides most of the corpus).
+    let page: any[] | null = null
+    let lastError = ""
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const { data, error } = await supabase
+        .from(table)
+        .select(columns)
+        .order("id", { ascending: true })
+        .range(from, from + PAGE_SIZE - 1)
+      if (!error) {
+        page = data || []
+        break
+      }
+      lastError = error.message
+      console.error(`[v0] ${table} page at ${from} attempt ${attempt + 1} failed:`, error.message)
+      await new Promise((r) => setTimeout(r, 400))
     }
-    if (!data || data.length === 0) break
-    all.push(...data)
-    if (data.length < PAGE_SIZE) break
+    if (page === null) throw new Error(`Fetching ${table} failed at offset ${from}: ${lastError}`)
+    if (page.length === 0) break
+    all.push(...page)
+    if (page.length < PAGE_SIZE) break
     from += PAGE_SIZE
   }
   return all
