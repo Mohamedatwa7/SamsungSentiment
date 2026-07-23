@@ -56,15 +56,11 @@ async function fetchAll(
   table: string,
   columns: string,
 ): Promise<any[]> {
-  const all: any[] = []
-  let from = 0
-  while (true) {
-    // Order by primary key — fast btree scan; the dashboard sorts client-side.
-    // Pages with many JSONB projections can trip the statement timeout on a
-    // cold cache; the failed attempt warms the buffers, so retry before
-    // giving up — and NEVER return partial data (a truncated payload gets
-    // edge-cached and silently hides most of the corpus).
-    let page: any[] | null = null
+  // Pages with many JSONB projections can trip the statement timeout on a
+  // cold cache; the failed attempt warms the buffers, so retry before giving
+  // up — and NEVER return partial data (a truncated payload gets edge-cached
+  // and silently hides most of the corpus).
+  const fetchPage = async (from: number): Promise<any[]> => {
     let lastError = ""
     for (let attempt = 0; attempt < 5; attempt++) {
       const { data, error } = await supabase
@@ -72,21 +68,34 @@ async function fetchAll(
         .select(columns)
         .order("id", { ascending: true })
         .range(from, from + PAGE_SIZE - 1)
-      if (!error) {
-        page = data || []
-        break
-      }
+      if (!error) return data || []
       lastError = error.message
       console.error(`[v0] ${table} page at ${from} attempt ${attempt + 1} failed:`, error.message)
       await new Promise((r) => setTimeout(r, 600))
     }
-    if (page === null) throw new Error(`Fetching ${table} failed at offset ${from}: ${lastError}`)
-    if (page.length === 0) break
-    all.push(...page)
-    if (page.length < PAGE_SIZE) break
-    from += PAGE_SIZE
+    throw new Error(`Fetching ${table} failed at offset ${from}: ${lastError}`)
   }
-  return all
+
+  // Count first, then fetch pages in parallel — sequential paging took ~50s
+  // for the full corpus and made the cold dashboard load crawl.
+  const { count, error: countError } = await supabase
+    .from(table)
+    .select("id", { count: "exact", head: true })
+  if (countError || count == null) throw new Error(`Counting ${table} failed: ${countError?.message}`)
+
+  const offsets: number[] = []
+  for (let from = 0; from < count; from += PAGE_SIZE) offsets.push(from)
+
+  const results: any[][] = new Array(offsets.length)
+  const CONCURRENCY = 6
+  for (let i = 0; i < offsets.length; i += CONCURRENCY) {
+    await Promise.all(
+      offsets.slice(i, i + CONCURRENCY).map(async (from, j) => {
+        results[i + j] = await fetchPage(from)
+      }),
+    )
+  }
+  return results.flat()
 }
 
 // Flagship-feature detection so feature-level KPIs work on live data.
@@ -317,10 +326,11 @@ export async function GET(_request: NextRequest) {
       },
       {
         headers: {
-          // Vercel edge cache: data only changes on the nightly sync, so serve
-          // cached responses for 5 min and stale-while-revalidate for an hour.
-          // Only the first visitor after expiry pays the full ~15s DB read.
-          "Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600",
+          // Serve stale for up to a day while revalidating in the background:
+          // data changes only on scheduled syncs, and nobody should ever sit
+          // through the full DB rebuild — the edge refreshes itself off the
+          // request path.
+          "Cache-Control": "public, s-maxage=300, stale-while-revalidate=86400",
         },
       },
     )
