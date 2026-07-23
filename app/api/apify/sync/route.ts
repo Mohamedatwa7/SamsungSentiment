@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { syncAllPlatforms, getAllScheduledRuns } from "@/lib/apify-sync"
+import { syncAllPlatforms, getAllScheduledRuns, startF7CommentBackfill } from "@/lib/apify-sync"
 import { createClient } from "@/lib/supabase/server"
 import { processAndNormalizeData, mergeNormalizedData } from "@/lib/process-synced-data"
 import { promises as fs } from "fs"
@@ -143,6 +143,13 @@ export async function POST(request: NextRequest) {
       if (!body.manual) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
       }
+    }
+
+    // One-off: fire comment scrapes for the F7 launch window (Jul 9-20 2025)
+    // and return — results are harvested by the next ingest.
+    if (body.f7Backfill === true) {
+      const result = await startF7CommentBackfill()
+      return NextResponse.json({ success: true, ...result })
     }
 
     // Optional backfill depth: number of Apify runs per actor to ingest.

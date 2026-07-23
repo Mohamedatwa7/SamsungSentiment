@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { instagramShortcodeToId, instagramShortcodeFromUrl } from "@/lib/instagram-id"
-import { ROSTER_ID_PREFIX, stripRosterPrefix } from "@/lib/roster-sync"
+import { ROSTER_ID_PREFIX, stripRosterPrefix, youtubeVideoId } from "@/lib/roster-sync"
 import { FF8_ROSTER } from "@/lib/roster"
 import type { UnpackedComment, UnpackedSentiment, UnpackedVideo } from "@/lib/unpacked-data"
 
@@ -91,7 +91,12 @@ export async function GET() {
 
     for (const p of postRows) {
       const raw = (p.raw_data || {}) as any
-      const platform = p.platform as "instagram" | "tiktok"
+      // YouTube rows are stored under a constraint-allowed platform with
+      // raw_data._platform carrying the real one.
+      const platform = (raw._platform === "youtube" ? "youtube" : p.platform) as
+        | "instagram"
+        | "tiktok"
+        | "youtube"
       const url = p.post_url || ""
       const externalId = stripRosterPrefix(String(p.external_id || ""))
       const roster = FF8_ROSTER.find((r) => r.id === raw._rosterId)
@@ -100,6 +105,9 @@ export async function GET() {
       if (platform === "instagram") {
         const shortcode = instagramShortcodeFromUrl(url) || raw.shortCode || (/^\d+$/.test(externalId) ? null : externalId)
         embedUrl = shortcode ? `https://www.instagram.com/p/${shortcode}/embed/captioned` : ""
+      } else if (platform === "youtube") {
+        const vid = youtubeVideoId(url) || externalId.replace(/^yt_/, "")
+        embedUrl = vid ? `https://www.youtube.com/embed/${vid}` : ""
       } else {
         const videoId = url.match(/video\/(\d+)/)?.[1] || externalId
         embedUrl = `https://www.tiktok.com/player/v1/${videoId}?autoplay=0&rel=0&description=1`
@@ -120,7 +128,7 @@ export async function GET() {
         thumbnail: p.media_url || null,
         caption: p.caption || "",
         influencer: {
-          username: raw.ownerUsername || raw.authorMeta?.name || roster?.handle || "unknown",
+          username: raw.ownerUsername || raw.authorMeta?.name || raw.channelName || roster?.handle || "unknown",
           displayName: raw._rosterName || roster?.name || "Creator",
           avatar: raw.authorMeta?.avatar || null,
         },
@@ -146,6 +154,11 @@ export async function GET() {
         register(shortcode, video)
         if (shortcode) register(instagramShortcodeToId(shortcode), video)
         if (!/^\d+$/.test(externalId)) register(instagramShortcodeToId(externalId), video)
+      }
+      if (platform === "youtube") {
+        // Comments reference the bare video id (no yt_ prefix).
+        register(externalId.replace(/^yt_/, ""), video)
+        register(youtubeVideoId(url), video)
       }
     }
 

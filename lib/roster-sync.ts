@@ -10,7 +10,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { getLatestRuns, getDatasetItems } from "@/lib/apify-sync"
 import { instagramShortcodeToId, instagramShortcodeFromUrl } from "@/lib/instagram-id"
-import { FF8_ROSTER, rosterByHandle } from "@/lib/roster"
+import { FF8_ROSTER, rosterByHandle, YT_WINDOW_START } from "@/lib/roster"
 
 const APIFY_TOKEN = process.env.APIFY_API_TOKEN
 
@@ -21,6 +21,20 @@ export const ROSTER_ACTORS = {
   tiktokProfiles: "0FXVyOXXEmdGcV88a", // clockworks/tiktok-profile-scraper
   instagramComments: "SbK00X0JYCPblD2wp", // shared public actor — parent-filtered ingest
   tiktokComments: "BDec00yAmCm1QbMEI", // shared public actor — parent-filtered ingest
+  youtube: "h7sDV53CddomktSi5", // streamers/youtube-scraper
+  youtubeComments: "p7UMdpQnjKmmpR21D", // streamers/youtube-comments-scraper
+}
+
+// The social tables have a CHECK constraint limiting platform to the four
+// brand values, so YouTube rows are STORED under platform "twitter" with a
+// roster_yt_ key and raw_data._platform = "youtube"; the APIs present them
+// as YouTube. (roster_yt_* still matches the roster_% prefix everywhere —
+// exclusions, analyzer, /api/roster.)
+export const YT_STORAGE_PLATFORM = "twitter"
+
+export function youtubeVideoId(url: string): string | null {
+  const m = String(url || "").match(/(?:v=|youtu\.be\/|\/shorts\/|\/embed\/)([A-Za-z0-9_-]{6,})/)
+  return m ? m[1] : null
 }
 
 export const ROSTER_ID_PREFIX = "roster_"
@@ -70,6 +84,7 @@ export async function startRosterPostScrapes() {
   const started: Record<string, string | null> = {}
   const igHandles = FF8_ROSTER.filter((r) => r.platform === "instagram").map((r) => r.handle)
   const ttHandles = FF8_ROSTER.filter((r) => r.platform === "tiktok").map((r) => r.handle)
+  const ytChannels = FF8_ROSTER.filter((r) => r.platform === "youtube")
 
   started.rosterInstagram = await startActorRun(ROSTER_ACTORS.instagramProfiles, {
     usernames: igHandles,
@@ -79,6 +94,11 @@ export async function startRosterPostScrapes() {
     resultsPerPage: 15,
     profileSorting: "latest",
     excludePinnedPosts: false,
+  })
+  started.rosterYouTube = await startActorRun(ROSTER_ACTORS.youtube, {
+    startUrls: ytChannels.map((c) => ({ url: `${c.url}/videos` })),
+    maxResults: 8,
+    oldestPostDate: "2026-07-21",
   })
   return started
 }
@@ -178,6 +198,66 @@ export async function syncRosterTikTokPosts(runCount = RUNS_TO_SYNC) {
   return { inserted, matched, total: items.length }
 }
 
+// streamers/youtube-scraper items — one per video.
+export async function syncRosterYouTubePosts(runCount = RUNS_TO_SYNC) {
+  const supabase = await createClient()
+  const items = await getRecentRunsItems<any>(ROSTER_ACTORS.youtube, runCount)
+
+  const norm = (v: unknown) => String(v || "").toLowerCase().replace(/[\s@_.-]/g, "")
+  const ytChannels = FF8_ROSTER.filter((r) => r.platform === "youtube")
+  const matchChannel = (item: any) => {
+    const candidates = [item.channelName, item.channelUsername, item.channelUrl, item.aboutChannelInfo?.channelName]
+      .map(norm)
+      .filter(Boolean)
+    return ytChannels.find((c) =>
+      candidates.some((cand) => cand.includes(norm(c.handle)) || cand.includes(norm(c.name))),
+    )
+  }
+
+  let inserted = 0
+  let matched = 0
+  const errors: string[] = []
+  for (const item of items) {
+    const url = item.url || (item.id ? `https://www.youtube.com/watch?v=${item.id}` : "")
+    const videoId = item.id || youtubeVideoId(url)
+    if (!videoId) continue
+    const influencer = matchChannel(item)
+    if (!influencer) continue
+    const publishedAt = item.date || item.uploadDate
+    const text = `${item.title || ""} ${item.text || item.description || ""}`
+    if (!isFF8Content(text, publishedAt)) continue
+    matched++
+    const { error } = await supabase.from("social_posts").upsert(
+      {
+        platform: YT_STORAGE_PLATFORM,
+        external_id: `${ROSTER_ID_PREFIX}yt_${videoId}`,
+        post_url: url,
+        caption: item.title || "",
+        media_type: "video",
+        media_url: item.thumbnailUrl,
+        likes_count: Math.max(0, item.likes || 0),
+        comments_count: item.commentsCount || 0,
+        views_count: item.viewCount || 0,
+        published_at: new Date(publishedAt).toISOString(),
+        scraped_at: new Date().toISOString(),
+        raw_data: {
+          ...item,
+          _roster: true,
+          _platform: "youtube",
+          _rosterId: influencer.id,
+          _rosterName: influencer.name,
+          _rosterCategory: influencer.category,
+        },
+      },
+      { onConflict: "platform,external_id" },
+    )
+    if (error) errors.push(error.message)
+    else inserted++
+  }
+  if (errors.length > 0) console.error("[roster] YouTube post sync errors (first 5):", errors.slice(0, 5))
+  return { inserted, matched, total: items.length }
+}
+
 interface RosterPostRow {
   external_id: string
   platform: string
@@ -236,6 +316,18 @@ export async function startRosterCommentScrapes() {
     started.rosterTtComments = await startActorRun(ROSTER_ACTORS.tiktokComments, {
       postURLs: ttUrls,
       commentsPerPost: 300,
+    })
+  }
+
+  const ytUrls = [...new Set(
+    rows
+      .filter((r) => String(r.external_id).startsWith(`${ROSTER_ID_PREFIX}yt_`) && r.post_url)
+      .map((r) => String(r.post_url)),
+  )]
+  if (ytUrls.length > 0) {
+    started.rosterYtComments = await startActorRun(ROSTER_ACTORS.youtubeComments, {
+      startUrls: ytUrls.map((url) => ({ url })),
+      maxComments: 300,
     })
   }
   return started
@@ -309,7 +401,40 @@ export async function syncRosterComments(runCount = RUNS_TO_SYNC) {
     if (!error) inserted++
   }
 
-  return { inserted, total: igItems.length + ttItems.length }
+  // YouTube — streamers/youtube-comments-scraper items.
+  const ytIds = new Set(
+    (await getRosterPostRows())
+      .filter((r) => String(r.external_id).startsWith(`${ROSTER_ID_PREFIX}yt_`))
+      .map((r) => stripRosterPrefix(String(r.external_id)).replace(/^yt_/, "")),
+  )
+  const ytItems = ytIds.size > 0 ? await getRecentRunsItems<any>(ROSTER_ACTORS.youtubeComments, runCount) : []
+  const ytSeen = new Set<string>()
+  for (const c of [...ytItems].reverse()) {
+    const text = (c.comment || c.text || "").trim()
+    if (!text) continue
+    const videoId = c.videoId || youtubeVideoId(c.videoUrl || c.url || c.pageUrl || "")
+    if (!videoId || !ytIds.has(videoId)) continue
+    const commentId = c.cid || c.commentId || c.id || `${videoId}_${(c.author || "user")}_${text.slice(0, 40)}`
+    if (ytSeen.has(String(commentId))) continue
+    ytSeen.add(String(commentId))
+    const { error } = await supabase.from("social_comments").upsert(
+      {
+        platform: YT_STORAGE_PLATFORM,
+        external_id: `${ROSTER_ID_PREFIX}yt_${commentId}`,
+        external_post_id: videoId,
+        text,
+        author_username: (c.author || c.authorName || "unknown").replace(/^@/, ""),
+        likes_count: c.voteCount || c.likesCount || 0,
+        published_at: c.date ? new Date(c.date).toISOString() : new Date().toISOString(),
+        scraped_at: new Date().toISOString(),
+        raw_data: { ...c, _roster: true, _platform: "youtube" },
+      },
+      { onConflict: "platform,external_id" },
+    )
+    if (!error) inserted++
+  }
+
+  return { inserted, total: igItems.length + ttItems.length + ytItems.length }
 }
 
 // Full roster cycle — mirrors the unpacked pipeline's fire-then-harvest model
@@ -317,9 +442,10 @@ export async function syncRosterComments(runCount = RUNS_TO_SYNC) {
 export async function syncRoster(opts: { ingestOnly?: boolean } = {}) {
   const instagramPosts = await syncRosterInstagramPosts()
   const tiktokPosts = await syncRosterTikTokPosts()
+  const youtubePosts = await syncRosterYouTubePosts()
   const comments = await syncRosterComments()
   const startedRuns = opts.ingestOnly
     ? {}
     : { ...(await startRosterPostScrapes()), ...(await startRosterCommentScrapes()) }
-  return { instagramPosts, tiktokPosts, comments, startedRuns }
+  return { instagramPosts, tiktokPosts, youtubePosts, comments, startedRuns }
 }

@@ -131,15 +131,31 @@ const GENERAL_BUCKET: DeviceDef = {
 
 const CAMPAIGN_GENERIC = /galaxy\s*unpacked|galaxyunpacked|new\s*shape|newshape|\bff8\b/i
 
-// Launch-vs-launch comparison windows (Gulf time). Last year's Unpacked
-// launched the Fold 7 / Flip 7 on July 9th, 2025.
-const F7_WINDOW = {
-  start: new Date("2025-07-09T00:00:00+04:00"),
-  end: new Date("2025-07-11T00:00:00+04:00"),
+// Launch-vs-launch comparison: day-0 aligned windows (Gulf time). Last
+// year's Unpacked launched the Fold 7 / Flip 7 on July 9th, 2025; FF8 on
+// July 22nd, 2026 — so Jul 9 '25 ↔ Jul 22 '26, Jul 10 ↔ Jul 23, and each
+// new FF8 day extends BOTH windows by one day (F7 data pulled through
+// Jul 20, 2025 = 12 comparable days).
+const F7_LAUNCH = new Date("2025-07-09T00:00:00+04:00")
+const MAX_COMPARE_DAYS = 12
+
+function launchCompareWindows() {
+  const dayMs = 86400000
+  const elapsed = Math.min(
+    MAX_COMPARE_DAYS,
+    Math.max(1, Math.floor((Date.now() - LAUNCH_DATE.getTime()) / dayMs) + 1),
+  )
+  return {
+    days: elapsed,
+    f7: { start: F7_LAUNCH, end: new Date(F7_LAUNCH.getTime() + elapsed * dayMs) },
+    f8: { start: LAUNCH_DATE, end: new Date(LAUNCH_DATE.getTime() + elapsed * dayMs) },
+  }
 }
-const F8_WINDOW = {
-  start: new Date("2026-07-22T00:00:00+04:00"),
-  end: new Date("2026-07-24T00:00:00+04:00"),
+
+function windowLabel(start: Date, days: number): string {
+  const end = new Date(start.getTime() + (days - 1) * 86400000)
+  const fmt = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "Asia/Dubai" })
+  return days === 1 ? `${fmt(start)}, ${start.getFullYear()}` : `${fmt(start)} – ${fmt(end)}, ${start.getFullYear()}`
 }
 const FOLDABLE_MARKERS = /fold|flip|فولد|فليب|فلب|unpacked|انباكد|أنباكد/i
 
@@ -374,11 +390,15 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
     // launch, not the filtered window.
     const brandAll = getFilteredComments(platformFilter, undefined, undefined)
     const brand = source === "influencers" ? [] : brandAll
+    // YouTube always passes the platform filter — the dashboard's filter UI
+    // only offers the four social platforms, so it can never select YouTube.
     const influencers =
       source === "samsung"
         ? []
         : platformFilter && platformFilter.length > 0
-          ? influencerComments.filter((c) => platformFilter.includes(c.platform))
+          ? influencerComments.filter(
+              (c) => c.platform === "youtube" || platformFilter.includes(c.platform),
+            )
           : influencerComments
     const all = [...brand, ...influencers]
 
@@ -540,8 +560,9 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
 
     // Launch-vs-launch pies. F7 always reads the brand corpus — influencer
     // tracking didn't exist in July 2025. F8 follows the current selection.
-    const f7Split = foldableLaunchSplit(brandAll, F7_WINDOW)
-    const f8Split = foldableLaunchSplit(selectionComments, F8_WINDOW)
+    const compare = launchCompareWindows()
+    const f7Split = foldableLaunchSplit(brandAll, compare.f7)
+    const f8Split = foldableLaunchSplit(selectionComments, compare.f8)
 
     return {
       overall,
@@ -553,6 +574,7 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
       mostNeutral,
       f7Split,
       f8Split,
+      compareDays: compare.days,
       topicComments,
       selectionComments,
       purchaseComments,
@@ -960,18 +982,20 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
               </div>
             )}
 
-            {/* Launch vs launch — F7 (2025) sentiment against FF8 (2026) */}
+            {/* Launch vs launch — day-0 aligned F7 (2025) vs FF8 (2026) */}
             <div>
-              <p className="section-label mb-3">Launch vs Launch — Sentiment Split</p>
+              <p className="section-label mb-3">
+                Launch vs Launch — Sentiment Split (day 0–{analysis.compareDays - 1} aligned)
+              </p>
               <div className="grid gap-3 md:grid-cols-2">
                 <LaunchPie
                   title="Fold 7 / Flip 7 Launch"
-                  subtitle="July 9–10, 2025 · Samsung socials"
+                  subtitle={`${windowLabel(F7_LAUNCH, analysis.compareDays)} · Samsung socials`}
                   split={analysis.f7Split}
                 />
                 <LaunchPie
                   title="Fold 8 / Fold 8 Ultra / Flip 8 Launch"
-                  subtitle="July 22–23, 2026 · current selection"
+                  subtitle={`${windowLabel(LAUNCH_DATE, analysis.compareDays)} · current selection`}
                   split={analysis.f8Split}
                 />
               </div>

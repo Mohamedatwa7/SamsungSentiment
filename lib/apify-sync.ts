@@ -38,7 +38,7 @@ const PUBLIC_COMMENT_ACTORS = {
 // The tables also hold retailer/operator accounts from other scrapes; the
 // brand pipeline must only scrape and attribute @samsunggulf content.
 const BRAND_POST_COLUMNS =
-  "external_id,platform,post_url,published_at," +
+  "external_id,platform,post_url,caption,published_at," +
   "owner_ig:raw_data->>ownerUsername,owner_tt:raw_data->authorMeta->>name," +
   "owner_fb:raw_data->>pageName,owner_tw:raw_data->author->>userName," +
   "src_input:raw_data->>inputUrl,src_fb:raw_data->>facebookUrl"
@@ -649,6 +649,76 @@ export async function startCommentScrapes(daysBack = 3) {
   }
 
   return started
+}
+
+// One-off backfill: fire comment scrapes for the FOLD 7 / FLIP 7 launch
+// window (July 9–20, 2025) so last year's launch sentiment has full data for
+// the day-N comparison against FF8. Comment sections persist on old posts,
+// so scraping them today returns the 2025 comments. Ingestion happens via
+// the normal sync paths (syncFacebookComments / syncTwitterReplies /
+// syncLateComments all resolve parents across the full brand history).
+const F7_MARKERS = /fold|flip|فولد|فليب|فلب|unpacked|انباكد|أنباكد|galaxy\s*z/i
+
+export async function startF7CommentBackfill() {
+  const startIso = "2025-07-08T20:00:00Z" // Jul 9, 2025 00:00 Gulf
+  const endMs = Date.parse("2025-07-20T20:00:00Z") // Jul 21, 2025 00:00 Gulf
+  const inWindow = (rows: any[]) =>
+    rows.filter(
+      (p) => Date.parse(p.published_at) < endMs && F7_MARKERS.test(p.caption || ""),
+    )
+  const started: Record<string, string | null> = {}
+
+  const fire = async (actorId: string, input: Record<string, unknown>) => {
+    const res = await fetch(
+      `https://api.apify.com/v2/acts/${actorId}/runs?token=${APIFY_TOKEN}&maxTotalChargeUsd=3`,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) },
+    )
+    const out = await res.json().catch(() => null)
+    return out?.data?.id || null
+  }
+
+  const ig = inWindow(await getBrandPosts("instagram", startIso))
+  const igUrls = [...new Set(ig.filter((p) => p.post_url).map((p) => String(p.post_url)))]
+  if (igUrls.length > 0)
+    started.f7Instagram = await fire(PUBLIC_COMMENT_ACTORS.instagram, {
+      directUrls: igUrls,
+      resultsLimit: 300,
+    })
+
+  const tt = inWindow(await getBrandPosts("tiktok", startIso))
+  const ttUrls = [...new Set(tt.filter((p) => p.post_url).map((p) => String(p.post_url)))]
+  if (ttUrls.length > 0)
+    started.f7TikTok = await fire(PUBLIC_COMMENT_ACTORS.tiktok, {
+      postURLs: ttUrls,
+      commentsPerPost: 300,
+    })
+
+  const fb = inWindow(await getBrandPosts("facebook", startIso))
+  const fbUrls = [...new Set(fb.filter((p) => p.post_url).map((p) => String(p.post_url).replace(/\/+$/, "")))]
+  if (fbUrls.length > 0)
+    started.f7Facebook = await fire(SCHEDULED_ACTORS.facebookComments, {
+      startUrls: fbUrls.map((url) => ({ url })),
+      resultsLimit: 300,
+      includeNestedComments: false,
+    })
+
+  const x = inWindow(await getBrandPosts("twitter", startIso))
+  const conversationIds = [...new Set(x.map((p) => String(p.external_id)))].filter((id) => /^\d+$/.test(id))
+  if (conversationIds.length > 0)
+    started.f7Twitter = await fire(SCHEDULED_ACTORS.twitterReplies, {
+      conversationIds,
+      maxItems: 3000,
+    })
+
+  return {
+    started,
+    postsTargeted: {
+      instagram: igUrls.length,
+      tiktok: ttUrls.length,
+      facebook: fbUrls.length,
+      twitter: conversationIds.length,
+    },
+  }
 }
 
 // Ingest brand comments from the public comment actors' recent runs. These

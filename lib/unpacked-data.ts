@@ -25,7 +25,7 @@ export interface UnpackedInfluencer {
 
 export interface UnpackedVideo {
   id: string
-  platform: "instagram" | "tiktok"
+  platform: "instagram" | "tiktok" | "youtube"
   url: string
   embedUrl: string
   thumbnail: string | null

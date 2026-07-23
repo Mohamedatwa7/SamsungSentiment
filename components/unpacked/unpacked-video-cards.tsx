@@ -9,17 +9,19 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { SentimentBadge, SentimentBar } from "@/components/unpacked/sentiment-badge"
 
-function PlatformBadge({ platform }: { platform: "instagram" | "tiktok" }) {
+function PlatformBadge({ platform }: { platform: "instagram" | "tiktok" | "youtube" }) {
   return (
     <span
       className={cn(
         "rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
         platform === "instagram"
           ? "border-fuchsia-500/30 bg-fuchsia-500/10 text-fuchsia-400"
-          : "border-cyan-500/30 bg-cyan-500/10 text-cyan-400",
+          : platform === "youtube"
+            ? "border-red-500/30 bg-red-500/10 text-red-400"
+            : "border-cyan-500/30 bg-cyan-500/10 text-cyan-400",
       )}
     >
-      {platform === "instagram" ? "Instagram" : "TikTok"}
+      {platform === "instagram" ? "Instagram" : platform === "youtube" ? "YouTube" : "TikTok"}
     </span>
   )
 }

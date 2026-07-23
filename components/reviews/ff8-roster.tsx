@@ -26,7 +26,13 @@ interface RosterPayload {
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
-type CategoryFilter = "all" | "Team Galaxy" | "Content Creator"
+type CategoryFilter = "all" | "Team Galaxy" | "Content Creator" | "Tech Reviewer"
+
+const PLATFORM_LABELS: Record<string, string> = {
+  instagram: "Instagram",
+  tiktok: "TikTok",
+  youtube: "YouTube",
+}
 
 export function FF8Roster() {
   const { data, isLoading } = useSWR<RosterPayload>("/api/roster", fetcher, {
@@ -102,7 +108,7 @@ export function FF8Roster() {
             </CardDescription>
           </div>
           <div className="flex gap-1.5">
-            {(["all", "Team Galaxy", "Content Creator"] as CategoryFilter[]).map((c) => (
+            {(["all", "Team Galaxy", "Content Creator", "Tech Reviewer"] as CategoryFilter[]).map((c) => (
               <button
                 key={c}
                 type="button"
@@ -157,7 +163,7 @@ export function FF8Roster() {
                     rel="noopener noreferrer"
                     className="text-xs text-muted-foreground hover:text-foreground"
                   >
-                    @{g.influencer.handle} · {g.influencer.platform === "instagram" ? "Instagram" : "TikTok"}
+                    @{g.influencer.handle} · {PLATFORM_LABELS[g.influencer.platform] || g.influencer.platform}
                   </a>
                 </div>
                 <span
@@ -165,7 +171,9 @@ export function FF8Roster() {
                     "shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
                     g.influencer.category === "Team Galaxy"
                       ? "border-primary/30 bg-primary/10 text-primary"
-                      : "border-white/[0.1] bg-white/[0.04] text-muted-foreground",
+                      : g.influencer.category === "Tech Reviewer"
+                        ? "border-negative/30 bg-negative/10 text-negative"
+                        : "border-white/[0.1] bg-white/[0.04] text-muted-foreground",
                   )}
                 >
                   {g.influencer.category}

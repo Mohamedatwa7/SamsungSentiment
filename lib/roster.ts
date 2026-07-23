@@ -3,8 +3,8 @@
 // shared profile links. Only their FF8-related videos from the launch window
 // are tracked.
 
-export type RosterCategory = "Team Galaxy" | "Content Creator"
-export type RosterPlatform = "instagram" | "tiktok"
+export type RosterCategory = "Team Galaxy" | "Content Creator" | "Tech Reviewer"
+export type RosterPlatform = "instagram" | "tiktok" | "youtube"
 
 export interface RosterInfluencer {
   id: string
@@ -43,7 +43,19 @@ export const FF8_ROSTER: RosterInfluencer[] = [
   { id: "dasrami", name: "Rami Sabbah", handle: "das.rami", platform: "instagram", url: "https://www.instagram.com/das.rami/", category: "Content Creator" },
   { id: "amalbinhaider", name: "Amal Bin Haider", handle: "amalbinhaider", platform: "instagram", url: "https://www.instagram.com/amalbinhaider/", category: "Team Galaxy" },
   { id: "zozalajail", name: "Abdulaziz AlAjall", handle: "zozalajail", platform: "tiktok", url: "https://www.tiktok.com/@zozalajail", category: "Team Galaxy" },
+  // YouTube tech reviewers — only their FF8 launch videos (Jul 22+) are
+  // tracked. Some may not have posted yet; they appear once they do.
+  { id: "raqamitv_yt", name: "Raqami TV", handle: "RaqamiTV", platform: "youtube", url: "https://www.youtube.com/@RaqamiTV", category: "Tech Reviewer" },
+  { id: "slorks_yt", name: "Slorks", handle: "slorks", platform: "youtube", url: "https://www.youtube.com/@slorks", category: "Tech Reviewer" },
+  { id: "androidbasha_yt", name: "Android Basha", handle: "AndroidBasha", platform: "youtube", url: "https://www.youtube.com/@AndroidBasha", category: "Tech Reviewer" },
+  { id: "omardizer_yt", name: "Omardizer", handle: "omardizer", platform: "youtube", url: "https://www.youtube.com/@omardizer", category: "Tech Reviewer" },
+  { id: "techvoicenet_yt", name: "Tech Voice Net", handle: "techvoicenet", platform: "youtube", url: "https://www.youtube.com/@techvoicenet", category: "Tech Reviewer" },
+  { id: "falsaif_yt", name: "Falsaif", handle: "falsaif", platform: "youtube", url: "https://www.youtube.com/@falsaif", category: "Tech Reviewer" },
+  { id: "emkwan_yt", name: "EMKWAN Reviews", handle: "EMKWAN", platform: "youtube", url: "https://www.youtube.com/@EMKWAN", category: "Tech Reviewer" },
 ]
+
+// FF8 YouTube coverage window: reviewers publish from launch day onward.
+export const YT_WINDOW_START = "2026-07-21T20:00:00Z" // Jul 22, 2026 00:00 Gulf
 
 export function rosterByHandle(handle: string | null | undefined): RosterInfluencer | undefined {
   const h = (handle || "").toLowerCase().trim().replace(/^@/, "")
