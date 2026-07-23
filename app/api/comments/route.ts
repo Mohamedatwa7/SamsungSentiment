@@ -1,3 +1,4 @@
+import { gzipSync } from "zlib"
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import {
@@ -317,27 +318,34 @@ export async function GET(_request: NextRequest) {
       }
     })
 
-    return NextResponse.json(
-      {
-        posts,
-        comments,
-        meta: {
-          totalPosts: posts.length,
-          totalComments: comments.length,
-          analyzedComments: analyzed,
-          unanalyzedComments: comments.length - analyzed,
-        },
+    const payload = {
+      posts,
+      comments,
+      meta: {
+        totalPosts: posts.length,
+        totalComments: comments.length,
+        analyzedComments: analyzed,
+        unanalyzedComments: comments.length - analyzed,
       },
-      {
-        headers: {
-          // Serve stale for up to a day while revalidating in the background:
-          // data changes only on scheduled syncs, and nobody should ever sit
-          // through the full DB rebuild — the edge refreshes itself off the
-          // request path.
-          "Cache-Control": "public, s-maxage=300, stale-while-revalidate=86400",
-        },
+    }
+
+    // Gzip in the route: the raw payload is ~18MB, which exceeds Vercel's
+    // 10MB edge-cache limit — so the response was NEVER cached and every
+    // visitor paid the full DB rebuild. Compressed (~2MB) it caches, and
+    // browsers decompress Content-Encoding transparently.
+    const body = gzipSync(Buffer.from(JSON.stringify(payload)))
+    return new NextResponse(body as unknown as BodyInit, {
+      headers: {
+        "Content-Type": "application/json",
+        "Content-Encoding": "gzip",
+        Vary: "Accept-Encoding",
+        // Serve stale for up to a day while revalidating in the background:
+        // data changes only on scheduled syncs, and nobody should ever sit
+        // through the full DB rebuild — the edge refreshes itself off the
+        // request path.
+        "Cache-Control": "public, s-maxage=300, stale-while-revalidate=86400",
       },
-    )
+    })
   } catch (error) {
     console.error("[v0] Error fetching comments:", error)
     return NextResponse.json({ error: "Failed to fetch data" }, { status: 500 })
