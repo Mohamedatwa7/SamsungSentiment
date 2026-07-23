@@ -40,3 +40,11 @@ jobs:
             -d '{"manual": true, "ingestOnly": true}' \
             --fail-with-body \
             --max-time 570
+
+      # Rebuild the dashboard payload into the edge cache right after data
+      # changes, so no visitor ever pays the slow cold DB read.
+      - name: Warm dashboard cache
+        run: |
+          curl -sS -o /dev/null "https://samsungtrack.com/api/comments" --max-time 240 || true
+          curl -sS -o /dev/null "https://samsungtrack.com/api/unpacked" --max-time 120 || true
+          curl -sS -o /dev/null "https://samsungtrack.com/api/roster" --max-time 120 || true

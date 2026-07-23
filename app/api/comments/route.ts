@@ -76,26 +76,21 @@ async function fetchAll(
     throw new Error(`Fetching ${table} failed at offset ${from}: ${lastError}`)
   }
 
-  // Count first, then fetch pages in parallel — sequential paging took ~50s
-  // for the full corpus and made the cold dashboard load crawl.
-  const { count, error: countError } = await supabase
-    .from(table)
-    .select("id", { count: "exact", head: true })
-  if (countError || count == null) throw new Error(`Counting ${table} failed: ${countError?.message}`)
-
-  const offsets: number[] = []
-  for (let from = 0; from < count; from += PAGE_SIZE) offsets.push(from)
-
-  const results: any[][] = new Array(offsets.length)
-  const CONCURRENCY = 6
-  for (let i = 0; i < offsets.length; i += CONCURRENCY) {
-    await Promise.all(
-      offsets.slice(i, i + CONCURRENCY).map(async (from, j) => {
-        results[i + j] = await fetchPage(from)
-      }),
-    )
+  // SEQUENTIAL paging on purpose: parallel page fetches contend for the same
+  // cold buffers and every statement trips the DB timeout (tried CONCURRENCY
+  // 6 — the endpoint 500'd consistently). Sequential pages warm the cache as
+  // they go and reliably complete; the day-long stale-while-revalidate below
+  // keeps this rebuild off the user's request path.
+  const all: any[] = []
+  let from = 0
+  while (true) {
+    const page = await fetchPage(from)
+    if (page.length === 0) break
+    all.push(...page)
+    if (page.length < PAGE_SIZE) break
+    from += PAGE_SIZE
   }
-  return results.flat()
+  return all
 }
 
 // Flagship-feature detection so feature-level KPIs work on live data.
