@@ -14,7 +14,35 @@ const PAGE_SIZE = 1000
 // raw_data subfields the post-resolver needs are projected out individually.
 const POST_COLUMNS =
   "external_id,platform,post_url,caption,likes_count,views_count,published_at," +
-  "short_code:raw_data->>shortCode,unpacked:raw_data->>_unpacked"
+  "short_code:raw_data->>shortCode,unpacked:raw_data->>_unpacked," +
+  "owner_ig:raw_data->>ownerUsername,owner_tt:raw_data->authorMeta->>name," +
+  "owner_fb:raw_data->>pageName,owner_tw:raw_data->author->>userName," +
+  "src_input:raw_data->>inputUrl,src_fb:raw_data->>facebookUrl"
+
+// The tables also hold retailer/operator accounts (Xcite, Sharaf DG, Ooredoo,
+// Zain, stc, Omantel, du, Vodafone, e&, ...) from other scrapes. This
+// dashboard is strictly @samsunggulf: keep only brand-authored posts. Brand
+// reels/tweets sometimes lack author metadata, so fall back to the post URL /
+// scrape-input URL, which carries the profile.
+function isBrandPost(p: any): boolean {
+  const s = (v: unknown) => String(v || "").toLowerCase().replace(/\s+/g, "")
+  switch (p.platform) {
+    case "instagram":
+      return s(p.owner_ig) === "samsunggulf"
+    case "tiktok":
+      return s(p.owner_tt) === "samsunggulf"
+    case "facebook":
+      return (
+        s(p.owner_fb) === "samsunggulf" ||
+        s(p.src_input).includes("/samsunggulf") ||
+        s(p.src_fb).includes("/samsunggulf")
+      )
+    case "twitter":
+      return s(p.owner_tw) === "samsunggulf" || s(p.post_url).includes("/samsunggulf/")
+    default:
+      return false
+  }
+}
 const COMMENT_COLUMNS =
   "external_id,external_post_id,platform,text,author_username,published_at," +
   "sentiment,sentiment_score,sentiment_analyzed_at,flags,likes_count,features," +
@@ -125,15 +153,23 @@ export async function GET(_request: NextRequest) {
     // Galaxy Unpacked campaign rows (influencer videos + their comments) live
     // in the same tables tagged raw_data._unpacked — they belong to /unpacked,
     // not the Social Reviews dashboard.
-    const supabasePosts = supabasePostsAll.filter((p: any) => p.unpacked !== "true")
+    const nonUnpackedPosts = supabasePostsAll.filter((p: any) => p.unpacked !== "true")
     const supabaseComments = supabaseCommentsAll.filter((c: any) => c.unpacked !== "true")
+
+    // Strictly @samsunggulf. Excluded (retailer/operator) posts still register
+    // their aliases below so their comments can be dropped too.
+    const supabasePosts = nonUnpackedPosts.filter(isBrandPost)
+    const excludedPosts = nonUnpackedPosts.filter((p: any) => !isBrandPost(p))
 
     // Map posts. Register every alias a comment might use to reference its
     // parent post — external id, Instagram shortcode AND numeric media id
     // (two encodings of the same number), and the post URL itself — because
     // historical imports and different actors used different key schemes.
-    const postKeyIndex = new Map<string, { externalId: string; url: string }>()
-    const registerPostKey = (key: string | null | undefined, entry: { externalId: string; url: string }) => {
+    const postKeyIndex = new Map<string, { externalId: string; url: string; excluded?: boolean }>()
+    const registerPostKey = (
+      key: string | null | undefined,
+      entry: { externalId: string; url: string; excluded?: boolean },
+    ) => {
       if (!key) return
       if (!postKeyIndex.has(key)) postKeyIndex.set(key, entry)
     }
@@ -173,8 +209,30 @@ export async function GET(_request: NextRequest) {
       }
     })
 
+    // Register aliases for non-brand posts (after brand posts, so brand wins
+    // any collision) so their comments resolve to an excluded entry and get
+    // dropped — retailer/operator comment threads must not leak into brand
+    // sentiment.
+    for (const p of excludedPosts) {
+      const url = String(p.post_url || "")
+      const entry = { externalId: String(p.external_id || ""), url, excluded: true }
+      registerPostKey(p.external_id, entry)
+      registerPostKey(url, entry)
+      registerPostKey(url.replace(/\/+$/, ""), entry)
+      if (p.platform === "facebook") {
+        for (const m of url.matchAll(/\/(\d{10,})/g)) registerPostKey(m[1], entry)
+      }
+      if (p.platform === "instagram") {
+        const extId = String(p.external_id || "")
+        registerPostKey(p.short_code, entry)
+        if (/^\d+$/.test(extId)) registerPostKey(instagramIdToShortcode(extId), entry)
+        else registerPostKey(instagramShortcodeToId(extId), entry)
+        registerPostKey(instagramShortcodeFromUrl(url), entry)
+      }
+    }
+
     // Resolve a comment's parent post through any of the registered aliases.
-    const resolvePost = (c: any): { externalId: string; url: string } | undefined => {
+    const resolvePost = (c: any): { externalId: string; url: string; excluded?: boolean } | undefined => {
       const refs: (string | null | undefined)[] = [
         c.external_post_id,
         c.raw_post_ref,
@@ -204,10 +262,15 @@ export async function GET(_request: NextRequest) {
     }
 
     // Map comments. Prefer stored LLM sentiment; fall back to keywords only when
-    // the comment has not been analyzed yet.
-    const comments = supabaseComments.map((c: any) => {
+    // the comment has not been analyzed yet. Comments on excluded
+    // (retailer/operator) posts are dropped; unresolved comments are kept —
+    // the comment pipeline only scrapes brand threads.
+    let analyzed = 0
+    const comments = supabaseComments.flatMap((c: any) => {
       const sentiment = c.sentiment || fallbackSentiment(c.text || "")
       const parent = resolvePost(c)
+      if (parent?.excluded) return []
+      if (c.sentiment_analyzed_at) analyzed++
       return {
         id: `supabase-${c.external_id}`,
         postId: `supabase-${parent?.externalId || c.external_post_id}`,
@@ -226,8 +289,6 @@ export async function GET(_request: NextRequest) {
         source: "synced",
       }
     })
-
-    const analyzed = supabaseComments.filter((c: any) => c.sentiment_analyzed_at).length
 
     return NextResponse.json(
       {

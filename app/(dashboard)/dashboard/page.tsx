@@ -13,7 +13,7 @@ import { SocialFeed } from "@/components/dashboard/social-feed"
 import { CommentsFeed } from "@/components/dashboard/comments-feed"
 import { TopComments } from "@/components/dashboard/top-comments"
 import { LastWeekPosts } from "@/components/dashboard/last-week-posts"
-import { FeatureKPIs } from "@/components/dashboard/feature-kpis"
+import { F8LaunchAnalysis } from "@/components/dashboard/f8-launch-analysis"
 import { InfluencerAnalytics, InfluencerKPIs } from "@/components/reviews/influencer-analytics"
 import { PlatformFilter, usePlatformFilter } from "@/components/dashboard/platform-filter"
 import { DateFilter, useDateFilter } from "@/components/dashboard/date-filter"
@@ -122,13 +122,9 @@ function DashboardContent() {
             <BrandHealthTrend platformFilter={commentPlatformFilter} dateRange={dateRangeProp} />
           </Suspense>
 
-          {/* Section 3: S26 Keywords — Feature KPIs (Nightography, Privacy Display, Horizontal Lock, Galaxy AI) */}
+          {/* Section 3: Galaxy F8 launch analysis — Fold 8 / Fold 8 Ultra / Flip 8 */}
           <Suspense fallback={<ChartSkeleton />}>
-            <FeatureKPIs
-              platformFilter={commentPlatformFilter}
-              dateRange={dateRangeProp}
-              segmentation={segmentation}
-            />
+            <F8LaunchAnalysis platformFilter={commentPlatformFilter} dateRange={dateRangeProp} />
           </Suspense>
 
           {/* Section 3: Performance Analysis */}

@@ -26,6 +26,67 @@ const SCHEDULED_ACTORS = {
 
 const SCHEDULE_ID = "AzNWcc9ZQxFcie6el"
 
+// Public store actors used for the late-comment recheck (posts keep receiving
+// comments for days after the nightly scrape). SHARED with the Galaxy
+// Unpacked pipeline — safe because each side filters ingested comments to its
+// own parent posts (brand posts here, campaign posts there).
+const PUBLIC_COMMENT_ACTORS = {
+  instagram: "SbK00X0JYCPblD2wp", // apify/instagram-comment-scraper
+  tiktok: "BDec00yAmCm1QbMEI", // clockworks/tiktok-comments-scraper
+}
+
+// The tables also hold retailer/operator accounts from other scrapes; the
+// brand pipeline must only scrape and attribute @samsunggulf content.
+const BRAND_POST_COLUMNS =
+  "external_id,platform,post_url,published_at," +
+  "owner_ig:raw_data->>ownerUsername,owner_tt:raw_data->authorMeta->>name," +
+  "owner_fb:raw_data->>pageName,owner_tw:raw_data->author->>userName," +
+  "src_input:raw_data->>inputUrl,src_fb:raw_data->>facebookUrl"
+
+function isBrandAuthored(p: any): boolean {
+  const s = (v: unknown) => String(v || "").toLowerCase().replace(/\s+/g, "")
+  switch (p.platform) {
+    case "instagram":
+      return s(p.owner_ig) === "samsunggulf"
+    case "tiktok":
+      return s(p.owner_tt) === "samsunggulf"
+    case "facebook":
+      return (
+        s(p.owner_fb) === "samsunggulf" ||
+        s(p.src_input).includes("/samsunggulf") ||
+        s(p.src_fb).includes("/samsunggulf")
+      )
+    case "twitter":
+      return s(p.owner_tw) === "samsunggulf" || s(p.post_url).includes("/samsunggulf/")
+    default:
+      return false
+  }
+}
+
+// Brand-authored posts for a platform, optionally limited to a publish
+// window. Paginated — the posts table holds 16k+ rows across many accounts.
+async function getBrandPosts(platform: string, sinceIso?: string): Promise<any[]> {
+  const supabase = await createClient()
+  const PAGE = 1000
+  const rows: any[] = []
+  let from = 0
+  while (true) {
+    let q = supabase
+      .from("social_posts")
+      .select(BRAND_POST_COLUMNS)
+      .eq("platform", platform)
+      .order("id", { ascending: true })
+      .range(from, from + PAGE - 1)
+    if (sinceIso) q = q.gte("published_at", sinceIso)
+    const { data, error } = await q
+    if (error || !data || data.length === 0) break
+    rows.push(...data)
+    if (data.length < PAGE) break
+    from += PAGE
+  }
+  return rows.filter(isBrandAuthored)
+}
+
 interface ApifyRun {
   id: string
   actId: string
@@ -502,21 +563,22 @@ export async function syncTwitterReplies(runCount = RUNS_TO_SYNC) {
   return { inserted, total: items.length }
 }
 
-// Fire comment scrapes for posts published in the last `daysBack` days.
-// Fire-and-forget with charge caps: today's runs are ingested by TOMORROW's
-// sync (getRecentRunsItems), so the cron never waits on them.
+// Fire comment scrapes for BRAND posts published in the last `daysBack` days.
+// Every post is re-scraped nightly for `daysBack` days after publishing, so
+// comments that arrive after the first scrape are still captured. Fire-and-
+// forget with charge caps: today's runs are ingested by TOMORROW's sync
+// (getRecentRunsItems), so the cron never waits on them.
 export async function startCommentScrapes(daysBack = 3) {
-  const supabase = await createClient()
   const since = new Date(Date.now() - daysBack * 86400000).toISOString()
-  const started: Record<string, string | null> = { facebookComments: null, twitterReplies: null }
+  const started: Record<string, string | null> = {
+    facebookComments: null,
+    twitterReplies: null,
+    instagramComments: null,
+    tiktokComments: null,
+  }
 
-  const { data: fbPosts } = await supabase
-    .from("social_posts")
-    .select("post_url")
-    .eq("platform", "facebook")
-    .gte("published_at", since)
-    .not("post_url", "is", null)
-  const fbUrls = [...new Set((fbPosts || []).map((p: any) => String(p.post_url).replace(/\/+$/, "")))]
+  const fbPosts = await getBrandPosts("facebook", since)
+  const fbUrls = [...new Set(fbPosts.filter((p) => p.post_url).map((p: any) => String(p.post_url).replace(/\/+$/, "")))]
   if (fbUrls.length > 0) {
     const res = await fetch(
       `https://api.apify.com/v2/acts/${SCHEDULED_ACTORS.facebookComments}/runs?token=${APIFY_TOKEN}&maxTotalChargeUsd=2`,
@@ -537,12 +599,8 @@ export async function startCommentScrapes(daysBack = 3) {
   // Wider window for X: replies often land days after the tweet, so re-scrape
   // conversations for the last 14 days of tweets (cheap at per-reply pricing).
   const xSince = new Date(Date.now() - Math.max(daysBack, 14) * 86400000).toISOString()
-  const { data: xPosts } = await supabase
-    .from("social_posts")
-    .select("external_id")
-    .eq("platform", "twitter")
-    .gte("published_at", xSince)
-  const conversationIds = [...new Set((xPosts || []).map((p: any) => String(p.external_id)))]
+  const xPosts = await getBrandPosts("twitter", xSince)
+  const conversationIds = [...new Set(xPosts.map((p: any) => String(p.external_id)))]
     .filter((id) => /^\d+$/.test(id))
   if (conversationIds.length > 0) {
     const res = await fetch(
@@ -557,7 +615,137 @@ export async function startCommentScrapes(daysBack = 3) {
     started.twitterReplies = out?.data?.id || null
   }
 
+  // Instagram + TikTok late-comment recheck: the scheduled comment actors
+  // only cover the newest posts, so re-scrape every brand post from the last
+  // `daysBack` days via the public actors.
+  const igPosts = await getBrandPosts("instagram", since)
+  const igUrls = [...new Set(igPosts.filter((p) => p.post_url).map((p: any) => String(p.post_url)))]
+  if (igUrls.length > 0) {
+    const res = await fetch(
+      `https://api.apify.com/v2/acts/${PUBLIC_COMMENT_ACTORS.instagram}/runs?token=${APIFY_TOKEN}&maxTotalChargeUsd=2`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ directUrls: igUrls, resultsLimit: 300 }),
+      },
+    )
+    const out = await res.json().catch(() => null)
+    started.instagramComments = out?.data?.id || null
+  }
+
+  const ttPosts = await getBrandPosts("tiktok", since)
+  const ttUrls = [...new Set(ttPosts.filter((p) => p.post_url).map((p: any) => String(p.post_url)))]
+  if (ttUrls.length > 0) {
+    const res = await fetch(
+      `https://api.apify.com/v2/acts/${PUBLIC_COMMENT_ACTORS.tiktok}/runs?token=${APIFY_TOKEN}&maxTotalChargeUsd=2`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postURLs: ttUrls, commentsPerPost: 300 }),
+      },
+    )
+    const out = await res.json().catch(() => null)
+    started.tiktokComments = out?.data?.id || null
+  }
+
   return started
+}
+
+// Ingest brand comments from the public comment actors' recent runs. These
+// actors are shared with the Galaxy Unpacked pipeline, so ONLY comments whose
+// parent is a brand post are kept.
+export async function syncLateComments(runCount = RUNS_TO_SYNC) {
+  const supabase = await createClient()
+  let inserted = 0
+
+  // Instagram — items: { id, text, ownerUsername, timestamp, likesCount, postUrl }
+  const igBrand = await getBrandPosts("instagram")
+  const igKeys = new Set<string>()
+  for (const p of igBrand) {
+    const extId = String(p.external_id || "")
+    if (extId) igKeys.add(extId)
+    const sc = instagramShortcodeFromUrl(p.post_url || "")
+    if (sc) {
+      igKeys.add(sc)
+      const numeric = instagramShortcodeToId(sc)
+      if (numeric) igKeys.add(numeric)
+    }
+  }
+  const igItems = await (async () => {
+    const runs = await getLatestRuns(PUBLIC_COMMENT_ACTORS.instagram, runCount)
+    const all: any[] = []
+    for (const run of runs.reverse()) all.push(...(await getDatasetItems<any>(run.defaultDatasetId)))
+    return all
+  })()
+  const igSeen = new Set<string>()
+  for (const c of [...igItems].reverse()) {
+    const text = (c.text || "").trim()
+    if (!text) continue
+    const sc = instagramShortcodeFromUrl(c.postUrl || "")
+    if (!sc) continue
+    const numeric = instagramShortcodeToId(sc)
+    if (!igKeys.has(sc) && !igKeys.has(numeric || "")) continue
+    const commentId = c.id || `${sc}_${c.ownerUsername || "user"}_${c.timestamp || text.slice(0, 40)}`
+    if (igSeen.has(String(commentId))) continue
+    igSeen.add(String(commentId))
+    const { error } = await supabase.from("social_comments").upsert(
+      {
+        platform: "instagram",
+        external_id: String(commentId),
+        external_post_id: numeric || sc,
+        text,
+        author_username: c.ownerUsername || "unknown",
+        likes_count: c.likesCount || 0,
+        published_at: c.timestamp ? new Date(c.timestamp).toISOString() : new Date().toISOString(),
+        scraped_at: new Date().toISOString(),
+        raw_data: c,
+      },
+      { onConflict: "platform,external_id" },
+    )
+    if (!error) inserted++
+  }
+
+  // TikTok — items: { cid, text, diggCount, uniqueId, createTimeISO, videoWebUrl }
+  const ttBrand = await getBrandPosts("tiktok")
+  const ttKeys = new Set<string>(ttBrand.map((p) => String(p.external_id || "")))
+  const ttItems = await (async () => {
+    const runs = await getLatestRuns(PUBLIC_COMMENT_ACTORS.tiktok, runCount)
+    const all: any[] = []
+    for (const run of runs.reverse()) all.push(...(await getDatasetItems<any>(run.defaultDatasetId)))
+    return all
+  })()
+  const ttSeen = new Set<string>()
+  for (const c of [...ttItems].reverse()) {
+    const text = (c.text || c.comment || "").trim()
+    if (!text) continue
+    const videoUrl = c.videoWebUrl || c.submittedVideoUrl || c.video_url || ""
+    const videoId = videoUrl.match(/video\/(\d+)/)?.[1]
+    if (!videoId || !ttKeys.has(videoId)) continue
+    const commentId = c.cid || c.id
+    if (!commentId || ttSeen.has(String(commentId))) continue
+    ttSeen.add(String(commentId))
+    const { error } = await supabase.from("social_comments").upsert(
+      {
+        platform: "tiktok",
+        external_id: String(commentId),
+        external_post_id: videoId,
+        text,
+        author_username: c.uniqueId || c.user?.uniqueId || c.author_username || "unknown",
+        likes_count: c.diggCount ?? c.likes ?? 0,
+        published_at: c.createTimeISO
+          ? new Date(c.createTimeISO).toISOString()
+          : c.created_at
+            ? new Date(c.created_at).toISOString()
+            : new Date().toISOString(),
+        scraped_at: new Date().toISOString(),
+        raw_data: c,
+      },
+      { onConflict: "platform,external_id" },
+    )
+    if (!error) inserted++
+  }
+
+  return { inserted, total: igItems.length + ttItems.length }
 }
 
 export async function syncFacebookPosts(runCount = RUNS_TO_SYNC) {
@@ -685,7 +873,8 @@ export async function syncInstagramComments(runCount = RUNS_TO_SYNC) {
 
 // `runCount` lets a manual backfill ingest deeper history (e.g. every run
 // since the schedule was created) instead of the default recent window.
-export async function syncAllPlatforms(runCount = RUNS_TO_SYNC) {
+// `ingestOnly` harvests completed Apify runs without starting new paid ones.
+export async function syncAllPlatforms(runCount = RUNS_TO_SYNC, opts: { ingestOnly?: boolean } = {}) {
   const results = {
     twitter: await syncTwitterPosts(runCount),
     instagram: await syncInstagramPosts(runCount),
@@ -696,13 +885,17 @@ export async function syncAllPlatforms(runCount = RUNS_TO_SYNC) {
     facebook: await syncFacebookPosts(runCount),
     facebookComments: await syncFacebookComments(runCount),
     twitterReplies: await syncTwitterReplies(runCount),
+    // IG/TikTok late-comment recheck runs (public actors, brand-filtered).
+    lateComments: await syncLateComments(runCount),
   }
 
   // Kick off today's comment scrapes for fresh posts (ingested tomorrow).
-  try {
-    await startCommentScrapes()
-  } catch (e) {
-    console.error("[v0] Failed to start comment scrapes:", e)
+  if (!opts.ingestOnly) {
+    try {
+      await startCommentScrapes()
+    } catch (e) {
+      console.error("[v0] Failed to start comment scrapes:", e)
+    }
   }
 
   // After syncing, analyze any freshly inserted comments so the dashboard never

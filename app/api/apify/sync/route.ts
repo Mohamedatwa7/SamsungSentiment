@@ -27,7 +27,8 @@ async function writeNormalizedData(data: unknown) {
 
 // The actual sync work, shared by the cron (GET) and manual (POST) entry points.
 // `runsToSync` (optional) deepens the per-actor run window for backfills.
-async function runFullSync(runsToSync?: number) {
+// `ingestOnly` harvests completed Apify runs without starting new paid ones.
+async function runFullSync(runsToSync?: number, ingestOnly?: boolean) {
   const supabase = await createClient()
 
   // Log sync start
@@ -42,7 +43,7 @@ async function runFullSync(runsToSync?: number) {
     .single()
 
   // Sync all platforms
-  const results = await syncAllPlatforms(runsToSync)
+  const results = await syncAllPlatforms(runsToSync, { ingestOnly })
 
   // Calculate totals
   const totalInserted = Object.values(results)
@@ -150,7 +151,7 @@ export async function POST(request: NextRequest) {
         ? Math.max(1, Math.min(200, Math.floor(body.runsToSync)))
         : undefined
 
-    const result = await runFullSync(runsToSync)
+    const result = await runFullSync(runsToSync, body.ingestOnly === true)
     return NextResponse.json(result)
   } catch (error) {
     console.error("Sync error:", error)
