@@ -39,6 +39,11 @@ export function youtubeVideoId(url: string): string | null {
 
 export const ROSTER_ID_PREFIX = "roster_"
 
+// Historical F7-launch posts by the same roster (July 2025) — kept separate
+// from the current FF8 videos so they feed the launch-comparison pie without
+// appearing in the FF8 roster cards.
+export const F7_ROSTER_PREFIX = `${ROSTER_ID_PREFIX}f7_`
+
 export function stripRosterPrefix(id: string): string {
   return id.startsWith(ROSTER_ID_PREFIX) ? id.slice(ROSTER_ID_PREFIX.length) : id
 }
@@ -258,6 +263,131 @@ export async function syncRosterYouTubePosts(runCount = RUNS_TO_SYNC) {
   return { inserted, matched, total: items.length }
 }
 
+// ---------------------------------------------------------------------------
+// F7-era roster posts (July 2025) for the launch-vs-launch comparison
+// ---------------------------------------------------------------------------
+
+const F7R_START = new Date("2025-07-08T20:00:00Z") // Jul 9, 2025 00:00 Gulf
+const F7R_END = new Date("2025-07-20T20:00:00Z") // Jul 21, 2025 00:00 Gulf
+const F7R_MARKERS = /fold|flip|فولد|فليب|فلب|unpacked|انباكد|أنباكد|galaxy\s*z|jointheflipside/i
+
+// The brand sync's IG posts actor (apify/instagram-post-scraper) — sharing is
+// safe because syncInstagramPosts keeps only samsunggulf-authored items and
+// this ingest keeps only roster-authored ones.
+const IG_POST_ACTOR = "nH2AHrwxeTRJoN5hX"
+
+export async function startF7RosterScrapes() {
+  const igHandles = FF8_ROSTER.filter((r) => r.platform === "instagram").map((r) => r.handle)
+  const ttHandles = FF8_ROSTER.filter((r) => r.platform === "tiktok").map((r) => r.handle)
+  const started: Record<string, string | null> = {}
+
+  // Instagram cannot date-bound a profile scrape: page newest-first back to
+  // July 2025 with a floor date and a hard charge cap.
+  started.f7RosterInstagram = await startActorRun(
+    IG_POST_ACTOR,
+    { username: igHandles, resultsLimit: 400, onlyPostsNewerThan: "2025-07-05" },
+    10,
+  )
+  started.f7RosterTikTok = await startActorRun(
+    ROSTER_ACTORS.tiktokProfiles,
+    {
+      profiles: ttHandles,
+      resultsPerPage: 60,
+      profileSorting: "latest",
+      oldestPostDateUnified: "2025-07-01",
+      newestPostDate: "2025-07-21",
+    },
+    5,
+  )
+  return started
+}
+
+export async function syncF7RosterPosts(runCount = RUNS_TO_SYNC) {
+  const supabase = await createClient()
+  const inWindow = (ts: unknown) => {
+    const t = new Date(ts as string).getTime()
+    return !isNaN(t) && t >= F7R_START.getTime() && t < F7R_END.getTime()
+  }
+  let inserted = 0
+  let matched = 0
+  const errors: string[] = []
+
+  const igItems = await getRecentRunsItems<any>(IG_POST_ACTOR, runCount)
+  for (const post of igItems) {
+    const influencer = rosterByHandle(post?.ownerUsername)
+    if (!influencer) continue
+    if (!inWindow(post.timestamp) || !F7R_MARKERS.test(post.caption || "")) continue
+    const externalId = post.id || post.shortCode
+    if (!externalId) continue
+    matched++
+    const { error } = await supabase.from("social_posts").upsert(
+      {
+        platform: "instagram",
+        external_id: F7_ROSTER_PREFIX + String(externalId),
+        post_url: post.url || (post.shortCode ? `https://www.instagram.com/p/${post.shortCode}/` : ""),
+        caption: post.caption || "",
+        media_type: post.type || "Video",
+        media_url: post.displayUrl,
+        likes_count: Math.max(0, post.likesCount || 0),
+        comments_count: post.commentsCount || 0,
+        views_count: post.videoPlayCount || post.videoViewCount || 0,
+        published_at: new Date(post.timestamp).toISOString(),
+        scraped_at: new Date().toISOString(),
+        raw_data: {
+          ...post,
+          _roster: true,
+          _f7: true,
+          _rosterId: influencer.id,
+          _rosterName: influencer.name,
+          _rosterCategory: influencer.category,
+        },
+      },
+      { onConflict: "platform,external_id" },
+    )
+    if (error) errors.push(error.message)
+    else inserted++
+  }
+
+  const ttItems = await getRecentRunsItems<any>(ROSTER_ACTORS.tiktokProfiles, runCount)
+  for (const post of ttItems) {
+    const influencer = rosterByHandle(post?.authorMeta?.name)
+    if (!influencer || !post.id) continue
+    const publishedAt = post.createTimeISO || (post.createTime ? new Date(post.createTime * 1000) : null)
+    if (!inWindow(publishedAt) || !F7R_MARKERS.test(post.text || "")) continue
+    matched++
+    const { error } = await supabase.from("social_posts").upsert(
+      {
+        platform: "tiktok",
+        external_id: F7_ROSTER_PREFIX + String(post.id),
+        post_url: post.webVideoUrl || `https://www.tiktok.com/@${influencer.handle}/video/${post.id}`,
+        caption: post.text || "",
+        media_type: "video",
+        media_url: post.videoMeta?.coverUrl,
+        likes_count: Math.max(0, post.diggCount || 0),
+        comments_count: post.commentCount || 0,
+        shares_count: post.shareCount || 0,
+        views_count: post.playCount || 0,
+        published_at: new Date(publishedAt as any).toISOString(),
+        scraped_at: new Date().toISOString(),
+        raw_data: {
+          ...post,
+          _roster: true,
+          _f7: true,
+          _rosterId: influencer.id,
+          _rosterName: influencer.name,
+          _rosterCategory: influencer.category,
+        },
+      },
+      { onConflict: "platform,external_id" },
+    )
+    if (error) errors.push(error.message)
+    else inserted++
+  }
+
+  if (errors.length > 0) console.error("[roster] F7 post sync errors (first 5):", errors.slice(0, 5))
+  return { inserted, matched, total: igItems.length + ttItems.length }
+}
+
 interface RosterPostRow {
   external_id: string
   platform: string
@@ -443,9 +573,13 @@ export async function syncRoster(opts: { ingestOnly?: boolean } = {}) {
   const instagramPosts = await syncRosterInstagramPosts()
   const tiktokPosts = await syncRosterTikTokPosts()
   const youtubePosts = await syncRosterYouTubePosts()
+  // F7-era roster posts (July 2025); no-op when no historical runs exist.
+  // Their comment scrapes ride startRosterCommentScrapes automatically —
+  // roster_f7_ rows match the roster_% selection there.
+  const f7Posts = await syncF7RosterPosts()
   const comments = await syncRosterComments()
   const startedRuns = opts.ingestOnly
     ? {}
     : { ...(await startRosterPostScrapes()), ...(await startRosterCommentScrapes()) }
-  return { instagramPosts, tiktokPosts, youtubePosts, comments, startedRuns }
+  return { instagramPosts, tiktokPosts, youtubePosts, f7Posts, comments, startedRuns }
 }

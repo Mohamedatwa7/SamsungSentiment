@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { syncUnpacked, campaignEnded, CAMPAIGN_END } from "@/lib/unpacked-sync"
+import { startF7RosterScrapes } from "@/lib/roster-sync"
 
 // Two Apify scrape waves + LLM sentiment need headroom, same as /api/apify/sync.
 export const maxDuration = 300
@@ -15,6 +16,13 @@ export async function POST(request: NextRequest) {
     const authHeader = request.headers.get("authorization")
     if (cronSecret && authHeader !== `Bearer ${cronSecret}` && !body.manual) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    // One-off: fire historical scrapes for the roster's F7-era posts
+    // (July 2025); results are harvested by subsequent ingest passes.
+    if (body.f7Roster === true) {
+      const started = await startF7RosterScrapes()
+      return NextResponse.json({ success: true, started })
     }
 
     if (campaignEnded() && !body.force) {

@@ -398,7 +398,10 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
     revalidateOnFocus: false,
     dedupingInterval: 60000,
   })
-  const { data: rosterData } = useSWR<{ videos?: UnpackedVideo[] }>("/api/roster", swrFetcher, {
+  const { data: rosterData } = useSWR<{
+    videos?: UnpackedVideo[]
+    f7Comments?: { text: string; caption: string; sentiment: string; publishedAt: string | null }[]
+  }>("/api/roster", swrFetcher, {
     revalidateOnFocus: false,
     dedupingInterval: 60000,
   })
@@ -594,10 +597,19 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
       .sort((a, b) => b.likes - a.likes)
       .slice(0, 3)
 
-    // Launch-vs-launch pies. F7 always reads the brand corpus — influencer
-    // tracking didn't exist in July 2025. F8 follows the current selection.
+    // Launch-vs-launch pies. F7 reads the brand corpus PLUS the roster's
+    // scraped F7-era posts (July 2025). F8 follows the current selection.
     const compare = launchCompareWindows()
-    const f7Split = foldableLaunchSplit(brandAll, compare.f7)
+    const f7InfluencerComments = (rosterData?.f7Comments || []).map(
+      (c) =>
+        ({
+          text: c.text,
+          postCaption: c.caption,
+          sentiment: c.sentiment,
+          createdAt: c.publishedAt || "",
+        }) as unknown as Comment,
+    )
+    const f7Split = foldableLaunchSplit([...brandAll, ...f7InfluencerComments], compare.f7)
     const f8Split = foldableLaunchSplit(selectionComments, compare.f8)
 
     return {
@@ -619,7 +631,7 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
       topPositive,
       topNegative,
     }
-  }, [getFilteredComments, platformFilter, activeDevice, source, selectedDays, influencerComments])
+  }, [getFilteredComments, platformFilter, activeDevice, source, selectedDays, influencerComments, rosterData])
 
   const { overall } = analysis
   const netSentiment = pct(overall.positive, overall.total) - pct(overall.negative, overall.total)
@@ -1054,7 +1066,7 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
               <div className="grid gap-3 md:grid-cols-2">
                 <LaunchPie
                   title="Fold 7 / Flip 7 Launch"
-                  subtitle={`${windowLabel(F7_LAUNCH, analysis.compareDays)} · Samsung socials`}
+                  subtitle={`${windowLabel(F7_LAUNCH, analysis.compareDays)} · Samsung socials + influencers`}
                   split={analysis.f7Split}
                 />
                 <LaunchPie

@@ -286,8 +286,12 @@ export async function syncInstagramPosts(runCount = RUNS_TO_SYNC) {
   const supabase = await createClient()
   const posts = await getRecentRunsItems<InstagramPost>(SCHEDULED_ACTORS.instagram, runCount)
   let inserted = 0
-  
+
   for (const post of posts) {
+    // Only the brand's own posts. The FF8 roster pipeline also runs this
+    // actor (historical influencer scrapes) — its runs must not be ingested
+    // here as brand posts.
+    if ((post.ownerUsername || "").toLowerCase() !== "samsunggulf") continue
     const { error } = await supabase
       .from("social_posts")
       .upsert({

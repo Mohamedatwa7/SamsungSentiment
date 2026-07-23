@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { instagramShortcodeToId, instagramShortcodeFromUrl } from "@/lib/instagram-id"
-import { ROSTER_ID_PREFIX, stripRosterPrefix, youtubeVideoId } from "@/lib/roster-sync"
+import { ROSTER_ID_PREFIX, F7_ROSTER_PREFIX, stripRosterPrefix, youtubeVideoId } from "@/lib/roster-sync"
 import { FF8_ROSTER } from "@/lib/roster"
 import type { UnpackedComment, UnpackedSentiment, UnpackedVideo } from "@/lib/unpacked-data"
 
@@ -89,8 +89,13 @@ export async function GET() {
       if (key && !aliasToVideo.has(key)) aliasToVideo.set(key, video)
     }
 
+    // F7-era roster posts (July 2025) feed the launch-comparison pie, not the
+    // FF8 roster cards — collected separately.
+    const f7Videos: RosterVideo[] = []
+
     for (const p of postRows) {
       const raw = (p.raw_data || {}) as any
+      const isF7 = String(p.external_id || "").startsWith(F7_ROSTER_PREFIX) || raw._f7 === true
       // YouTube rows are stored under a constraint-allowed platform with
       // raw_data._platform carrying the real one.
       const platform = (raw._platform === "youtube" ? "youtube" : p.platform) as
@@ -98,7 +103,7 @@ export async function GET() {
         | "tiktok"
         | "youtube"
       const url = p.post_url || ""
-      const externalId = stripRosterPrefix(String(p.external_id || ""))
+      const externalId = stripRosterPrefix(String(p.external_id || "")).replace(/^f7_/, "")
       const roster = FF8_ROSTER.find((r) => r.id === raw._rosterId)
 
       let embedUrl = ""
@@ -145,7 +150,7 @@ export async function GET() {
         rosterName: raw._rosterName || roster?.name || "Creator",
         category: raw._rosterCategory || roster?.category || "Content Creator",
       }
-      videos.push(video)
+      ;(isF7 ? f7Videos : videos).push(video)
 
       register(externalId, video)
       register(url.replace(/\/+$/, ""), video)
@@ -193,13 +198,25 @@ export async function GET() {
     for (const v of videos) v.comments.sort((a, b) => b.likes - a.likes)
     videos.sort((a, b) => b.views - a.views)
 
+    // Flattened F7-era influencer comments for the launch-comparison pie.
+    const f7Comments = f7Videos.flatMap((v) =>
+      v.comments.map((c) => ({
+        text: c.text,
+        caption: v.caption,
+        sentiment: c.sentiment,
+        publishedAt: c.publishedAt,
+      })),
+    )
+
     return NextResponse.json(
       {
         videos,
         roster: FF8_ROSTER,
+        f7Comments,
         meta: {
           generatedAt: new Date().toISOString(),
           analyzedComments: analyzedCount,
+          f7Videos: f7Videos.length,
         },
       },
       { headers: { "Cache-Control": "public, s-maxage=120, stale-while-revalidate=600" } },
