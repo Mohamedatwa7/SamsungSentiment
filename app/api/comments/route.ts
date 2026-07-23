@@ -6,8 +6,10 @@ import {
   instagramShortcodeFromUrl,
 } from "@/lib/instagram-id"
 
-// Supabase caps each request at 1000 rows; we paginate to fetch everything.
-const PAGE_SIZE = 1000
+// Paginate in small pages: with 8+ JSONB projections per row, 1000-row pages
+// exceed the DB statement timeout on a cold cache — 500-row pages stay under
+// it (each statement does half the detoast work).
+const PAGE_SIZE = 500
 
 // Narrow column lists — selecting * would drag the full raw_data JSONB for
 // tens of thousands of rows and blow Supabase's statement timeout. The two
@@ -64,7 +66,7 @@ async function fetchAll(
     // edge-cached and silently hides most of the corpus).
     let page: any[] | null = null
     let lastError = ""
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (let attempt = 0; attempt < 5; attempt++) {
       const { data, error } = await supabase
         .from(table)
         .select(columns)
@@ -76,7 +78,7 @@ async function fetchAll(
       }
       lastError = error.message
       console.error(`[v0] ${table} page at ${from} attempt ${attempt + 1} failed:`, error.message)
-      await new Promise((r) => setTimeout(r, 400))
+      await new Promise((r) => setTimeout(r, 600))
     }
     if (page === null) throw new Error(`Fetching ${table} failed at offset ${from}: ${lastError}`)
     if (page.length === 0) break
