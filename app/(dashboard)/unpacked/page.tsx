@@ -5,11 +5,25 @@ import useSWR from "swr"
 import { CalendarClock, Clapperboard } from "lucide-react"
 
 import { cn } from "@/lib/utils"
-import { computeTotals, formatCompact, type UnpackedPayload } from "@/lib/unpacked-data"
+import {
+  computeTotals,
+  formatCompact,
+  videoPositivePercent,
+  type UnpackedPayload,
+  type UnpackedVideo,
+} from "@/lib/unpacked-data"
 import { UnpackedKPIs } from "@/components/unpacked/unpacked-kpis"
+import { UnpackedKPITrend } from "@/components/unpacked/unpacked-kpi-trend"
 import { UnpackedVideoCards } from "@/components/unpacked/unpacked-video-cards"
 import { UnpackedCommentsFeed } from "@/components/unpacked/unpacked-comments-feed"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
@@ -28,22 +42,67 @@ function LoadingState() {
 
 type PlatformFilter = "all" | "instagram" | "tiktok"
 
+// Range filters: [min, max) — null bound = unbounded.
+const ER_RANGES: Record<string, { label: string; test: (v: UnpackedVideo) => boolean }> = {
+  all: { label: "Any rate", test: () => true },
+  lt1: { label: "Under 1%", test: (v) => v.engagementRate != null && v.engagementRate < 1 },
+  r1to5: { label: "1% – 5%", test: (v) => v.engagementRate != null && v.engagementRate >= 1 && v.engagementRate < 5 },
+  r5to10: { label: "5% – 10%", test: (v) => v.engagementRate != null && v.engagementRate >= 5 && v.engagementRate < 10 },
+  gt10: { label: "Over 10%", test: (v) => v.engagementRate != null && v.engagementRate >= 10 },
+}
+
+const VIEW_RANGES: Record<string, { label: string; test: (v: UnpackedVideo) => boolean }> = {
+  all: { label: "Any views", test: () => true },
+  lt10k: { label: "Under 10K", test: (v) => v.views < 10000 },
+  r10to100k: { label: "10K – 100K", test: (v) => v.views >= 10000 && v.views < 100000 },
+  r100to500k: { label: "100K – 500K", test: (v) => v.views >= 100000 && v.views < 500000 },
+  gt500k: { label: "Over 500K", test: (v) => v.views >= 500000 },
+}
+
+const SENTIMENT_RANGES: Record<string, { label: string; test: (v: UnpackedVideo) => boolean }> = {
+  all: { label: "Any sentiment", test: () => true },
+  gt75: { label: "Over 75% positive", test: (v) => (videoPositivePercent(v) ?? -1) >= 75 },
+  r50to75: {
+    label: "50% – 75% positive",
+    test: (v) => {
+      const p = videoPositivePercent(v)
+      return p != null && p >= 50 && p < 75
+    },
+  },
+  lt50: {
+    label: "Under 50% positive",
+    test: (v) => {
+      const p = videoPositivePercent(v)
+      return p != null && p < 50
+    },
+  },
+}
+
 export default function GalaxyUnpackedPage() {
   const { data, error, isLoading } = useSWR<UnpackedPayload>("/api/unpacked", fetcher, {
     revalidateOnFocus: false,
     dedupingInterval: 60000,
   })
   const [platform, setPlatform] = useState<PlatformFilter>("all")
+  const [erRange, setErRange] = useState("all")
+  const [viewsRange, setViewsRange] = useState("all")
+  const [sentimentRange, setSentimentRange] = useState("all")
 
   const hasData = !!data && !("error" in (data as object)) && data.videos !== undefined
 
-  // Platform filter drives everything below it — KPIs, cards, comments feed.
+  // Filters drive everything below the toolbar — KPIs, trend, cards, feed.
   const filtered = useMemo<UnpackedPayload | null>(() => {
     if (!hasData || !data) return null
-    if (platform === "all") return data
-    const videos = data.videos.filter((v) => v.platform === platform)
+    const videos = data.videos.filter(
+      (v) =>
+        (platform === "all" || v.platform === platform) &&
+        ER_RANGES[erRange].test(v) &&
+        VIEW_RANGES[viewsRange].test(v) &&
+        SENTIMENT_RANGES[sentimentRange].test(v),
+    )
+    if (videos.length === data.videos.length) return data
     return { ...data, videos, totals: computeTotals(videos) }
-  }, [data, hasData, platform])
+  }, [data, hasData, platform, erRange, viewsRange, sentimentRange])
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6">
@@ -89,9 +148,9 @@ export default function GalaxyUnpackedPage() {
 
       {!isLoading && hasData && data.videos.length > 0 && filtered && (
         <>
-          {/* Platform filter — drives KPIs, video cards and the comments feed */}
+          {/* Filters — drive KPIs, trend, video cards and the comments feed */}
           <div className="sticky top-14 z-20 -mx-4 border-y border-white/[0.06] bg-background/70 px-4 py-2.5 backdrop-blur-xl md:-mx-6 md:px-6">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="section-label mr-1">Platform</span>
               {(
                 [
@@ -122,11 +181,64 @@ export default function GalaxyUnpackedPage() {
                   {f.label} ({formatCompact(f.count)})
                 </button>
               ))}
+
+              <div className="mx-1 hidden h-5 w-px bg-white/[0.08] sm:block" />
+
+              <Select value={erRange} onValueChange={setErRange}>
+                <SelectTrigger className="h-8 w-auto gap-1.5 rounded-full border-white/[0.08] bg-white/[0.03] px-3.5 text-xs">
+                  <span className="text-muted-foreground">ER:</span>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(ER_RANGES).map(([key, r]) => (
+                    <SelectItem key={key} value={key} className="text-xs">
+                      {r.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={viewsRange} onValueChange={setViewsRange}>
+                <SelectTrigger className="h-8 w-auto gap-1.5 rounded-full border-white/[0.08] bg-white/[0.03] px-3.5 text-xs">
+                  <span className="text-muted-foreground">Views:</span>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(VIEW_RANGES).map(([key, r]) => (
+                    <SelectItem key={key} value={key} className="text-xs">
+                      {r.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={sentimentRange} onValueChange={setSentimentRange}>
+                <SelectTrigger className="h-8 w-auto gap-1.5 rounded-full border-white/[0.08] bg-white/[0.03] px-3.5 text-xs">
+                  <span className="text-muted-foreground">Sentiment:</span>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(SENTIMENT_RANGES).map(([key, r]) => (
+                    <SelectItem key={key} value={key} className="text-xs">
+                      {r.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {filtered.videos.length !== data.videos.length && (
+                <span className="text-xs text-muted-foreground">
+                  {filtered.videos.length} of {data.videos.length} videos
+                </span>
+              )}
             </div>
           </div>
 
           {/* Overall totals — views, likes, comments, engagements, blended ER */}
           <UnpackedKPIs data={filtered} />
+
+          {/* KPI performance over time — one graph, metric picked via filter */}
+          <UnpackedKPITrend data={filtered} />
 
           {/* One card per influencer video: playable embed, ER + comment count */}
           <div>

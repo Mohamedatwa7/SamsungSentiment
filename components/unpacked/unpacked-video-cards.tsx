@@ -1,10 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import { Activity, ExternalLink, Eye, Heart, MessageSquare, Share2 } from "lucide-react"
+import { Activity, ExternalLink, Eye, Heart, MessageSquare, Share2, ThumbsUp } from "lucide-react"
 
 import { cn } from "@/lib/utils"
-import { formatCompact, formatRate, type UnpackedVideo } from "@/lib/unpacked-data"
+import { formatCompact, formatRate, videoPositivePercent, type UnpackedVideo } from "@/lib/unpacked-data"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { SentimentBadge, SentimentBar } from "@/components/unpacked/sentiment-badge"
@@ -27,6 +27,7 @@ function PlatformBadge({ platform }: { platform: "instagram" | "tiktok" }) {
 function VideoCard({ video }: { video: UnpackedVideo }) {
   const [commentsOpen, setCommentsOpen] = useState(false)
   const scraped = video.comments.length
+  const positivePercent = videoPositivePercent(video)
 
   return (
     <Card className="glass-panel flex flex-col overflow-hidden">
@@ -60,24 +61,38 @@ function VideoCard({ video }: { video: UnpackedVideo }) {
           )}
         </div>
 
-        {/* Engagement rate + comment count, side by side */}
-        <div className="grid grid-cols-2 gap-2">
-          <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-3">
-            <p className="section-label flex items-center gap-1.5">
-              <Activity className="h-3 w-3" /> Engagement
+        {/* Engagement rate + comment count + comment sentiment, side by side */}
+        <div className="grid grid-cols-3 gap-2">
+          <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-2.5">
+            <p className="section-label flex items-center gap-1 truncate">
+              <Activity className="h-3 w-3 shrink-0" /> Engage
             </p>
-            <p className="kpi-value mt-1 text-2xl">{formatRate(video.engagementRate)}</p>
+            <p className="kpi-value mt-1 text-xl">{formatRate(video.engagementRate)}</p>
           </div>
           <button
             type="button"
             onClick={() => setCommentsOpen(true)}
-            className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-3 text-left transition-colors hover:border-primary/40 hover:bg-primary/10"
+            className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-2.5 text-left transition-colors hover:border-primary/40 hover:bg-primary/10"
           >
-            <p className="section-label flex items-center gap-1.5">
-              <MessageSquare className="h-3 w-3" /> Comments
+            <p className="section-label flex items-center gap-1 truncate">
+              <MessageSquare className="h-3 w-3 shrink-0" /> Comments
             </p>
-            <p className="kpi-value mt-1 text-2xl">{formatCompact(video.commentsCount)}</p>
+            <p className="kpi-value mt-1 text-xl">{formatCompact(video.commentsCount)}</p>
           </button>
+          <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-2.5">
+            <p className="section-label flex items-center gap-1 truncate">
+              <ThumbsUp className="h-3 w-3 shrink-0" /> Positive
+            </p>
+            <p
+              className={cn(
+                "kpi-value mt-1 text-xl",
+                positivePercent != null && positivePercent >= 60 && "text-positive",
+                positivePercent != null && positivePercent < 40 && "text-negative",
+              )}
+            >
+              {positivePercent == null ? "—" : `${positivePercent}%`}
+            </p>
+          </div>
         </div>
 
         {/* Views / likes / shares */}

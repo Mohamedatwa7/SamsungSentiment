@@ -101,6 +101,12 @@ export function computeTotals(videos: UnpackedVideo[]): UnpackedTotals {
   return totals
 }
 
+// Positive share of a video's scraped comments (null when none scraped yet).
+export function videoPositivePercent(v: UnpackedVideo): number | null {
+  const total = v.sentiment.positive + v.sentiment.neutral + v.sentiment.negative
+  return total > 0 ? Math.round((v.sentiment.positive / total) * 100) : null
+}
+
 export function formatCompact(num: number): string {
   if (num >= 1_000_000) return (num / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M"
   if (num >= 1_000) return (num / 1_000).toFixed(1).replace(/\.0$/, "") + "K"
