@@ -440,9 +440,9 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
     const purchaseComments: Comment[] = []
     const competitorComments: Comment[] = []
 
-    // Daily sentiment trend (from 2 days pre-launch)
-    const trendStart = new Date(LAUNCH_DATE)
-    trendStart.setDate(trendStart.getDate() - 2)
+    // Daily sentiment trend from launch day (Jul 22) onward — each new day
+    // appends automatically as comments arrive.
+    const trendStart = LAUNCH_DATE
     const daily = new Map<string, { day: string; total: number; positive: number; negative: number }>()
 
     const buyingTopic = TOPICS.find((t) => t.key === "buying")!
@@ -920,7 +920,7 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
             {/* Daily sentiment trend since launch */}
             {analysis.trend.length > 1 && (
               <div>
-                <p className="section-label mb-3">Launch Sentiment Trend (daily positive %)</p>
+                <p className="section-label mb-3">Launch Sentiment Trend (daily positive % · from July 22)</p>
                 <div className="h-[200px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={analysis.trend} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
