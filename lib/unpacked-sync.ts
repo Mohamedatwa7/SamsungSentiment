@@ -126,7 +126,7 @@ async function getRecentRunsItems<T>(actorId: string, runCount = RUNS_TO_SYNC): 
 async function startActorRun(
   actorId: string,
   input: Record<string, unknown>,
-  maxTotalChargeUsd = 3,
+  maxTotalChargeUsd = 2,
 ): Promise<string | null> {
   const res = await fetch(
     `https://api.apify.com/v2/acts/${actorId}/runs?token=${APIFY_TOKEN}&maxTotalChargeUsd=${maxTotalChargeUsd}`,
@@ -175,24 +175,27 @@ export async function startUnpackedPostScrapes() {
   const started: Record<string, string | null> = {}
   // Deep limits: around the July 22 event the tags get busy and Gulf
   // influencer posts must not fall outside the scraped window.
+  // Post-event trims (Jul 27): the reveal-week burst is over — shallower
+  // discovery still catches new posts (they surface at the top of LATEST/
+  // mention feeds) at a fraction of the per-result cost.
   started.instagramHashtag = await startActorRun(UNPACKED_ACTORS.instagramHashtag, {
     hashtags: SCRAPE_HASHTAGS,
-    resultsLimit: 250,
+    resultsLimit: 100,
   })
   started.instagramMentions = await startActorRun(UNPACKED_ACTORS.instagramMentions, {
     username: ["samsunggulf"],
-    resultsLimit: 250,
+    resultsLimit: 120,
   })
   started.tiktokHashtag = await startActorRun(UNPACKED_ACTORS.tiktokHashtag, {
     hashtags: SCRAPE_HASHTAGS,
-    resultsPerPage: 250,
+    resultsPerPage: 100,
   })
   started.tiktokSearch = await startActorRun(UNPACKED_ACTORS.tiktokSearch, {
     searchQueries: ["samsunggulf", "@samsunggulf"],
     searchSection: "/video",
     videoSearchSorting: "LATEST",
-    videoSearchDateFilter: "PAST_MONTH",
-    resultsPerPage: 150,
+    videoSearchDateFilter: "PAST_WEEK",
+    resultsPerPage: 75,
   })
   return started
 }
@@ -346,13 +349,24 @@ interface UnpackedPostRow {
   external_id: string
   platform: string
   post_url: string | null
+  published_at: string | null
+}
+
+// Comment activity dies off within days of posting; re-scraping every video
+// forever was the main credit drain. Only videos this fresh get their
+// comment sections re-scraped (ingest/parent-matching still uses ALL posts).
+const COMMENT_RESCRAPE_DAYS = 5
+
+function isFreshPost(row: { published_at: string | null }): boolean {
+  const t = new Date(row.published_at || 0).getTime()
+  return !isNaN(t) && t >= Date.now() - COMMENT_RESCRAPE_DAYS * 86400000
 }
 
 async function getUnpackedPostRows(): Promise<UnpackedPostRow[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from("social_posts")
-    .select("external_id,platform,post_url")
+    .select("external_id,platform,post_url,published_at")
     .like("external_id", `${UNPACKED_ID_PREFIX}%`)
   if (error) {
     console.error("[unpacked] Failed to read unpacked posts:", error.message)
@@ -390,7 +404,7 @@ function buildPostKeySet(rows: UnpackedPostRow[]): Set<string> {
 }
 
 export async function startUnpackedCommentScrapes() {
-  const rows = await getUnpackedPostRows()
+  const rows = (await getUnpackedPostRows()).filter(isFreshPost)
   const started: Record<string, string | null> = { instagramComments: null, tiktokComments: null }
 
   const igUrls = [...new Set(
@@ -401,7 +415,7 @@ export async function startUnpackedCommentScrapes() {
   if (igUrls.length > 0) {
     started.instagramComments = await startActorRun(UNPACKED_ACTORS.instagramComments, {
       directUrls: igUrls,
-      resultsLimit: 300,
+      resultsLimit: 150,
     })
   }
 
@@ -413,7 +427,7 @@ export async function startUnpackedCommentScrapes() {
   if (ttUrls.length > 0) {
     started.tiktokComments = await startActorRun(UNPACKED_ACTORS.tiktokComments, {
       postURLs: ttUrls,
-      commentsPerPost: 300,
+      commentsPerPost: 150,
     })
   }
 

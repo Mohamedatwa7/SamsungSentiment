@@ -72,7 +72,7 @@ async function getRecentRunsItems<T>(actorId: string, runCount = RUNS_TO_SYNC): 
   return all
 }
 
-async function startActorRun(actorId: string, input: Record<string, unknown>, maxTotalChargeUsd = 3): Promise<string | null> {
+async function startActorRun(actorId: string, input: Record<string, unknown>, maxTotalChargeUsd = 2): Promise<string | null> {
   const res = await fetch(
     `https://api.apify.com/v2/acts/${actorId}/runs?token=${APIFY_TOKEN}&maxTotalChargeUsd=${maxTotalChargeUsd}`,
     { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) },
@@ -102,7 +102,7 @@ export async function startRosterPostScrapes() {
   })
   started.rosterYouTube = await startActorRun(ROSTER_ACTORS.youtube, {
     startUrls: ytChannels.map((c) => ({ url: `${c.url}/videos` })),
-    maxResults: 8,
+    maxResults: 5,
     oldestPostDate: "2026-07-21",
   })
   return started
@@ -392,13 +392,24 @@ interface RosterPostRow {
   external_id: string
   platform: string
   post_url: string | null
+  published_at: string | null
+}
+
+// Same freshness rule as the unpacked pipeline: only recent videos get their
+// comment sections re-scraped (this also stops the F7-era historical posts
+// from being re-scraped forever — their threads are static).
+const COMMENT_RESCRAPE_DAYS = 5
+
+function isFreshRosterPost(row: { published_at: string | null }): boolean {
+  const t = new Date(row.published_at || 0).getTime()
+  return !isNaN(t) && t >= Date.now() - COMMENT_RESCRAPE_DAYS * 86400000
 }
 
 async function getRosterPostRows(): Promise<RosterPostRow[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from("social_posts")
-    .select("external_id,platform,post_url")
+    .select("external_id,platform,post_url,published_at")
     .like("external_id", `${ROSTER_ID_PREFIX}%`)
   if (error) {
     console.error("[roster] Failed to read roster posts:", error.message)
@@ -431,21 +442,21 @@ function buildRosterKeySet(rows: RosterPostRow[]): Set<string> {
 }
 
 export async function startRosterCommentScrapes() {
-  const rows = await getRosterPostRows()
+  const rows = (await getRosterPostRows()).filter(isFreshRosterPost)
   const started: Record<string, string | null> = { rosterIgComments: null, rosterTtComments: null }
 
   const igUrls = [...new Set(rows.filter((r) => r.platform === "instagram" && r.post_url).map((r) => String(r.post_url)))]
   if (igUrls.length > 0) {
     started.rosterIgComments = await startActorRun(ROSTER_ACTORS.instagramComments, {
       directUrls: igUrls,
-      resultsLimit: 300,
+      resultsLimit: 150,
     })
   }
   const ttUrls = [...new Set(rows.filter((r) => r.platform === "tiktok" && r.post_url).map((r) => String(r.post_url)))]
   if (ttUrls.length > 0) {
     started.rosterTtComments = await startActorRun(ROSTER_ACTORS.tiktokComments, {
       postURLs: ttUrls,
-      commentsPerPost: 300,
+      commentsPerPost: 150,
     })
   }
 
@@ -457,7 +468,7 @@ export async function startRosterCommentScrapes() {
   if (ytUrls.length > 0) {
     started.rosterYtComments = await startActorRun(ROSTER_ACTORS.youtubeComments, {
       startUrls: ytUrls.map((url) => ({ url })),
-      maxComments: 300,
+      maxComments: 150,
     })
   }
   return started
