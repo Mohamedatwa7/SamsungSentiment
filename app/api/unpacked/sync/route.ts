@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
-import { syncUnpacked, campaignEnded, CAMPAIGN_END } from "@/lib/unpacked-sync"
+import {
+  syncUnpacked,
+  campaignEnded,
+  CAMPAIGN_END,
+  repairUnavailableTikTokVideos,
+} from "@/lib/unpacked-sync"
 import { startF7RosterScrapes } from "@/lib/roster-sync"
 
 // Two Apify scrape waves + LLM sentiment need headroom, same as /api/apify/sync.
@@ -23,6 +28,15 @@ export async function POST(request: NextRequest) {
     if (body.f7Roster === true) {
       const started = await startF7RosterScrapes()
       return NextResponse.json({ success: true, started })
+    }
+
+    // Recovery: re-probe _unavailable-flagged TikTok videos and unhide the
+    // ones that are actually live (rate-limited availability passes falsely
+    // flagged live videos, hiding their comments). Re-run until restored
+    // stops growing.
+    if (body.repairAvailability === true) {
+      const repair = await repairUnavailableTikTokVideos()
+      return NextResponse.json({ success: true, repair })
     }
 
     if (campaignEnded() && !body.force) {

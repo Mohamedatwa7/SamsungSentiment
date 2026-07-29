@@ -587,11 +587,17 @@ export async function syncUnpacked(
   }
 
   // Deleted/private videos get flagged so the dashboard drops their cards.
+  // Skipped on ingest-only harvest passes: each workflow run would otherwise
+  // probe TikTok twice within minutes, doubling the rate-limit exposure that
+  // caused false _unavailable marks (and once flagged, a video's comments
+  // all vanish from the F8 analysis).
   let unavailableMarked = 0
-  try {
-    unavailableMarked = await markUnavailableTikTokVideos()
-  } catch (e) {
-    console.error("[unpacked] Availability check failed:", e)
+  if (!opts.ingestOnly) {
+    try {
+      unavailableMarked = await markUnavailableTikTokVideos()
+    } catch (e) {
+      console.error("[unpacked] Availability check failed:", e)
+    }
   }
 
   // Phase 2 — comments on those videos
@@ -640,10 +646,42 @@ export async function syncUnpacked(
   }
 }
 
-// Detect deleted/private TikTok videos via TikTok's public oEmbed endpoint
-// (400/404 for gone videos) and mark them raw_data._unavailable so the
-// dashboard drops the card instead of rendering an embed error page. Only
-// explicit 400/404 marks a video — transient failures must not hide content.
+// TikTok oEmbed probe: 200 = video is live, 400/404 = deleted/private,
+// anything else (403/429/network) = indeterminate. TikTok rate-limits bursts
+// of oEmbed calls and starts erroring on VALID videos mid-loop, so a single
+// bad status must never be trusted on its own.
+type TikTokAvailability = "ok" | "gone" | "unknown"
+
+async function checkTikTokAvailability(url: string): Promise<TikTokAvailability> {
+  try {
+    const res = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`, {
+      headers: { "User-Agent": "Mozilla/5.0" },
+    })
+    if (res.ok) return "ok"
+    if (res.status === 400 || res.status === 404) return "gone"
+    return "unknown"
+  } catch {
+    return "unknown"
+  }
+}
+
+const OEMBED_THROTTLE_MS = 400
+const OEMBED_CONFIRM_DELAY_MS = 2000
+// This many gone-verdicts in a row is a rate-limit signature, not a wave of
+// simultaneous deletions — the whole pass is unreliable.
+const OEMBED_BREAKER_LIMIT = 5
+
+// Detect deleted/private TikTok videos and mark them raw_data._unavailable so
+// the dashboard drops the card instead of rendering an embed error page.
+// Hiding a video also hides ALL its scraped comments from /api/unpacked, and
+// since the Jul 27 discovery trims stopped old posts from being re-upserted
+// (which used to overwrite raw_data and self-heal false flags), a wrong mark
+// is now permanent. So marking is deliberately paranoid:
+//  - throttled probes, and every gone-verdict re-confirmed after a pause;
+//  - a video is only hidden on its SECOND failing pass (strike counter) —
+//    passes run hours apart, so transient throttling can't take one out;
+//  - too many consecutive gone-verdicts trips a breaker and the whole pass
+//    is discarded as rate-limited.
 export async function markUnavailableTikTokVideos(): Promise<number> {
   const supabase = await createClient()
   const { data, error } = await supabase
@@ -653,27 +691,100 @@ export async function markUnavailableTikTokVideos(): Promise<number> {
     .eq("platform", "tiktok")
   if (error || !data) return 0
 
+  // Verdict updates are buffered and applied only if the pass completes —
+  // a breaker trip mid-loop discards everything.
+  const updates: { id: string; raw: any }[] = []
   let marked = 0
+  let consecutiveGone = 0
+
   for (const row of data as any[]) {
     const raw = row.raw_data || {}
     if (raw._unavailable || !row.post_url) continue
-    try {
-      const res = await fetch(
-        `https://www.tiktok.com/oembed?url=${encodeURIComponent(row.post_url)}`,
-        { headers: { "User-Agent": "Mozilla/5.0" } },
-      )
-      if (res.status === 400 || res.status === 404) {
-        await supabase
-          .from("social_posts")
-          .update({ raw_data: { ...raw, _unavailable: true } })
-          .eq("id", row.id)
-        marked++
+
+    await new Promise((r) => setTimeout(r, OEMBED_THROTTLE_MS))
+    let verdict = await checkTikTokAvailability(row.post_url)
+    if (verdict === "gone") {
+      await new Promise((r) => setTimeout(r, OEMBED_CONFIRM_DELAY_MS))
+      verdict = await checkTikTokAvailability(row.post_url)
+    }
+
+    if (verdict === "gone") {
+      consecutiveGone++
+      if (consecutiveGone >= OEMBED_BREAKER_LIMIT) {
+        console.error(
+          `[unpacked] Availability pass aborted: ${consecutiveGone} consecutive gone-verdicts — rate limited, discarding pass`,
+        )
+        return 0
       }
-    } catch {
-      // network hiccup — leave the video visible, recheck next sync
+      const strikes = (raw._unavailableStrikes || 0) + 1
+      updates.push({
+        id: row.id,
+        raw:
+          strikes >= 2
+            ? { ...raw, _unavailable: true, _unavailableStrikes: strikes }
+            : { ...raw, _unavailableStrikes: strikes },
+      })
+      if (strikes >= 2) marked++
+    } else {
+      consecutiveGone = 0
+      // ok or unknown — a live probe wipes any earlier strike.
+      if (verdict === "ok" && raw._unavailableStrikes) {
+        const { _unavailableStrikes, ...rest } = raw
+        updates.push({ id: row.id, raw: rest })
+      }
     }
   }
+
+  for (const u of updates) {
+    await supabase.from("social_posts").update({ raw_data: u.raw }).eq("id", u.id)
+  }
   return marked
+}
+
+// Recovery for videos falsely hidden by rate-limited availability passes:
+// re-probe every _unavailable-flagged TikTok video and clear the flag when
+// oEmbed says the video is live. Safe to re-run until it reports 0 flagged.
+export async function repairUnavailableTikTokVideos(): Promise<{
+  flagged: number
+  restored: number
+  stillGone: number
+  indeterminate: number
+}> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("social_posts")
+    .select("id, post_url, raw_data")
+    .like("external_id", `${UNPACKED_ID_PREFIX}%`)
+    .eq("platform", "tiktok")
+  if (error || !data) return { flagged: 0, restored: 0, stillGone: 0, indeterminate: 0 }
+
+  const flagged = (data as any[]).filter((r) => r.raw_data?._unavailable && r.post_url)
+  let restored = 0
+  let stillGone = 0
+  let indeterminate = 0
+
+  for (const row of flagged) {
+    await new Promise((r) => setTimeout(r, OEMBED_THROTTLE_MS))
+    let verdict = await checkTikTokAvailability(row.post_url)
+    if (verdict !== "ok") {
+      await new Promise((r) => setTimeout(r, OEMBED_CONFIRM_DELAY_MS))
+      verdict = await checkTikTokAvailability(row.post_url)
+    }
+    if (verdict === "ok") {
+      const { _unavailable, _unavailableStrikes, ...rest } = row.raw_data || {}
+      const { error: upErr } = await supabase
+        .from("social_posts")
+        .update({ raw_data: rest })
+        .eq("id", row.id)
+      if (!upErr) restored++
+    } else if (verdict === "gone") {
+      stillGone++
+    } else {
+      indeterminate++
+    }
+  }
+
+  return { flagged: flagged.length, restored, stillGone, indeterminate }
 }
 
 // Analyze unanalyzed prefixed (campaign/roster) comments until the backlog
