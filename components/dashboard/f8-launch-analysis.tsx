@@ -36,6 +36,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { type DateRange } from "@/components/dashboard/date-filter"
 import { useDashboardData, type Comment, type CommentPlatform } from "@/contexts/dashboard-data-context"
+import { useCommentTranslations } from "@/hooks/use-comment-translations"
 import type { UnpackedPayload, UnpackedVideo } from "@/lib/unpacked-data"
 
 const swrFetcher = (url: string) => fetch(url).then((r) => r.json())
@@ -357,41 +358,14 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
 
   // Translation (Arabic/other → English) with a per-comment cache so nothing
   // is translated twice. Applies to the VoC lists and the drill-down dialog.
-  const [showTranslations, setShowTranslations] = useState(false)
-  const [translating, setTranslating] = useState(false)
-  const [translations, setTranslations] = useState<Map<string, string>>(new Map())
+  const { showTranslations, setShowTranslations, translating, translations, ensureTranslations, displayText } =
+    useCommentTranslations()
 
-  const ensureTranslations = async (comments: Comment[]) => {
-    const pending = comments.filter((c) => !translations.has(c.id) && (c.text || "").trim().length > 0)
-    if (pending.length === 0) return
-    setTranslating(true)
-    const results = new Map(translations)
-    const CONCURRENCY = 8
-    for (let i = 0; i < pending.length; i += CONCURRENCY) {
-      const batch = pending.slice(i, i + CONCURRENCY)
-      await Promise.all(
-        batch.map(async (c) => {
-          try {
-            const res = await fetch("/api/translate", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ text: c.text }),
-            })
-            const out = await res.json()
-            if (out?.translatedText) results.set(c.id, out.translatedText)
-          } catch {
-            // leave the original text; retried next time the toggle is used
-          }
-        }),
-      )
-      // Progressive: comments appear translated as batches complete.
-      setTranslations(new Map(results))
-    }
-    setTranslating(false)
-  }
-
-  const displayText = (c: Comment) =>
-    showTranslations ? translations.get(c.id) || c.text || "" : c.text || ""
+  // Drill-down dialogs render the FULL comment list, but mount it in chunks
+  // so a several-thousand-comment bucket doesn't freeze the dialog. More rows
+  // mount as the user scrolls toward the bottom.
+  const DRILLDOWN_CHUNK = 200
+  const [visibleCount, setVisibleCount] = useState(DRILLDOWN_CHUNK)
 
   // Influencer campaign data (Galaxy Unpacked tracker + FF8 roster)
   const { data: unpackedData } = useSWR<UnpackedPayload>("/api/unpacked", swrFetcher, {
@@ -636,22 +610,29 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
   const { overall } = analysis
   const netSentiment = pct(overall.positive, overall.total) - pct(overall.negative, overall.total)
 
-  // Translate whatever is currently visible when the toggle is on.
+  // Translate whatever is currently visible when the toggle is on — only the
+  // mounted slice of the drill-down, not the whole bucket.
   useEffect(() => {
     if (!showTranslations) return
-    const visible = [...analysis.topPositive, ...analysis.topNegative, ...(drilldown?.comments || [])]
+    const visible = [
+      ...analysis.topPositive,
+      ...analysis.topNegative,
+      ...(drilldown?.comments.slice(0, visibleCount) || []),
+    ]
     void ensureTranslations(visible)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showTranslations, drilldown, analysis.topPositive, analysis.topNegative])
+  }, [showTranslations, drilldown, visibleCount, analysis.topPositive, analysis.topNegative])
 
   const byLikes = (list: Comment[]) => [...list].sort((a, b) => b.likes - a.likes)
 
-  const openDrilldown = (title: string, comments: Comment[], subtitle?: string) =>
+  const openDrilldown = (title: string, comments: Comment[], subtitle?: string) => {
+    setVisibleCount(DRILLDOWN_CHUNK)
     setDrilldown({
       title,
       subtitle: subtitle ?? `${comments.length.toLocaleString()} comments`,
-      comments: byLikes(comments).slice(0, 300),
+      comments: byLikes(comments),
     })
+  }
 
   const kpiTileClass =
     "rounded-lg px-4 py-2 text-left transition-colors hover:bg-white/[0.04] cursor-pointer first:pl-0 first:rounded-l-none"
@@ -1085,7 +1066,7 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
                   {analysis.topPositive.map((c) => (
                     <div key={c.id} className="rounded-lg border-l-2 border-l-positive bg-white/[0.02] p-2.5 text-xs">
                       <span className="font-medium">@{c.username}:</span>{" "}
-                      <span className="text-muted-foreground">{displayText(c).slice(0, 160)}</span>
+                      <span className="text-muted-foreground">{displayText(c)}</span>
                       <span className="ml-2 text-muted-foreground/60">♥ {c.likes}</span>
                     </div>
                   ))}
@@ -1097,7 +1078,7 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
                   {analysis.topNegative.map((c) => (
                     <div key={c.id} className="rounded-lg border-l-2 border-l-negative bg-white/[0.02] p-2.5 text-xs">
                       <span className="font-medium">@{c.username}:</span>{" "}
-                      <span className="text-muted-foreground">{displayText(c).slice(0, 160)}</span>
+                      <span className="text-muted-foreground">{displayText(c)}</span>
                       <span className="ml-2 text-muted-foreground/60">♥ {c.likes}</span>
                     </div>
                   ))}
@@ -1130,11 +1111,21 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
               </button>
             </DialogDescription>
           </DialogHeader>
-          <div className="-mr-2 max-h-[60vh] space-y-2 overflow-y-auto pr-2">
+          <div
+            className="-mr-2 max-h-[60vh] space-y-2 overflow-y-auto pr-2"
+            onScroll={(e) => {
+              const el = e.currentTarget
+              if (el.scrollTop + el.clientHeight >= el.scrollHeight - 600) {
+                setVisibleCount((n) =>
+                  drilldown && n < drilldown.comments.length ? n + DRILLDOWN_CHUNK : n,
+                )
+              }
+            }}
+          >
             {drilldown?.comments.length === 0 && (
               <p className="py-8 text-center text-sm text-muted-foreground">No comments in this bucket.</p>
             )}
-            {drilldown?.comments.map((c) => (
+            {drilldown?.comments.slice(0, visibleCount).map((c) => (
               <div key={c.id} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -1156,6 +1147,12 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
                 </div>
               </div>
             ))}
+            {drilldown && visibleCount < drilldown.comments.length && (
+              <p className="py-3 text-center text-xs text-muted-foreground">
+                Showing {Math.min(visibleCount, drilldown.comments.length).toLocaleString()} of{" "}
+                {drilldown.comments.length.toLocaleString()} — scroll for more
+              </p>
+            )}
           </div>
         </DialogContent>
       </Dialog>

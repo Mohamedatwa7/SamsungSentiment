@@ -1,10 +1,11 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import useSWR from "swr"
-import { Activity, ExternalLink, Eye, Heart, MessageSquare, Users } from "lucide-react"
+import { Activity, ExternalLink, Eye, Heart, Languages, Loader2, MessageSquare, Users } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { useCommentTranslations } from "@/hooks/use-comment-translations"
 import { formatCompact, formatRate, type UnpackedComment, type UnpackedVideo } from "@/lib/unpacked-data"
 import type { RosterInfluencer } from "@/lib/roster"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -41,6 +42,17 @@ export function FF8Roster() {
   })
   const [category, setCategory] = useState<CategoryFilter>("all")
   const [dialog, setDialog] = useState<{ title: string; comments: UnpackedComment[] } | null>(null)
+
+  // Translate-to-English toggle for the comments dialog, same per-comment
+  // cache as the F8 launch analysis.
+  const { showTranslations, setShowTranslations, translating, translations, ensureTranslations, displayText } =
+    useCommentTranslations()
+
+  useEffect(() => {
+    if (!showTranslations || !dialog) return
+    void ensureTranslations(dialog.comments)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showTranslations, dialog])
 
   const grouped = useMemo(() => {
     if (!data?.roster) return []
@@ -239,7 +251,22 @@ export function FF8Roster() {
         <DialogContent className="max-h-[80vh] max-w-2xl overflow-hidden">
           <DialogHeader>
             <DialogTitle>{dialog?.title}</DialogTitle>
-            <DialogDescription>{dialog?.comments.length} scraped comments, AI-scored</DialogDescription>
+            <DialogDescription className="flex items-center justify-between gap-3">
+              <span>{dialog?.comments.length} scraped comments, AI-scored</span>
+              <button
+                type="button"
+                onClick={() => setShowTranslations((v) => !v)}
+                className={cn(
+                  "flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                  showTranslations
+                    ? "border-primary/50 bg-primary/15 text-foreground"
+                    : "border-white/[0.08] bg-white/[0.03] text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {translating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Languages className="h-3 w-3" />}
+                {showTranslations ? "English" : "Translate"}
+              </button>
+            </DialogDescription>
           </DialogHeader>
           <div className="-mr-2 max-h-[60vh] space-y-2 overflow-y-auto pr-2">
             {dialog?.comments.length === 0 && (
@@ -252,7 +279,12 @@ export function FF8Roster() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="truncate text-xs font-medium text-muted-foreground">@{c.username}</p>
-                    <p className="mt-1 text-sm leading-relaxed">{c.text}</p>
+                    <p className="mt-1 text-sm leading-relaxed">{displayText(c)}</p>
+                    {showTranslations && translations.has(c.id) && translations.get(c.id) !== c.text && (
+                      <p className="mt-1 text-xs text-muted-foreground/60" dir="auto">
+                        {c.text}
+                      </p>
+                    )}
                   </div>
                   <SentimentBadge sentiment={c.sentiment} />
                 </div>
