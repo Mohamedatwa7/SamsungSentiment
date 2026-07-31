@@ -17,8 +17,23 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
+      # Campaign tracking ends Aug 1st, 2026 (00:00 Gulf = Jul 31 20:00 UTC).
+      # The endpoint self-disables too, but this gate stops the workflow from
+      # firing pointless requests forever — every step below is skipped once
+      # the window closes. The workflow file can be deleted after the campaign.
+      - name: Check campaign window
+        id: gate
+        run: |
+          if [ "$(date -u +%Y%m%d%H%M)" -lt 202607312000 ]; then
+            echo "active=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Campaign ended Aug 1st, 2026 — skipping."
+            echo "active=false" >> "$GITHUB_OUTPUT"
+          fi
+
       # Fires fresh scrapes and ingests the previous cycle's completed runs.
       - name: Trigger sync (fires scrapes)
+        if: steps.gate.outputs.active == 'true'
         run: |
           curl -sS -X POST "https://samsungtrack.com/api/unpacked/sync" \
             -H "Content-Type: application/json" \
@@ -28,12 +43,14 @@ jobs:
 
       # Let the freshly fired scrape runs finish.
       - name: Wait for scrapes
+        if: steps.gate.outputs.active == 'true'
         run: sleep 420
 
       # Harvest the fresh runs in the SAME cycle (dataset reads are free on
       # Apify — no new actor runs are started). Without this, each run's own
       # scrape results would only appear at the NEXT scheduled run.
       - name: Ingest fresh results
+        if: steps.gate.outputs.active == 'true'
         run: |
           curl -sS -X POST "https://samsungtrack.com/api/unpacked/sync" \
             -H "Content-Type: application/json" \
@@ -44,6 +61,7 @@ jobs:
       # Rebuild the dashboard payload into the edge cache right after data
       # changes, so no visitor ever pays the slow cold DB read.
       - name: Warm dashboard cache
+        if: steps.gate.outputs.active == 'true'
         run: |
           curl -sS -o /dev/null "https://samsungtrack.com/api/comments" --max-time 240 || true
           curl -sS -o /dev/null "https://samsungtrack.com/api/unpacked" --max-time 120 || true

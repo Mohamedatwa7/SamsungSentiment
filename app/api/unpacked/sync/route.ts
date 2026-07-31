@@ -65,9 +65,9 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Vercel Cron entry point (vercel.json → "0 5,10 * * *" UTC = 9AM & 2PM Gulf).
-// The schedule itself lives in vercel.json without an end date, so the route
-// self-disables once the campaign window closes on Aug 1st, 2026.
+// Cron entry point (GitHub Actions unpacked-sync.yml → 9AM & 2PM Gulf).
+// The workflow gates itself by date, and this route also self-disables once
+// the campaign window closes on Aug 1st, 2026 — belt and suspenders.
 export async function GET(request: NextRequest) {
   const isVercelCron =
     request.headers.get("x-vercel-cron-schedule") !== null ||
