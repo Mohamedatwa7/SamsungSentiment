@@ -37,9 +37,9 @@ interface StoredConversation {
 
 const suggestedPrompts = [
   "What is the overall sentiment breakdown from the comments?",
-  "What are the top customer complaints and issues mentioned?",
-  "Show me examples of positive and negative comments",
-  "Which products have the best and worst sentiment?",
+  "How did the Galaxy Unpacked influencer campaign perform?",
+  "Which FF8 roster influencers drove the most views and engagement?",
+  "What are the top customer complaints and which products have the worst sentiment?",
 ]
 
 function formatTime(date: Date): string {
@@ -380,7 +380,7 @@ function ChatInterface({
               <div className="mx-4 my-4 rounded-sm border border-destructive/40 p-4">
                 <p className="text-sm text-destructive">{error}</p>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  The AI Gateway requires a valid credit card on your Vercel account, or you can configure a custom API key in the settings.
+                  The assistant needs a valid OPENAI_API_KEY configured in the deployment environment, and the dashboard data APIs must be reachable.
                 </p>
               </div>
             )}
