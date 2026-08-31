@@ -13,10 +13,12 @@ import {
 import type { UnpackedPayload, UnpackedVideo, UnpackedComment } from '@/lib/unpacked-data'
 import { videoPositivePercent } from '@/lib/unpacked-data'
 
-// Building the live context fetches the full (cached) dashboard payloads; a
-// cold edge cache can take a while, so give the route more headroom than the
-// old static-JSON version needed.
-export const maxDuration = 60
+// Building the live context fetches the full dashboard payloads through the
+// edge cache. A warm edge serves /api/comments in ~0.4s, but a cold one pays
+// the full ~90s DB rebuild — with a 60s cap the function died before the
+// rebuild could finish (and before the cache ever warmed), so every cold chat
+// 504'd forever. 300s lets the first cold request complete and warm the cache.
+export const maxDuration = 300
 
 // =============================================================================
 // LIVE DATA — shapes returned by our own dashboard API routes
@@ -486,13 +488,16 @@ ${formatReviews(topNegative)}
 // =============================================================================
 
 const CONTEXT_TTL_MS = 5 * 60 * 1000
+// Leave headroom under maxDuration for the LLM stream itself; past this
+// budget we answer with a degraded context instead of letting Vercel 504.
+const CONTEXT_BUDGET_MS = 240 * 1000
+
 let contextCache: { context: string; builtAt: number } | null = null
+// Concurrent chats share one build — a cold /api/comments rebuild takes ~90s
+// and every extra caller would start another one.
+let inflightBuild: Promise<string> | null = null
 
-async function buildDataContext(origin: string): Promise<string> {
-  if (contextCache && Date.now() - contextCache.builtAt < CONTEXT_TTL_MS) {
-    return contextCache.context
-  }
-
+async function runBuild(origin: string): Promise<string> {
   const [commentsPayload, unpackedPayload, rosterPayload] = await Promise.all([
     fetchJson<CommentsPayload>(origin, '/api/comments'),
     fetchJson<UnpackedPayload>(origin, '/api/unpacked'),
@@ -512,6 +517,34 @@ async function buildDataContext(origin: string): Promise<string> {
     contextCache = { context, builtAt: Date.now() }
   }
   return context
+}
+
+async function buildDataContext(origin: string): Promise<string> {
+  if (contextCache && Date.now() - contextCache.builtAt < CONTEXT_TTL_MS) {
+    return contextCache.context
+  }
+
+  if (!inflightBuild) {
+    inflightBuild = runBuild(origin).finally(() => {
+      inflightBuild = null
+    })
+  }
+
+  const timeout = new Promise<null>(resolve => setTimeout(() => resolve(null), CONTEXT_BUDGET_MS))
+  const built = await Promise.race([inflightBuild, timeout])
+  if (built) return built
+
+  // Over budget: answer from whatever we have (stale cache beats nothing,
+  // then S.com reviews alone). The in-flight build keeps running and will
+  // serve the next message.
+  if (contextCache) return contextCache.context
+  return (
+    `\nDATA SNAPSHOT GENERATED: ${new Date().toISOString()}\n` +
+    generateSocialContext(null) +
+    generateUnpackedContext(null) +
+    generateRosterContext(null) +
+    generateScomReviewsContext()
+  )
 }
 
 const BASE_SYSTEM_PROMPT = `You are Samsung Gulf's AI Customer Sentiment Intelligence Assistant, specialized in analyzing customer sentiment for Samsung products in the GCC markets.
