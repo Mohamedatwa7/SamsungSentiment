@@ -71,18 +71,20 @@ interface RosterPayload {
   meta: { generatedAt: string; f7Videos: number }
 }
 
-async function fetchJson<T>(origin: string, path: string): Promise<T | null> {
-  try {
-    const res = await fetch(`${origin}${path}`, { headers: { accept: 'application/json' } })
-    if (!res.ok) {
-      console.error(`[chat] ${path} returned ${res.status}`)
-      return null
+// Retry on failure: a cold-cache attempt that trips the DB statement timeout
+// still warms the buffers, so the second try usually succeeds.
+async function fetchJson<T>(origin: string, path: string, attempts = 3): Promise<T | null> {
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const res = await fetch(`${origin}${path}`, { headers: { accept: 'application/json' } })
+      if (res.ok) return (await res.json()) as T
+      console.error(`[chat] ${path} returned ${res.status} (attempt ${i + 1})`)
+    } catch (error) {
+      console.error(`[chat] failed to fetch ${path} (attempt ${i + 1}):`, error)
     }
-    return (await res.json()) as T
-  } catch (error) {
-    console.error(`[chat] failed to fetch ${path}:`, error)
-    return null
+    await new Promise(r => setTimeout(r, 1500))
   }
+  return null
 }
 
 // =============================================================================
@@ -498,11 +500,13 @@ let contextCache: { context: string; builtAt: number } | null = null
 let inflightBuild: Promise<string> | null = null
 
 async function runBuild(origin: string): Promise<string> {
-  const [commentsPayload, unpackedPayload, rosterPayload] = await Promise.all([
-    fetchJson<CommentsPayload>(origin, '/api/comments'),
-    fetchJson<UnpackedPayload>(origin, '/api/unpacked'),
-    fetchJson<RosterPayload>(origin, '/api/roster'),
-  ])
+  // STRICTLY SEQUENTIAL: these routes each page through Supabase, and
+  // concurrent statements contend for cold buffers until every one trips the
+  // DB statement timeout (all three 500 together — observed live). Warm-edge
+  // hits are sub-second anyway, so sequencing costs nothing.
+  const commentsPayload = await fetchJson<CommentsPayload>(origin, '/api/comments')
+  const unpackedPayload = await fetchJson<UnpackedPayload>(origin, '/api/unpacked')
+  const rosterPayload = await fetchJson<RosterPayload>(origin, '/api/roster')
 
   const context =
     `\nDATA SNAPSHOT GENERATED: ${new Date().toISOString()}\n` +
