@@ -115,7 +115,9 @@ export async function GET() {
         embedUrl = vid ? `https://www.youtube.com/embed/${vid}` : ""
       } else {
         const videoId = url.match(/video\/(\d+)/)?.[1] || externalId
-        embedUrl = `https://www.tiktok.com/player/v1/${videoId}?autoplay=0&rel=0&description=1`
+        // player/v1 returns "Server error" / "Access Denied" now — embed/v2
+        // still renders the video (see /api/unpacked).
+        embedUrl = `https://www.tiktok.com/embed/v2/${videoId}`
       }
       if (raw._unavailable) continue
 

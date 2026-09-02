@@ -52,11 +52,7 @@ function VideoCard({ video }: { video: UnpackedVideo }) {
         <div className="relative aspect-[9/16] w-full overflow-hidden rounded-xl border border-white/[0.08] bg-black/40">
           {video.embedUrl && playerRequested ? (
             <iframe
-              src={
-                video.platform === "tiktok"
-                  ? video.embedUrl.replace("autoplay=0", "autoplay=1")
-                  : video.embedUrl
-              }
+              src={video.embedUrl}
               title={`${video.influencer.displayName} — Galaxy Unpacked video`}
               className="absolute inset-0 h-full w-full"
               loading="lazy"

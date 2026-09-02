@@ -127,9 +127,11 @@ export async function GET() {
         avatar = raw.ownerProfilePicUrl || null
       } else {
         const videoId = url.match(/video\/(\d+)/)?.[1] || externalId
-        // player/v1 strictly plays THIS video; the embed/v2 widget falls back
-        // to a related-videos feed when it can't embed the target.
-        embedUrl = `https://www.tiktok.com/player/v1/${videoId}?autoplay=0&rel=0&description=1`
+        // player/v1 now returns "Server error" / "Access Denied" for these
+        // videos even on a fresh load in real Chrome (verified 2026-09-02);
+        // the embed/v2 widget still renders the video, so use it despite its
+        // related-videos fallback quirk.
+        embedUrl = `https://www.tiktok.com/embed/v2/${videoId}`
         username = raw.authorMeta?.name || "unknown"
         displayName = raw.authorMeta?.nickName || raw.authorMeta?.name || "TikTok creator"
         avatar = raw.authorMeta?.avatar || null
