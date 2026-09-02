@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Activity, ExternalLink, Eye, Heart, MessageSquare, Share2, ThumbsUp } from "lucide-react"
+import { Activity, ExternalLink, Eye, Heart, MessageSquare, Play, Share2, ThumbsUp } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { formatCompact, formatRate, videoPositivePercent, type UnpackedVideo } from "@/lib/unpacked-data"
@@ -28,6 +28,10 @@ function PlatformBadge({ platform }: { platform: "instagram" | "tiktok" | "youtu
 
 function VideoCard({ video }: { video: UnpackedVideo }) {
   const [commentsOpen, setCommentsOpen] = useState(false)
+  // TikTok players are click-to-load: mounting all ~40 player iframes at once
+  // trips TikTok's rate limiting and most render "Access Denied" / "Server
+  // error" instead of the video. A single player loaded on tap works.
+  const [playerRequested, setPlayerRequested] = useState(video.platform !== "tiktok")
   const scraped = video.comments.length
   const positivePercent = videoPositivePercent(video)
 
@@ -46,9 +50,13 @@ function VideoCard({ video }: { video: UnpackedVideo }) {
       <CardContent className="flex flex-1 flex-col gap-4">
         {/* Playable embed — the video runs directly inside the dashboard */}
         <div className="relative aspect-[9/16] w-full overflow-hidden rounded-xl border border-white/[0.08] bg-black/40">
-          {video.embedUrl ? (
+          {video.embedUrl && playerRequested ? (
             <iframe
-              src={video.embedUrl}
+              src={
+                video.platform === "tiktok"
+                  ? video.embedUrl.replace("autoplay=0", "autoplay=1")
+                  : video.embedUrl
+              }
               title={`${video.influencer.displayName} — Galaxy Unpacked video`}
               className="absolute inset-0 h-full w-full"
               loading="lazy"
@@ -56,6 +64,22 @@ function VideoCard({ video }: { video: UnpackedVideo }) {
               allowFullScreen
               scrolling="no"
             />
+          ) : video.embedUrl ? (
+            <button
+              type="button"
+              onClick={() => setPlayerRequested(true)}
+              className="group absolute inset-0 flex flex-col items-center justify-center gap-4 bg-gradient-to-b from-cyan-950/40 via-black/60 to-black/80 p-4 text-center transition-colors hover:from-cyan-900/40"
+            >
+              <span className="flex h-14 w-14 items-center justify-center rounded-full border border-cyan-400/40 bg-cyan-500/15 transition-transform group-hover:scale-110">
+                <Play className="ml-0.5 h-6 w-6 text-cyan-300" fill="currentColor" />
+              </span>
+              <span className="line-clamp-4 text-xs leading-relaxed text-muted-foreground">
+                {video.caption || `@${video.influencer.username} on TikTok`}
+              </span>
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-cyan-400/80">
+                Tap to play
+              </span>
+            </button>
           ) : (
             <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
               Video unavailable
