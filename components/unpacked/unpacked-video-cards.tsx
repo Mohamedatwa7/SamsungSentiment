@@ -28,10 +28,13 @@ function PlatformBadge({ platform }: { platform: "instagram" | "tiktok" | "youtu
 
 function VideoCard({ video }: { video: UnpackedVideo }) {
   const [commentsOpen, setCommentsOpen] = useState(false)
-  // TikTok players are click-to-load: mounting all ~40 player iframes at once
-  // trips TikTok's rate limiting and most render "Access Denied" / "Server
-  // error" instead of the video. A single player loaded on tap works.
-  const [playerRequested, setPlayerRequested] = useState(video.platform !== "tiktok")
+  // ALL embeds are click-to-load. Whether Instagram/TikTok serve an embed at
+  // all varies by viewer region and session (TikTok also rate-limits when
+  // dozens of players mount at once), so the default view relies only on
+  // self-hosted posters captured in /public/unpacked-thumbs — those can never
+  // go blank. The third-party iframe mounts only on tap.
+  const [playerRequested, setPlayerRequested] = useState(false)
+  const [thumbOk, setThumbOk] = useState(true)
   const scraped = video.comments.length
   const positivePercent = videoPositivePercent(video)
 
@@ -64,15 +67,52 @@ function VideoCard({ video }: { video: UnpackedVideo }) {
             <button
               type="button"
               onClick={() => setPlayerRequested(true)}
-              className="group absolute inset-0 flex flex-col items-center justify-center gap-4 bg-gradient-to-b from-cyan-950/40 via-black/60 to-black/80 p-4 text-center transition-colors hover:from-cyan-900/40"
+              className="group absolute inset-0 flex flex-col items-center justify-center gap-4 overflow-hidden bg-gradient-to-b from-slate-900/60 via-black/60 to-black/80 p-4 text-center"
             >
-              <span className="flex h-14 w-14 items-center justify-center rounded-full border border-cyan-400/40 bg-cyan-500/15 transition-transform group-hover:scale-110">
-                <Play className="ml-0.5 h-6 w-6 text-cyan-300" fill="currentColor" />
+              {thumbOk && (
+                <img
+                  src={`/unpacked-thumbs/${video.id}.jpg`}
+                  alt=""
+                  loading="lazy"
+                  onError={() => setThumbOk(false)}
+                  className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                />
+              )}
+              <div
+                className={cn(
+                  "absolute inset-0",
+                  thumbOk
+                    ? "bg-gradient-to-t from-black/70 via-black/10 to-black/20"
+                    : "bg-transparent",
+                )}
+              />
+              <span
+                className={cn(
+                  "relative z-10 flex h-14 w-14 items-center justify-center rounded-full border backdrop-blur-sm transition-transform group-hover:scale-110",
+                  video.platform === "instagram"
+                    ? "border-fuchsia-400/40 bg-fuchsia-500/20"
+                    : "border-cyan-400/40 bg-cyan-500/20",
+                )}
+              >
+                <Play
+                  className={cn(
+                    "ml-0.5 h-6 w-6",
+                    video.platform === "instagram" ? "text-fuchsia-300" : "text-cyan-300",
+                  )}
+                  fill="currentColor"
+                />
               </span>
-              <span className="line-clamp-4 text-xs leading-relaxed text-muted-foreground">
-                {video.caption || `@${video.influencer.username} on TikTok`}
-              </span>
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-cyan-400/80">
+              {!thumbOk && (
+                <span className="relative z-10 line-clamp-4 text-xs leading-relaxed text-muted-foreground">
+                  {video.caption || `@${video.influencer.username}`}
+                </span>
+              )}
+              <span
+                className={cn(
+                  "relative z-10 text-[10px] font-semibold uppercase tracking-wider",
+                  video.platform === "instagram" ? "text-fuchsia-300/90" : "text-cyan-300/90",
+                )}
+              >
                 Tap to play
               </span>
             </button>
