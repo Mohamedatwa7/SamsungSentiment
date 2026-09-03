@@ -6,7 +6,16 @@ import useSWR from "swr"
 import { useEffect, useRef, useState } from "react"
 import { ArrowRight, ArrowUpRight, Clapperboard, LayoutDashboard, Loader2, MessageSquareText, Star } from "lucide-react"
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json())
+// Throw on failure so SWR keeps retrying — /api/comments can 500 while the
+// DB warms up, and a swallowed error body would leave the KPIs spinning
+// forever instead of recovering on the next attempt.
+const fetcher = async (url: string) => {
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`${url} ${res.status}`)
+  const json = await res.json()
+  if (json?.error) throw new Error(json.error)
+  return json
+}
 
 /* Animated count-up that starts when the value arrives */
 function Counter({ value, suffix = "" }: { value: number | null; suffix?: string }) {
