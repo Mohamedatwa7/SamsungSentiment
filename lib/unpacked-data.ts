@@ -68,6 +68,30 @@ export interface UnpackedPayload {
   }
 }
 
+// SWR fetcher with a static-snapshot fallback. The live routes rebuild from
+// Supabase and 500 when the DB's cold-cache statement timeouts survive all
+// their retries — the FIRST visitor after idle used to get an empty section.
+// The campaign ended 2026-08-01 with final numbers, so a snapshot of each
+// payload is committed under /public and served whenever the live call
+// fails, times out, or returns an error body. Live data still wins when the
+// API responds, so any later backfill flows through.
+export function snapshotFetcher(snapshotUrl: string) {
+  return async (url: string) => {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(15000) })
+      if (res.ok) {
+        const json = await res.json()
+        if (json && !json.error && Array.isArray(json.videos)) return json
+      }
+    } catch {
+      // fall through to the snapshot
+    }
+    const snap = await fetch(snapshotUrl)
+    if (!snap.ok) throw new Error(`snapshot ${snapshotUrl} unavailable`)
+    return snap.json()
+  }
+}
+
 // Recompute campaign totals for a (possibly platform-filtered) video subset —
 // mirrors the aggregation in /api/unpacked.
 export function computeTotals(videos: UnpackedVideo[]): UnpackedTotals {

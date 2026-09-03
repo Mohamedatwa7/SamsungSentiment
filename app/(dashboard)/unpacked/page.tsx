@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils"
 import {
   computeTotals,
   formatCompact,
+  snapshotFetcher,
   videoPositivePercent,
   type UnpackedPayload,
   type UnpackedVideo,
@@ -25,7 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json())
+const fetcher = snapshotFetcher("/unpacked-snapshot.json")
 
 function LoadingState() {
   return (

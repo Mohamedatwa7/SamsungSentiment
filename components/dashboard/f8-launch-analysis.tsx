@@ -42,9 +42,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { type DateRange } from "@/components/dashboard/date-filter"
 import { useDashboardData, type Comment, type CommentPlatform } from "@/contexts/dashboard-data-context"
 import { useCommentTranslations } from "@/hooks/use-comment-translations"
-import type { UnpackedPayload, UnpackedVideo } from "@/lib/unpacked-data"
-
-const swrFetcher = (url: string) => fetch(url).then((r) => r.json())
+import { snapshotFetcher, type UnpackedPayload, type UnpackedVideo } from "@/lib/unpacked-data"
 
 // Influencer campaign comments (Galaxy Unpacked tracker + FF8 roster) mapped
 // into the dashboard Comment shape so the same device/topic analysis runs on
@@ -366,14 +364,14 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
   const [visibleCount, setVisibleCount] = useState(DRILLDOWN_CHUNK)
 
   // Influencer campaign data (Galaxy Unpacked tracker + FF8 roster)
-  const { data: unpackedData } = useSWR<UnpackedPayload>("/api/unpacked", swrFetcher, {
+  const { data: unpackedData } = useSWR<UnpackedPayload>("/api/unpacked", snapshotFetcher("/unpacked-snapshot.json"), {
     revalidateOnFocus: false,
     dedupingInterval: 60000,
   })
   const { data: rosterData } = useSWR<{
     videos?: UnpackedVideo[]
     f7Comments?: { text: string; caption: string; sentiment: string; publishedAt: string | null }[]
-  }>("/api/roster", swrFetcher, {
+  }>("/api/roster", snapshotFetcher("/roster-snapshot.json"), {
     revalidateOnFocus: false,
     dedupingInterval: 60000,
   })

@@ -4,7 +4,7 @@ import Link from "next/link"
 import Image from "next/image"
 import useSWR from "swr"
 import { useEffect, useRef, useState } from "react"
-import { ArrowRight, ArrowUpRight, Clapperboard, LayoutDashboard, MessageSquareText, Star } from "lucide-react"
+import { ArrowRight, ArrowUpRight, Clapperboard, LayoutDashboard, Loader2, MessageSquareText, Star } from "lucide-react"
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
@@ -27,10 +27,18 @@ function Counter({ value, suffix = "" }: { value: number | null; suffix?: string
     requestAnimationFrame(tick)
   }, [value])
 
+  if (value == null) {
+    return (
+      <span className="inline-flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground/60 md:h-9 md:w-9" />
+      </span>
+    )
+  }
+
   return (
     <span className="kpi-value tabular-nums">
-      {value == null ? "—" : display.toLocaleString()}
-      {value != null && suffix}
+      {display.toLocaleString()}
+      {suffix}
     </span>
   )
 }
@@ -138,7 +146,7 @@ export default function HomePage() {
           </p>
 
           {/* Live counters */}
-          <div className="mt-14 grid w-full max-w-3xl grid-cols-2 gap-y-10 md:grid-cols-4">
+          <div className="mt-14 grid w-full max-w-2xl grid-cols-1 gap-y-10 sm:grid-cols-3">
             <div>
               <p className="text-4xl md:text-[2.6rem]"><Counter value={totals ? totals.totalComments : null} /></p>
               <p className="section-label mt-2">Comments Analyzed</p>
@@ -150,12 +158,6 @@ export default function HomePage() {
             <div>
               <p className="text-4xl md:text-[2.6rem]"><Counter value={4} /></p>
               <p className="section-label mt-2">Platforms</p>
-            </div>
-            <div>
-              <p className="text-4xl md:text-[2.6rem]">
-                <Counter value={totals ? Math.round((totals.analyzedComments / Math.max(1, totals.totalComments)) * 100) : null} suffix="%" />
-              </p>
-              <p className="section-label mt-2">AI Coverage</p>
             </div>
           </div>
         </section>
