@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState, useCallback } from "react"
+import { useMemo, useState, useCallback, useEffect } from "react"
 import {
   TrendingUp,
   TrendingDown,
@@ -20,6 +20,8 @@ import {
   Facebook,
   Heart,
   ExternalLink,
+  Languages,
+  Loader2,
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -57,6 +59,7 @@ import {
   Legend,
 } from "recharts"
 import { cn } from "@/lib/utils"
+import { useCommentTranslations } from "@/hooks/use-comment-translations"
 import { CountUp } from "@/components/ui/count-up"
 import { getProcessedDashboardData, type Platform } from "@/lib/social-data"
 import { type CommentPlatform, type Comment } from "@/lib/comments-data"
@@ -558,6 +561,20 @@ export function CriticalAlerts({ platformFilter, dateRange }: ExecutiveMetricsPr
   
   // State for dialog
   const [selectedAlert, setSelectedAlert] = useState<{ title: string; message: string; comments: Comment[] } | null>(null)
+
+  // Translate-to-English toggle for the comments dialog — same per-comment
+  // cache as the F8 launch analysis and FF8 roster dialogs.
+  const { showTranslations, setShowTranslations, translating, ensureTranslations, displayText } =
+    useCommentTranslations()
+
+  // Translate whichever alert's comments are on screen once the toggle is on
+  // (only the 200 the dialog actually renders).
+  useEffect(() => {
+    if (showTranslations && selectedAlert) {
+      ensureTranslations(selectedAlert.comments.slice(0, 200))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showTranslations, selectedAlert])
   
   // Function to get related comments for an alert - returns max 200 unique, relevant comments
   const getRelatedComments = useCallback((alertType: string, alertData?: string): Comment[] => {
@@ -1034,6 +1051,21 @@ export function CriticalAlerts({ platformFilter, dateRange }: ExecutiveMetricsPr
                 {selectedAlert?.comments.length.toLocaleString()} example comments, highest-engagement first
               </span>
             </DialogDescription>
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={() => setShowTranslations(!showTranslations)}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                  showTranslations
+                    ? "border-primary/50 bg-primary/15 text-foreground"
+                    : "border-border bg-transparent text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {translating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Languages className="h-3 w-3" />}
+                {showTranslations ? "Showing English" : "Translate to English"}
+              </button>
+            </div>
           </DialogHeader>
           <div className="nice-scroll flex-1 overflow-y-auto pr-2">
             {selectedAlert?.comments.length === 0 ? (
@@ -1070,7 +1102,7 @@ export function CriticalAlerts({ platformFilter, dateRange }: ExecutiveMetricsPr
                     {comment.sentiment}
                   </div>
                 </div>
-                <p className="text-sm">{comment.text}</p>
+                <p className="text-sm">{displayText(comment)}</p>
                 <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
                   {comment.createdAt && (
                     <span>{new Date(comment.createdAt).toLocaleDateString()}</span>
