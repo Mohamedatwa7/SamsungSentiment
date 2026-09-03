@@ -338,7 +338,11 @@ export async function GET(_request: NextRequest) {
       headers: {
         "Content-Type": "application/json",
         "Content-Encoding": "gzip",
-        Vary: "Accept-Encoding",
+        // NO Vary: Accept-Encoding — with it, every distinct client encoding
+        // string (curl "gzip, deflate, br" vs Chrome "... , zstd" vs undici)
+        // gets its OWN cache entry, so real browsers missed the warmed cache
+        // and paid the full ~90s rebuild. Vercel's proxy decompresses for
+        // clients that don't accept gzip, so one shared gzip entry is safe.
         // Serve stale for up to a day while revalidating in the background:
         // data changes only on scheduled syncs, and nobody should ever sit
         // through the full DB rebuild — the edge refreshes itself off the
