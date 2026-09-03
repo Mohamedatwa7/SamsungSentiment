@@ -52,8 +52,18 @@ function buildSeries(data: UnpackedPayload): TrendPoint[] {
   firstDay.setHours(0, 0, 0, 0)
   const today = new Date()
 
+  // The campaign ended Aug 1 — nothing new publishes after that, so running
+  // to today just drags a flat tail. Stop the curve at the campaign end
+  // (campaignEndsAt = Jul 31 20:00 UTC = Aug 1 midnight Gulf).
+  let lastDay = today
+  if (data.meta?.campaignEndsAt) {
+    const campaignEnd = new Date(data.meta.campaignEndsAt)
+    campaignEnd.setHours(0, 0, 0, 0)
+    if (campaignEnd < lastDay) lastDay = campaignEnd
+  }
+
   const points: TrendPoint[] = []
-  for (let d = new Date(firstDay); d <= today; d.setDate(d.getDate() + 1)) {
+  for (let d = new Date(firstDay); d <= lastDay; d.setDate(d.getDate() + 1)) {
     const dayEnd = new Date(d)
     dayEnd.setHours(23, 59, 59, 999)
 
