@@ -17,6 +17,7 @@ import {
 } from "recharts"
 import {
   Award,
+  CalendarIcon,
   Flame,
   Heart,
   Languages,
@@ -28,12 +29,16 @@ import {
   Swords,
   ThumbsDown,
   ThumbsUp,
+  X,
 } from "lucide-react"
+import type { DateRange as DayPickerDateRange } from "react-day-picker"
 
 import { cn } from "@/lib/utils"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Calendar } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { type DateRange } from "@/components/dashboard/date-filter"
 import { useDashboardData, type Comment, type CommentPlatform } from "@/contexts/dashboard-data-context"
 import { useCommentTranslations } from "@/hooks/use-comment-translations"
@@ -82,19 +87,18 @@ function mapInfluencerComments(payloads: (UnpackedPayload | { videos?: UnpackedV
 
 type SourceFilter = "combined" | "samsung" | "influencers"
 
-// Day options since launch (Gulf days), for the section's date filter.
-function launchDays(): { key: string; label: string }[] {
-  const out: { key: string; label: string }[] = []
-  const dayMs = 86400000
-  const elapsed = Math.max(1, Math.floor((Date.now() - LAUNCH_DATE.getTime()) / dayMs) + 1)
-  for (let i = 0; i < elapsed; i++) {
-    const d = new Date(LAUNCH_DATE.getTime() + i * dayMs)
-    out.push({
-      key: String(d.getTime()),
-      label: d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "Asia/Dubai" }),
-    })
-  }
-  return out
+// Map a calendar-picked local-midnight Date onto its Gulf launch-day index.
+// Using local noon keeps the mapping right for any viewer timezone within
+// ±12h of Gulf time.
+function gulfDayIndex(picked: Date): number {
+  return Math.floor((picked.getTime() + 43200000 - LAUNCH_DATE.getTime()) / 86400000)
+}
+
+function rangeLabel(range: DayPickerDateRange): string {
+  const fmt = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+  if (!range.from) return "All days"
+  const to = range.to ?? range.from
+  return range.from.getTime() === to.getTime() ? fmt(range.from) : `${fmt(range.from)} – ${fmt(to)}`
 }
 
 // Galaxy Unpacked — July 22nd, 2026. Devices launched: Z Fold 8, Z Fold 8
@@ -344,16 +348,10 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
   const { getFilteredComments } = useDashboardData()
   const [activeDevice, setActiveDevice] = useState<string>("all")
   const [source, setSource] = useState<SourceFilter>("combined")
-  // Selected Gulf-day start timestamps (ms). Empty set = all days. Multiple
-  // days can be active at once — every stat narrows to their union.
-  const [selectedDays, setSelectedDays] = useState<Set<string>>(new Set())
-  const toggleDay = (key: string) =>
-    setSelectedDays((prev) => {
-      const next = new Set(prev)
-      if (next.has(key)) next.delete(key)
-      else next.add(key)
-      return next
-    })
+  // Calendar range over the launch window (Gulf days). undefined = all days;
+  // every stat narrows to the selected range.
+  const [dayRange, setDayRange] = useState<DayPickerDateRange | undefined>(undefined)
+  const [calendarOpen, setCalendarOpen] = useState(false)
   const [drilldown, setDrilldown] = useState<DrilldownState | null>(null)
 
   // Translation (Arabic/other → English) with a per-comment cache so nothing
@@ -470,17 +468,19 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
     const buyingTopic = TOPICS.find((t) => t.key === "buying")!
     const competitionTopic = TOPICS.find((t) => t.key === "competition")!
 
-    const dayWindows = [...selectedDays].map((key) => {
-      const start = Number(key)
-      return { start, end: start + 86400000 }
-    })
+    // Calendar range → one [start, end) window in Gulf-day terms.
+    const dayWindow = dayRange?.from
+      ? {
+          start: LAUNCH_DATE.getTime() + gulfDayIndex(dayRange.from) * 86400000,
+          end: LAUNCH_DATE.getTime() + (gulfDayIndex(dayRange.to ?? dayRange.from) + 1) * 86400000,
+        }
+      : null
 
     for (const { comment: c, device } of corpus) {
-      // Date filter narrows everything — device cards included. Multiple
-      // selected days act as a union.
-      if (dayWindows.length > 0) {
+      // Date filter narrows everything — device cards included.
+      if (dayWindow) {
         const t = new Date(c.createdAt).getTime()
-        if (isNaN(t) || !dayWindows.some((w) => t >= w.start && t < w.end)) continue
+        if (isNaN(t) || t < dayWindow.start || t >= dayWindow.end) continue
       }
       const inSelection = activeDevice === "all" || device.key === activeDevice
 
@@ -605,7 +605,7 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
       topPositive,
       topNegative,
     }
-  }, [getFilteredComments, platformFilter, activeDevice, source, selectedDays, influencerComments, rosterData])
+  }, [getFilteredComments, platformFilter, activeDevice, source, dayRange, influencerComments, rosterData])
 
   const { overall } = analysis
   const netSentiment = pct(overall.positive, overall.total) - pct(overall.negative, overall.total)
@@ -671,33 +671,54 @@ export function F8LaunchAnalysis({ platformFilter }: F8LaunchAnalysisProps) {
         {/* Audience source — Samsung's own channels vs influencer campaign videos */}
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <span className="section-label order-last ml-2">Date</span>
-          <button
-            type="button"
-            onClick={() => setSelectedDays(new Set())}
-            className={cn(
-              "order-last rounded-full border px-3 py-1 text-xs font-medium transition-colors",
-              selectedDays.size === 0
-                ? "border-primary/50 bg-primary/15 text-foreground"
-                : "border-white/[0.08] bg-white/[0.03] text-muted-foreground hover:text-foreground",
-            )}
-          >
-            All days
-          </button>
-          {launchDays().map((d) => (
+          <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className={cn(
+                  "order-last flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                  dayRange?.from
+                    ? "border-primary/50 bg-primary/15 text-foreground"
+                    : "border-white/[0.08] bg-white/[0.03] text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <CalendarIcon className="h-3 w-3" />
+                {dayRange?.from ? rangeLabel(dayRange) : "All days"}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="range"
+                selected={dayRange}
+                onSelect={setDayRange}
+                numberOfMonths={2}
+                defaultMonth={dayRange?.from ?? LAUNCH_DATE}
+                disabled={{ before: LAUNCH_DATE, after: new Date() }}
+              />
+              <div className="flex items-center justify-between border-t border-border px-3 py-2">
+                <span className="text-xs text-muted-foreground">
+                  {dayRange?.from ? rangeLabel(dayRange) : "Launch day (Jul 22) – today"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setDayRange(undefined)}
+                  className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <X className="h-3 w-3" /> All days
+                </button>
+              </div>
+            </PopoverContent>
+          </Popover>
+          {dayRange?.from && (
             <button
-              key={d.key}
               type="button"
-              onClick={() => toggleDay(d.key)}
-              className={cn(
-                "order-last rounded-full border px-3 py-1 text-xs font-medium transition-colors",
-                selectedDays.has(d.key)
-                  ? "border-primary/50 bg-primary/15 text-foreground"
-                  : "border-white/[0.08] bg-white/[0.03] text-muted-foreground hover:text-foreground",
-              )}
+              onClick={() => setDayRange(undefined)}
+              className="order-last rounded-full border border-white/[0.08] bg-white/[0.03] p-1.5 text-muted-foreground transition-colors hover:text-foreground"
+              aria-label="Clear date range"
             >
-              {d.label}
+              <X className="h-3 w-3" />
             </button>
-          ))}
+          )}
           <button
             type="button"
             onClick={() => setShowTranslations((v) => !v)}
