@@ -120,7 +120,7 @@ export default function CompetitionWatchPage() {
           {data?.meta && <LaunchStatusChip launchAt={data.meta.launchAt} trackingEndsAt={data.meta.trackingEndsAt} />}
           <span className="flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-1">
             <CalendarClock className="h-3 w-3" />
-            Auto-sync 9:00 AM, 2:00 PM &amp; 10:30 PM daily until Oct 1
+            Auto-sync 9:00 AM daily until Oct 1
           </span>
           <span className="rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-1">#iPhoneFold</span>
           <span className="rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-1">#iPhoneDuo</span>

@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
   if (!isVercelCron && !hasCronSecret) {
     return NextResponse.json({
       campaign: "iPhone Fold Competition Watch",
-      schedule: "09:00, 14:00 and 22:30 Gulf time, daily until Oct 1st 2026",
+      schedule: "09:00 Gulf time, daily until Oct 1st 2026",
       trackingEnded: ifoldTrackingEnded(),
       endsAt: IFOLD_TRACKING_END.toISOString(),
     })

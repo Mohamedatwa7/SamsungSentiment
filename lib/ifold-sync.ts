@@ -113,7 +113,8 @@ export function isInTrackingWindow(publishedAt: string | Date | null | undefined
 // Apify helpers (same fire-then-harvest model as the unpacked pipeline)
 // ---------------------------------------------------------------------------
 
-// Twice-daily schedule → 6 runs ≈ 3 days of history per actor.
+// Once-daily schedule → 6 runs ≈ 6 days of history per actor, enough to
+// backfill several missed cycles while keeping ingest fast.
 const RUNS_TO_SYNC = 6
 
 async function getRecentRunsItems<T>(actorId: string, runCount = RUNS_TO_SYNC): Promise<T[]> {

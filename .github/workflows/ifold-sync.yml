@@ -1,16 +1,13 @@
-# iPhone Fold Competition Watch sync — three times daily (9:00 AM, 2:00 PM,
-# 10:30 PM Gulf time) until Oct 1st, 2026. Scheduled here instead of a Vercel
-# cron because Hobby-plan crons are limited to once per day; the endpoint
-# itself self-disables after the tracking end date. Mirrors unpacked-sync.yml.
+# iPhone Fold Competition Watch sync — once daily at 9:00 AM Gulf time until
+# Oct 1st, 2026. The endpoint itself also self-disables after the tracking
+# end date. Mirrors unpacked-sync.yml.
 name: iPhone Fold sync
 
 on:
   schedule:
     # Off-peak minutes fire near-immediately on GitHub (on-the-hour slots
-    # queue behind heavy load), so schedule 20 minutes early at odd minutes.
+    # queue behind heavy load), so schedule 20 minutes early at an odd minute.
     - cron: "40 4 * * *" # target 09:00 Dubai (UTC+4)
-    - cron: "40 9 * * *" # target 14:00 Dubai (UTC+4)
-    - cron: "10 18 * * *" # target 22:30 Dubai — evening prime-time harvest
   workflow_dispatch: {}
 
 jobs:
