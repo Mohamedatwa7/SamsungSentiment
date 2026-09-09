@@ -345,28 +345,34 @@ const IFOLD_HASHTAGS = ["iphonefold", "iphoneduo", "iphone18pro"]
 const IFOLD_SEARCHES_AR = ["ايفون فولد", "آيفون القابل للطي", "ايفون 18"]
 const IFOLD_SEARCHES_EN = ["iphone fold", "iphone fold vs galaxy fold", "iphone duo"]
 
+// The keynote reaction wave (launch week) is the densest window of the whole
+// campaign — scrape deeper so the daily harvest doesn't truncate it, then
+// drop back to the cheaper steady-state depth.
+const LAUNCH_WEEK_END = new Date("2026-09-17T00:00:00+04:00")
+
 export async function startIFoldPostScrapes() {
+  const boost = Date.now() < LAUNCH_WEEK_END.getTime()
   const started: Record<string, string | null> = {}
   started.instagramHashtag = await startActorRun(IFOLD_ACTORS.instagramHashtag, {
     hashtags: IFOLD_HASHTAGS,
-    resultsLimit: 80,
+    resultsLimit: boost ? 150 : 80,
   })
   started.tiktokHashtag = await startActorRun(IFOLD_ACTORS.tiktokHashtag, {
     hashtags: IFOLD_HASHTAGS,
-    resultsPerPage: 80,
+    resultsPerPage: boost ? 150 : 80,
   })
   started.tiktokSearch = await startActorRun(IFOLD_ACTORS.tiktokSearch, {
     searchQueries: [...IFOLD_SEARCHES_EN.slice(0, 2), ...IFOLD_SEARCHES_AR.slice(0, 2)],
     searchSection: "/video",
     videoSearchSorting: "LATEST",
     videoSearchDateFilter: "PAST_WEEK",
-    resultsPerPage: 50,
+    resultsPerPage: boost ? 75 : 50,
   })
   started.twitterSearch = await startActorRun(
     IFOLD_ACTORS.twitterSearch,
     {
       searchTerms: ['"iphone fold"', '"iphone duo"', '"foldable iphone"', "ايفون فولد", "آيفون القابل للطي"],
-      maxItems: 300,
+      maxItems: boost ? 600 : 300,
       sort: "Latest",
       start: "2026-09-02",
     },
@@ -374,8 +380,8 @@ export async function startIFoldPostScrapes() {
   )
   started.youtubeSearch = await startActorRun(IFOLD_ACTORS.youtubeSearch, {
     searchQueries: ["iphone fold review", "iphone fold مراجعة", "ايفون فولد", "iphone fold vs galaxy z fold"],
-    maxResults: 15,
-    maxResultsShorts: 10,
+    maxResults: boost ? 25 : 15,
+    maxResultsShorts: boost ? 15 : 10,
     maxResultStreams: 0,
     oldestPostDate: "2026-09-02",
   })
