@@ -1,9 +1,10 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { ExternalLink, Newspaper } from "lucide-react"
+import { ExternalLink, Languages, Loader2, Newspaper } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { useCommentTranslations } from "@/hooks/use-comment-translations"
 import type { IFoldPost, IFoldSentiment } from "@/lib/ifold-data"
 
 const SENTIMENT_STYLES: Record<IFoldSentiment, string> = {
@@ -27,6 +28,8 @@ function timeAgo(iso: string | null): string {
 export function IFoldNewsWire({ posts }: { posts: IFoldPost[] }) {
   const [lang, setLang] = useState<"all" | "ar" | "en">("all")
   const [shown, setShown] = useState(15)
+  const { showTranslations, setShowTranslations, translating, ensureTranslations, displayText } =
+    useCommentTranslations()
 
   const articles = useMemo(
     () =>
@@ -35,6 +38,12 @@ export function IFoldNewsWire({ posts }: { posts: IFoldPost[] }) {
         .sort((a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime()),
     [posts, lang],
   )
+
+  const toggleTranslations = async () => {
+    const next = !showTranslations
+    setShowTranslations(next)
+    if (next) await ensureTranslations(articles.slice(0, shown).map((a) => ({ id: a.id, text: a.title })))
+  }
 
   return (
     <div className="glass-panel rounded-2xl p-5">
@@ -49,6 +58,19 @@ export function IFoldNewsWire({ posts }: { posts: IFoldPost[] }) {
           </p>
         </div>
         <div className="flex gap-1.5">
+          <button
+            type="button"
+            onClick={toggleTranslations}
+            className={cn(
+              "flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+              showTranslations
+                ? "border-primary/50 bg-primary/15 text-foreground"
+                : "border-white/[0.08] bg-white/[0.03] text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {translating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Languages className="h-3 w-3" />}
+            {showTranslations ? "Original" : "Translate"}
+          </button>
           {(
             [
               { key: "all", label: "All" },
@@ -91,9 +113,9 @@ export function IFoldNewsWire({ posts }: { posts: IFoldPost[] }) {
             <div className="min-w-0 flex-1">
               <p
                 className="text-sm leading-snug group-hover:text-foreground"
-                dir={a.sourceLang === "ar" ? "rtl" : "ltr"}
+                dir={showTranslations ? "ltr" : a.sourceLang === "ar" ? "rtl" : "ltr"}
               >
-                {a.title}
+                {displayText({ id: a.id, text: a.title })}
               </p>
               <p className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
                 <span className="font-medium">{a.source}</span>
@@ -127,7 +149,12 @@ export function IFoldNewsWire({ posts }: { posts: IFoldPost[] }) {
       {articles.length > shown && (
         <button
           type="button"
-          onClick={() => setShown((s) => s + 15)}
+          onClick={async () => {
+            const next = shown + 15
+            setShown(next)
+            if (showTranslations)
+              await ensureTranslations(articles.slice(0, next).map((a) => ({ id: a.id, text: a.title })))
+          }}
           className="mt-3 w-full rounded-xl border border-white/[0.08] bg-white/[0.03] py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
           Show more ({articles.length - shown} remaining)

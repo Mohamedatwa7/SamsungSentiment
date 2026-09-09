@@ -4,14 +4,13 @@ import { useMemo } from "react"
 import { Sparkles, Target } from "lucide-react"
 
 import {
-  ifoldOpinions,
   formatCompactNum,
   IFOLD_PLAYBOOK,
   IFOLD_TOPIC_LABELS,
-  type IFoldComment,
-  type IFoldPost,
   type IFoldTopicKey,
 } from "@/lib/ifold-data"
+import { byTopic, type Reaction } from "@/lib/ifold-reactions"
+import type { DrilldownState } from "@/components/ifold/drilldown"
 
 interface TopicInsight {
   key: string
@@ -23,28 +22,24 @@ interface TopicInsight {
 
 // Rank topics by volume of positive (strengths) or negative (opportunities)
 // reactions, each with its most-liked representative quote.
-function topTopics(
-  opinions: ReturnType<typeof ifoldOpinions>,
-  sentiment: "positive" | "negative",
-  limit = 5,
-): TopicInsight[] {
-  const byTopic = new Map<string, { count: number; quote: string | null; quoteLikes: number }>()
+function topTopics(reactions: Reaction[], sentiment: "positive" | "negative", limit = 5): TopicInsight[] {
+  const byTopicMap = new Map<string, { count: number; quote: string | null; quoteLikes: number }>()
   let total = 0
-  for (const o of opinions) {
-    if (o.sentiment !== sentiment) continue
-    for (const t of o.topics) {
+  for (const r of reactions) {
+    if (r.sentiment !== sentiment) continue
+    for (const t of r.topics) {
       total++
-      const slot = byTopic.get(t) || { count: 0, quote: null, quoteLikes: -1 }
+      const slot = byTopicMap.get(t) || { count: 0, quote: null, quoteLikes: -1 }
       slot.count++
-      const text = (o.text || "").trim()
-      if (text.length >= 12 && o.likes > slot.quoteLikes) {
+      const text = (r.text || "").trim()
+      if (text.length >= 12 && r.likes > slot.quoteLikes) {
         slot.quote = text.slice(0, 220)
-        slot.quoteLikes = o.likes
+        slot.quoteLikes = r.likes
       }
-      byTopic.set(t, slot)
+      byTopicMap.set(t, slot)
     }
   }
-  return [...byTopic.entries()]
+  return [...byTopicMap.entries()]
     .map(([key, v]) => ({
       key,
       label: IFOLD_TOPIC_LABELS[key] || key.replace(/_/g, " "),
@@ -58,12 +53,16 @@ function topTopics(
 
 function InsightList({
   items,
+  reactions,
   tone,
   showPlaybook,
+  onDrill,
 }: {
   items: TopicInsight[]
+  reactions: Reaction[]
   tone: "positive" | "negative"
   showPlaybook?: boolean
+  onDrill: (state: DrilldownState) => void
 }) {
   if (items.length === 0) {
     return (
@@ -76,11 +75,21 @@ function InsightList({
   return (
     <div className="space-y-4">
       {items.map((item) => (
-        <div key={item.key}>
+        <button
+          key={item.key}
+          type="button"
+          onClick={() =>
+            onDrill({
+              title: `${item.label} — ${tone} reactions`,
+              items: byTopic(reactions, item.key, tone),
+            })
+          }
+          className="group block w-full rounded-lg text-left transition-colors hover:bg-white/[0.03]"
+        >
           <div className="flex items-baseline justify-between gap-2">
-            <p className="text-sm font-medium">{item.label}</p>
+            <p className="text-sm font-medium group-hover:text-accent">{item.label}</p>
             <p className="text-xs text-muted-foreground">
-              {formatCompactNum(item.count)} · {item.share}%
+              {formatCompactNum(item.count)} · {item.share}% · view ↗
             </p>
           </div>
           <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
@@ -93,24 +102,31 @@ function InsightList({
             />
           </div>
           {item.quote && (
-            <p className="mt-1.5 line-clamp-2 text-xs italic text-muted-foreground">“{item.quote}”</p>
+            <p className="mt-1.5 line-clamp-2 text-xs italic text-muted-foreground" dir="auto">
+              “{item.quote}”
+            </p>
           )}
           {showPlaybook && IFOLD_PLAYBOOK[item.key as IFoldTopicKey] && (
             <p className="mt-1 text-xs text-positive/90">↳ {IFOLD_PLAYBOOK[item.key as IFoldTopicKey]}</p>
           )}
-        </div>
+        </button>
       ))}
     </div>
   )
 }
 
-// The strategic core of the section: what Apple is winning praise for
-// (threat), and where the reaction is negative (our opening) — with a
-// suggested Samsung Gulf angle per weakness.
-export function IFoldInsights({ posts, comments }: { posts: IFoldPost[]; comments: IFoldComment[] }) {
-  const opinions = useMemo(() => ifoldOpinions(posts, comments), [posts, comments])
-  const strengths = useMemo(() => topTopics(opinions, "positive"), [opinions])
-  const opportunities = useMemo(() => topTopics(opinions, "negative"), [opinions])
+// The strategic core: what Apple is winning praise for (threat), and where
+// the reaction is negative (our opening) — every topic row is clickable and
+// opens the actual reactions behind it.
+export function IFoldInsights({
+  reactions,
+  onDrill,
+}: {
+  reactions: Reaction[]
+  onDrill: (state: DrilldownState) => void
+}) {
+  const strengths = useMemo(() => topTopics(reactions, "positive"), [reactions])
+  const opportunities = useMemo(() => topTopics(reactions, "negative"), [reactions])
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
@@ -120,9 +136,9 @@ export function IFoldInsights({ posts, comments }: { posts: IFoldPost[]; comment
           What People Love — Apple&apos;s Strengths
         </p>
         <p className="mt-1 mb-4 text-xs text-muted-foreground">
-          Topics driving positive iPhone Fold reactions — the threats to answer
+          Topics driving positive iPhone Fold reactions — click one to read them
         </p>
-        <InsightList items={strengths} tone="positive" />
+        <InsightList items={strengths} reactions={reactions} tone="positive" onDrill={onDrill} />
       </div>
 
       <div className="glass-panel rounded-2xl p-5">
@@ -131,9 +147,9 @@ export function IFoldInsights({ posts, comments }: { posts: IFoldPost[]; comment
           Where Fold8 Can Capitalize — Apple&apos;s Weaknesses
         </p>
         <p className="mt-1 mb-4 text-xs text-muted-foreground">
-          Topics driving criticism of the iPhone Fold, with a suggested Samsung Gulf angle
+          Topics driving criticism, with a suggested Samsung Gulf angle — click to read
         </p>
-        <InsightList items={opportunities} tone="negative" showPlaybook />
+        <InsightList items={opportunities} reactions={reactions} tone="negative" showPlaybook onDrill={onDrill} />
       </div>
     </div>
   )

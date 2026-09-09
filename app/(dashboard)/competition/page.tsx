@@ -10,9 +10,12 @@ import {
   type IFoldPayload,
   type IFoldPost,
 } from "@/lib/ifold-data"
+import { snapshotFetcher, type UnpackedPayload } from "@/lib/unpacked-data"
+import { buildAppleReactions, buildSamsungReactions } from "@/lib/ifold-reactions"
+import { IFoldDrilldownDialog, type DrilldownState } from "@/components/ifold/drilldown"
 import { IFoldKPIs } from "@/components/ifold/ifold-kpis"
+import { IFoldPies } from "@/components/ifold/ifold-pies"
 import { IFoldTrend } from "@/components/ifold/ifold-trend"
-import { IFoldHeadToHead } from "@/components/ifold/ifold-head-to-head"
 import { IFoldInsights } from "@/components/ifold/ifold-insights"
 import { IFoldNewsWire } from "@/components/ifold/ifold-news-wire"
 import { IFoldTopPosts } from "@/components/ifold/ifold-top-posts"
@@ -27,6 +30,11 @@ const fetcher = async (url: string) => {
   return json
 }
 
+// The FF8 side of the pie charts comes from the Galaxy Unpacked + roster
+// payloads (both have committed snapshots, so these never block the page).
+const unpackedFetcher = snapshotFetcher("/unpacked-snapshot.json")
+const rosterFetcher = snapshotFetcher("/roster-snapshot.json")
+
 type FocusFilter = "fold" | "all"
 type RegionFilter = "gcc" | "all"
 type PlatformFilter = "all" | "instagram" | "tiktok" | "twitter" | "youtube" | "news"
@@ -35,11 +43,12 @@ function LoadingState() {
   return (
     <div className="space-y-6">
       <Skeleton className="h-[120px] w-full rounded-lg" />
-      <Skeleton className="h-[300px] w-full rounded-lg" />
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Skeleton className="h-[320px] w-full rounded-lg" />
-        <Skeleton className="h-[320px] w-full rounded-lg" />
+      <div className="grid gap-6 xl:grid-cols-3">
+        <Skeleton className="h-[300px] w-full rounded-lg" />
+        <Skeleton className="h-[300px] w-full rounded-lg" />
+        <Skeleton className="h-[300px] w-full rounded-lg" />
       </div>
+      <Skeleton className="h-[280px] w-full rounded-lg" />
     </div>
   )
 }
@@ -58,7 +67,9 @@ function LaunchStatusChip({ launchAt, trackingEndsAt }: { launchAt: string; trac
     )
   }
   const day = ifoldCampaignDay()
-  const totalDays = Math.round((new Date(trackingEndsAt).getTime() - new Date("2026-09-09T00:00:00+04:00").getTime()) / 86400000)
+  const totalDays = Math.round(
+    (new Date(trackingEndsAt).getTime() - new Date("2026-09-09T00:00:00+04:00").getTime()) / 86400000,
+  )
   return (
     <span className="flex items-center gap-1.5 rounded-full border border-positive/40 bg-positive/10 px-3 py-1 text-positive">
       <span className="relative flex h-1.5 w-1.5">
@@ -79,9 +90,19 @@ export default function CompetitionWatchPage() {
     errorRetryCount: 10,
     errorRetryInterval: 4000,
   })
+  const { data: unpackedData } = useSWR<UnpackedPayload>("/api/unpacked", unpackedFetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 300000,
+  })
+  const { data: rosterData } = useSWR<UnpackedPayload>("/api/roster", rosterFetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 300000,
+  })
+
   const [focus, setFocus] = useState<FocusFilter>("fold")
   const [region, setRegion] = useState<RegionFilter>("all")
   const [platform, setPlatform] = useState<PlatformFilter>("all")
+  const [drill, setDrill] = useState<DrilldownState | null>(null)
 
   const hasData = !!data && Array.isArray(data.posts)
 
@@ -92,13 +113,11 @@ export default function CompetitionWatchPage() {
       (region === "all" || p.gcc) &&
       (platform === "all" || p.platform === platform)
     const posts = data.posts.filter(postOk)
-    const postIds = new Set(posts.map((p) => p.id))
     const postById = new Map(data.posts.map((p) => [p.id, p]))
     // Comments follow their parent post's focus/platform; region uses the
     // comment's own GCC signal (Arabic text on a global post still counts).
     const comments = data.comments.filter((c) => {
       const parent = postById.get(c.postId)
-      if (parent && !postIds.has(parent.id) && platform !== "all") return false
       if (focus === "fold" && parent && parent.focus !== "fold") return false
       if (region === "gcc" && !c.gcc && !(parent && parent.gcc)) return false
       if (platform !== "all" && (parent ? parent.platform : c.platform) !== platform) return false
@@ -106,6 +125,15 @@ export default function CompetitionWatchPage() {
     })
     return { posts, comments }
   }, [data, hasData, focus, region, platform])
+
+  const appleReactions = useMemo(
+    () => (filtered ? buildAppleReactions(filtered.posts, filtered.comments) : []),
+    [filtered],
+  )
+  const samsungReactions = useMemo(
+    () => buildSamsungReactions([unpackedData, rosterData]),
+    [unpackedData, rosterData],
+  )
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6">
@@ -116,9 +144,9 @@ export default function CompetitionWatchPage() {
           Competition Watch — iPhone Fold
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground md:text-base">
-          Live GCC + global buzz on Apple&apos;s first foldable vs Galaxy Fold8 / Fold8 Ultra — social
-          conversations, press coverage and AI-scored reactions mapped to strengths we must answer and
-          weaknesses we can capitalize on
+          Live GCC + global reactions to Apple&apos;s first foldable, scored by AI and compared with our
+          Galaxy Fold8 campaign. Every number is clickable — tap any stat, slice or bar to read the
+          actual comments behind it, with one-tap translation.
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] font-medium tracking-wide text-muted-foreground">
           {data?.meta && <LaunchStatusChip launchAt={data.meta.launchAt} trackingEndsAt={data.meta.trackingEndsAt} />}
@@ -126,15 +154,12 @@ export default function CompetitionWatchPage() {
             <CalendarClock className="h-3 w-3" />
             Auto-sync 9:00 AM daily until Oct 1
           </span>
-          <span className="rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-1">#iPhoneFold</span>
-          <span className="rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-1">#iPhoneDuo</span>
-          <span className="rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-1" dir="rtl">
-            آيفون القابل للطي
-          </span>
         </div>
       </div>
 
-      {(isLoading || (error && !hasData && isValidating)) && <LoadingState />}
+      {isLoading && <LoadingState />}
+
+      {(!isLoading && error && !hasData && isValidating) && <LoadingState />}
 
       {!isLoading && error && !hasData && !isValidating && (
         <div className="glass-panel flex flex-col items-center gap-3 rounded-2xl p-12 text-center">
@@ -147,7 +172,7 @@ export default function CompetitionWatchPage() {
 
       {!isLoading && hasData && filtered && (
         <>
-          {/* Filters — drive every section below */}
+          {/* Filters — drive every Apple-side section below */}
           <div className="sticky top-14 z-20 -mx-4 border-y border-white/[0.06] bg-background/70 px-4 py-2.5 backdrop-blur-xl md:-mx-6 md:px-6">
             <div className="flex flex-wrap items-center gap-2">
               <span className="section-label mr-1">Focus</span>
@@ -230,37 +255,32 @@ export default function CompetitionWatchPage() {
             <div className="glass-panel flex flex-col items-center gap-3 rounded-2xl p-12 text-center">
               <Swords className="h-8 w-8 text-muted-foreground" />
               <p className="max-w-md text-sm text-muted-foreground">
-                No conversations tracked yet for this filter. The main wave lands after Apple&apos;s event
-                tonight — scrapers and press feeds sync three times a day, and the first cycle can be
-                triggered manually from /api/ifold/sync.
+                No conversations tracked yet for this filter — try widening the focus, region or
+                channel above.
               </p>
             </div>
           ) : (
             <>
-              {/* Scale + tone of the conversation */}
-              <IFoldKPIs posts={filtered.posts} comments={filtered.comments} />
+              {/* Headline numbers — each opens the reactions behind it */}
+              <IFoldKPIs posts={filtered.posts} reactions={appleReactions} onDrill={setDrill} />
 
-              {/* Daily volume by channel + positive share */}
+              {/* FF8 vs iPhone Fold pie charts */}
+              <IFoldPies apple={appleReactions} samsung={samsungReactions} onDrill={setDrill} />
+
+              {/* Daily sentiment volume — click a day to read it */}
               <IFoldTrend
-                posts={filtered.posts}
-                comments={filtered.comments}
+                reactions={appleReactions}
                 launchAt={data.meta.launchAt}
+                onDrill={setDrill}
               />
 
-              {/* Apple vs our Fold8 corpus, overall + per topic */}
-              <IFoldHeadToHead
-                posts={filtered.posts}
-                comments={filtered.comments}
-                baseline={data.samsungBaseline}
-              />
-
-              {/* Strengths to answer / weaknesses to attack */}
-              <IFoldInsights posts={filtered.posts} comments={filtered.comments} />
+              {/* Strengths to answer / weaknesses to attack — click any topic */}
+              <IFoldInsights reactions={appleReactions} onDrill={setDrill} />
 
               {/* Press + top social conversations side by side on wide screens */}
               <div className="grid items-start gap-6 xl:grid-cols-2">
                 <IFoldNewsWire posts={filtered.posts} />
-                <IFoldTopPosts posts={filtered.posts} />
+                <IFoldTopPosts posts={filtered.posts} comments={filtered.comments} onDrill={setDrill} />
               </div>
 
               {/* Every scraped reaction, filterable + translatable */}
@@ -272,6 +292,8 @@ export default function CompetitionWatchPage() {
           )}
         </>
       )}
+
+      <IFoldDrilldownDialog state={drill} onClose={() => setDrill(null)} />
     </div>
   )
 }
