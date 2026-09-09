@@ -43,19 +43,28 @@ export function IFoldDrilldownDialog({
   onClose: () => void
 }) {
   const [shown, setShown] = useState(PAGE)
+  const [sentimentFilter, setSentimentFilter] = useState<"all" | IFoldSentiment>("all")
   const { showTranslations, setShowTranslations, translating, ensureTranslations, displayText } =
     useCommentTranslations()
 
-  const items = (state?.items || [])
-    .slice()
-    .sort((a, b) => b.likes - a.likes)
-    .slice(0, MAX_ITEMS)
+  const all = (state?.items || []).slice().sort((a, b) => b.likes - a.likes)
+  const counts = {
+    all: all.length,
+    positive: all.filter((r) => r.sentiment === "positive").length,
+    neutral: all.filter((r) => r.sentiment === "neutral").length,
+    negative: all.filter((r) => r.sentiment === "negative").length,
+  }
+  const items = (sentimentFilter === "all" ? all : all.filter((r) => r.sentiment === sentimentFilter)).slice(
+    0,
+    MAX_ITEMS,
+  )
   const visible = items.slice(0, shown)
 
-  // Fresh dialog content → reset paging (translations cache persists across
-  // opens so nothing is re-billed).
+  // Fresh dialog content → reset paging + filter (translations cache
+  // persists across opens so nothing is re-billed).
   useEffect(() => {
     setShown(PAGE)
+    setSentimentFilter("all")
   }, [state?.title])
 
   const toggleTranslations = async () => {
@@ -88,6 +97,28 @@ export function IFoldDrilldownDialog({
             {state?.subtitle || `${formatCompactNum(items.length)} reactions, most-liked first`}
             {state && state.items.length > MAX_ITEMS && ` (top ${MAX_ITEMS} shown)`}
           </DialogDescription>
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {(["all", "positive", "neutral", "negative"] as const).map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => {
+                  setSentimentFilter(s)
+                  setShown(PAGE)
+                }}
+                className={cn(
+                  "rounded-full border px-3 py-1 text-xs font-medium capitalize transition-colors",
+                  sentimentFilter === s
+                    ? "border-primary/50 bg-primary/15 text-foreground"
+                    : "border-white/[0.08] bg-white/[0.03] text-muted-foreground hover:text-foreground",
+                  s === "positive" && sentimentFilter !== s && "text-positive/80",
+                  s === "negative" && sentimentFilter !== s && "text-negative/80",
+                )}
+              >
+                {s} ({formatCompactNum(counts[s])})
+              </button>
+            ))}
+          </div>
         </DialogHeader>
 
         <div className="-mx-1 max-h-[62vh] space-y-2 overflow-y-auto px-1 pb-1">

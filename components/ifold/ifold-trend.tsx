@@ -88,9 +88,10 @@ export function IFoldTrend({
     <div className="glass-panel rounded-2xl p-5">
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
         <div>
-          <p className="section-label">Reactions Per Day</p>
+          <p className="section-label">iPhone Fold — Reactions Per Day</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Daily iPhone Fold reactions colored by sentiment — click a day to read them
+            How many people reacted to Apple&apos;s foldable each day and how it leaned — click a day to
+            read them
           </p>
         </div>
         <div className="flex items-center gap-3 text-[11px] text-muted-foreground">

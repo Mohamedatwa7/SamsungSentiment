@@ -14,6 +14,7 @@ import { snapshotFetcher, type UnpackedPayload } from "@/lib/unpacked-data"
 import { buildAppleReactions, buildSamsungReactions } from "@/lib/ifold-reactions"
 import { IFoldDrilldownDialog, type DrilldownState } from "@/components/ifold/drilldown"
 import { IFoldKPIs } from "@/components/ifold/ifold-kpis"
+import { IFoldWhatsHappening } from "@/components/ifold/ifold-whats-happening"
 import { IFoldPies } from "@/components/ifold/ifold-pies"
 import { IFoldTrend } from "@/components/ifold/ifold-trend"
 import { IFoldInsights } from "@/components/ifold/ifold-insights"
@@ -263,6 +264,9 @@ export default function CompetitionWatchPage() {
             <>
               {/* Headline numbers — each opens the reactions behind it */}
               <IFoldKPIs posts={filtered.posts} reactions={appleReactions} onDrill={setDrill} />
+
+              {/* Plain-language digest of what's going on */}
+              <IFoldWhatsHappening reactions={appleReactions} onDrill={setDrill} />
 
               {/* FF8 vs iPhone Fold pie charts */}
               <IFoldPies apple={appleReactions} samsung={samsungReactions} onDrill={setDrill} />

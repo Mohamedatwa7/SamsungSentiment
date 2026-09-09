@@ -52,6 +52,21 @@ export function IFoldTopPosts({
     return map
   }, [comments])
 
+  // Inline preview: the two most-liked scraped comments under each of the
+  // top posts, so the list reads as a story without opening anything.
+  const SAMPLE_ROWS = 10
+  const sampleComments = (p: IFoldPost): IFoldComment[] =>
+    (commentsByPost.get(p.id) || [])
+      .slice()
+      .sort((a, b) => b.likes - a.likes)
+      .slice(0, 2)
+
+  const translatables = (upTo: number) =>
+    ranked.slice(0, upTo).flatMap((p, i) => [
+      { id: p.id, text: p.title.slice(0, 300) },
+      ...(i < SAMPLE_ROWS ? sampleComments(p).map((c) => ({ id: c.id, text: c.text })) : []),
+    ])
+
   const drillPost = (p: IFoldPost) => {
     const postComments = commentsByPost.get(p.id) || []
     const items: Reaction[] = postComments.map((c) => ({
@@ -76,10 +91,7 @@ export function IFoldTopPosts({
   const toggleTranslations = async () => {
     const next = !showTranslations
     setShowTranslations(next)
-    if (next)
-      await ensureTranslations(
-        ranked.slice(0, shown).map((p) => ({ id: p.id, text: p.title.slice(0, 300) })),
-      )
+    if (next) await ensureTranslations(translatables(shown))
   }
 
   if (ranked.length === 0) return null
@@ -112,10 +124,11 @@ export function IFoldTopPosts({
       </div>
 
       <div className="space-y-1">
-        {ranked.slice(0, shown).map((p) => {
+        {ranked.slice(0, shown).map((p, index) => {
           const cs = p.commentSentiment
           const scored = cs.positive + cs.neutral + cs.negative
           const scrapedCount = (commentsByPost.get(p.id) || []).length
+          const samples = index < SAMPLE_ROWS ? sampleComments(p) : []
           return (
             <div
               key={p.id}
@@ -152,6 +165,27 @@ export function IFoldTopPosts({
                     </span>
                   )}
                 </div>
+                {samples.length > 0 && (
+                  <div className="mt-1.5 space-y-1 border-l border-white/[0.08] pl-3">
+                    {samples.map((c) => (
+                      <p key={c.id} className="line-clamp-1 text-xs text-muted-foreground" dir="auto">
+                        <span
+                          className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full align-middle"
+                          style={{
+                            background:
+                              c.sentiment === "positive"
+                                ? "var(--positive)"
+                                : c.sentiment === "negative"
+                                  ? "var(--negative)"
+                                  : "var(--neutral)",
+                          }}
+                        />
+                        “{displayText({ id: c.id, text: c.text })}”
+                        {c.likes > 0 && <span className="ml-1.5 opacity-70">♥ {formatCompactNum(c.likes)}</span>}
+                      </p>
+                    ))}
+                  </div>
+                )}
               </div>
               <a
                 href={p.url}
@@ -173,8 +207,7 @@ export function IFoldTopPosts({
           onClick={async () => {
             const next = shown + 12
             setShown(next)
-            if (showTranslations)
-              await ensureTranslations(ranked.slice(0, next).map((p) => ({ id: p.id, text: p.title.slice(0, 300) })))
+            if (showTranslations) await ensureTranslations(translatables(next))
           }}
           className="mt-3 w-full rounded-xl border border-white/[0.08] bg-white/[0.03] py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
