@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { analyzeIFoldComments, analyzeIFoldPosts, syncIFold } from "@/lib/ifold-sync"
 import { ifoldTrackingEnded, IFOLD_TRACKING_END } from "@/lib/ifold-data"
+import { isAuthorizedCron } from "@/lib/cron-auth"
 
 // Two Apify scrape waves + RSS + LLM analysis need headroom, same as the
 // unpacked sync.
@@ -11,13 +12,10 @@ export const maxDuration = 300
 // immediately instead of after the next scheduled cycle.
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json().catch(() => ({}))
-
-    const cronSecret = process.env.CRON_SECRET
-    const authHeader = request.headers.get("authorization")
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}` && !body.manual) {
+    if (!isAuthorizedCron(request)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+    const body = await request.json().catch(() => ({}))
 
     // LLM analysis only, with a fresh time budget — the full sync's ingest
     // phase can consume the whole invocation before analysis gets a turn, so
@@ -58,14 +56,7 @@ export async function POST(request: NextRequest) {
 // Cron entry point (GitHub Actions ifold-sync.yml). Self-disables once the
 // 3-week tracking window closes on Oct 1st, 2026.
 export async function GET(request: NextRequest) {
-  const isVercelCron =
-    request.headers.get("x-vercel-cron-schedule") !== null ||
-    (request.headers.get("user-agent") || "").startsWith("vercel-cron")
-  const cronSecret = process.env.CRON_SECRET
-  const hasCronSecret =
-    !!cronSecret && request.headers.get("authorization") === `Bearer ${cronSecret}`
-
-  if (!isVercelCron && !hasCronSecret) {
+  if (!isAuthorizedCron(request)) {
     return NextResponse.json({
       campaign: "iPhone Fold Competition Watch",
       schedule: "09:00 Gulf time, daily until Oct 1st 2026",

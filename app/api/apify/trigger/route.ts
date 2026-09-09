@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { isAuthorizedCron } from "@/lib/cron-auth"
 
 // Apify Actor IDs for social media scrapers
 const APIFY_ACTORS = {
@@ -20,6 +21,9 @@ const APIFY_ACTORS = {
 
 export async function POST(request: NextRequest) {
   try {
+    if (!isAuthorizedCron(request)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
     const { platform, type = "posts", targetUsername = "samsunggulf" } = await request.json()
 
     const apiToken = process.env.APIFY_API_TOKEN

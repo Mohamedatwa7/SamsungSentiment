@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { analyzeComments, type CommentToAnalyze } from "@/lib/sentiment"
+import { isAuthorizedCron } from "@/lib/cron-auth"
 
 export const maxDuration = 300
 
@@ -29,6 +30,9 @@ interface CommentRow {
  */
 export async function POST(request: Request) {
   try {
+    if (!isAuthorizedCron(request)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
     const body = await request.json().catch(() => ({}))
     const limit: number = Math.min(body.limit ?? 200, 500)
     const batchSize: number = body.batchSize ?? 20

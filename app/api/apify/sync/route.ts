@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { syncAllPlatforms, getAllScheduledRuns, startF7CommentBackfill } from "@/lib/apify-sync"
+import { isAuthorizedCron } from "@/lib/cron-auth"
 import { createClient } from "@/lib/supabase/server"
 import { processAndNormalizeData, mergeNormalizedData } from "@/lib/process-synced-data"
 import { promises as fs } from "fs"
@@ -129,21 +130,13 @@ async function runFullSync(runsToSync?: number, ingestOnly?: boolean) {
   }
 }
 
-// Manual sync from the admin page.
+// Manual sync trigger — requires the CRON_SECRET bearer, same as the cron.
 export async function POST(request: NextRequest) {
   try {
-    // Optional: verify cron secret for automated runs
-    const authHeader = request.headers.get("authorization")
-    const cronSecret = process.env.CRON_SECRET
-    const body = await request.json().catch(() => ({}))
-
-    // If CRON_SECRET is set, verify it (for external schedulers)
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-      // Allow requests without auth for manual triggers from admin page
-      if (!body.manual) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-      }
+    if (!isAuthorizedCron(request)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+    const body = await request.json().catch(() => ({}))
 
     // One-off: fire comment scrapes for the F7 launch window (Jul 9-20 2025)
     // and return — results are harvested by the next ingest.
@@ -174,18 +167,10 @@ export async function POST(request: NextRequest) {
 //    Cron requests are identified by the x-vercel-cron header / CRON_SECRET bearer.
 // 2. The admin page -> return sync status and recent runs.
 export async function GET(request: NextRequest) {
-  // Vercel cron requests carry the x-vercel-cron-schedule header and a
-  // vercel-cron/* user agent; if CRON_SECRET is set, Vercel also sends it as a
-  // bearer token. (There is no `x-vercel-cron` header — the old check never
-  // matched, so the daily cron silently returned status instead of syncing.)
-  const isVercelCron =
-    request.headers.get("x-vercel-cron-schedule") !== null ||
-    (request.headers.get("user-agent") || "").startsWith("vercel-cron")
-  const cronSecret = process.env.CRON_SECRET
-  const hasCronSecret =
-    !!cronSecret && request.headers.get("authorization") === `Bearer ${cronSecret}`
-
-  if (isVercelCron || hasCronSecret) {
+  // Vercel cron sends the CRON_SECRET bearer automatically once the env var
+  // is set on the project. The x-vercel-cron-schedule header is spoofable
+  // and no longer trusted on its own.
+  if (isAuthorizedCron(request)) {
     try {
       const result = await runFullSync()
       return NextResponse.json(result)

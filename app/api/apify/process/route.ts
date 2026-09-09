@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { processAndNormalizeData, mergeNormalizedData } from "@/lib/process-synced-data"
+import { isAuthorizedCron } from "@/lib/cron-auth"
 import { promises as fs } from "fs"
 import path from "path"
 
@@ -20,8 +21,11 @@ async function writeNormalizedData(data: unknown) {
   await fs.writeFile(filePath, JSON.stringify(data), "utf-8")
 }
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
+    if (!isAuthorizedCron(request)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
     // Process synced data from Supabase
     const processedData = await processAndNormalizeData()
     

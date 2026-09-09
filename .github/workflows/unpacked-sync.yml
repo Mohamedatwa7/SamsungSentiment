@@ -37,7 +37,8 @@ jobs:
         run: |
           curl -sS -X POST "https://samsungtrack.com/api/unpacked/sync" \
             -H "Content-Type: application/json" \
-            -d '{"manual": true, "wait": false}' \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -d '{"wait": false}' \
             --fail-with-body \
             --max-time 570
 
@@ -54,7 +55,8 @@ jobs:
         run: |
           curl -sS -X POST "https://samsungtrack.com/api/unpacked/sync" \
             -H "Content-Type: application/json" \
-            -d '{"manual": true, "ingestOnly": true}' \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -d '{"ingestOnly": true}' \
             --fail-with-body \
             --max-time 570
 

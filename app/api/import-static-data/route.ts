@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import normalizedData from "@/data/social-normalized.json"
+import { isAuthorizedCron } from "@/lib/cron-auth"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -9,6 +10,9 @@ const supabase = createClient(
 
 export async function POST(request: Request) {
   try {
+    if (!isAuthorizedCron(request)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
     const { platform, batchSize = 100 } = await request.json()
     
     if (!platform || !["instagram", "tiktok", "facebook", "twitter"].includes(platform)) {

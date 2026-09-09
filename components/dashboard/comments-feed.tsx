@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react"
 import { useSWRConfig } from "swr"
-import { Instagram, ThumbsUp, ThumbsDown, Minus, ExternalLink, RefreshCw, MessageCircle, Music2, Facebook, Sparkles, Search, X, AlertTriangle, DollarSign, ShoppingCart, Swords, CircleAlert } from "lucide-react"
+import { Instagram, ThumbsUp, ThumbsDown, Minus, ExternalLink, RefreshCw, MessageCircle, Music2, Facebook, Search, X, AlertTriangle, DollarSign, ShoppingCart, Swords, CircleAlert } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -163,8 +163,6 @@ const PAGE_SIZE = 50
 export function CommentsFeed({ platformFilter, dateRange }: CommentsFeedProps) {
   const { mutate } = useSWRConfig()
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const [isAnalyzing, setIsAnalyzing] = useState(false)
-  const [analysisStatus, setAnalysisStatus] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<"all" | Sentiment>("all")
   const [activePlatform, setActivePlatform] = useState<"all" | "instagram" | "tiktok" | "facebook" | "twitter">("all")
   const [searchQuery, setSearchQuery] = useState("")
@@ -203,29 +201,6 @@ export function CommentsFeed({ platformFilter, dateRange }: CommentsFeedProps) {
     }, 250)
     return () => clearTimeout(handle)
   }, [searchQuery])
-  
-  const handleAIAnalysis = async () => {
-    setIsAnalyzing(true)
-    setAnalysisStatus("Analyzing comments with AI...")
-    
-    try {
-      const response = await fetch("/api/analyze-sentiment", { method: "POST" })
-      const data = await response.json()
-      
-      if (data.success) {
-        setAnalysisStatus(`Analysis complete! Positive: ${data.positivePercent}%, Negative: ${data.negativePercent}%, Neutral: ${data.neutralPercent}%`)
-        // Revalidate the data in place — a full page reload would lose the
-        // user's filters, search and scroll position.
-        await mutate("/api/comments")
-      } else {
-        setAnalysisStatus(`Error: ${data.error}`)
-      }
-    } catch (error) {
-      setAnalysisStatus("Failed to analyze comments")
-    } finally {
-      setIsAnalyzing(false)
-    }
-  }
   
   // Apply search across ALL comments first so platform tab counts stay accurate,
   // then narrow by platform, then by sentiment.
@@ -326,16 +301,6 @@ export function CommentsFeed({ platformFilter, dateRange }: CommentsFeedProps) {
         </div>
         <div className="flex items-center gap-2">
           <Button
-            variant="outline"
-            size="sm"
-            onClick={handleAIAnalysis}
-            disabled={isAnalyzing}
-            className="gap-1.5"
-          >
-            <Sparkles className={cn("h-4 w-4", isAnalyzing && "animate-pulse")} />
-            {isAnalyzing ? "Analyzing..." : "AI Analysis"}
-          </Button>
-          <Button
             variant="ghost"
             size="icon"
             onClick={handleRefresh}
@@ -347,24 +312,6 @@ export function CommentsFeed({ platformFilter, dateRange }: CommentsFeedProps) {
         </div>
       </CardHeader>
       <CardContent className="pt-0">
-        {/* Analysis Status */}
-        {analysisStatus && (
-          <div className={cn(
-            "mb-4 flex items-center gap-2 border-b border-border py-3 text-sm",
-            analysisStatus.includes("Error") || analysisStatus.includes("Failed")
-              ? "text-negative"
-              : "text-primary"
-          )}>
-            <span className={cn(
-              "h-1.5 w-1.5 shrink-0 rounded-full",
-              analysisStatus.includes("Error") || analysisStatus.includes("Failed")
-                ? "bg-negative"
-                : "bg-primary"
-            )} />
-            {analysisStatus}
-          </div>
-        )}
-        
         {/* Keyword Search */}
         <div className="mb-4">
           <div className="flex gap-2">

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { isAuthorizedCron } from "@/lib/cron-auth"
 import { openai } from "@ai-sdk/openai"
 import { generateObject } from "ai"
 import { z } from "zod"
@@ -15,8 +16,11 @@ const SentimentSchema = z.object({
   }))
 })
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
+    if (!isAuthorizedCron(request)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
     // Process Instagram comments
     const instagramComments = (instagramCommentsRaw as any[]).map((c, i) => ({
       id: `ig-${i}`,

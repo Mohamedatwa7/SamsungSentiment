@@ -6,6 +6,7 @@ import {
   repairUnavailableTikTokVideos,
 } from "@/lib/unpacked-sync"
 import { startF7RosterScrapes } from "@/lib/roster-sync"
+import { isAuthorizedCron } from "@/lib/cron-auth"
 
 // Two Apify scrape waves + LLM sentiment need headroom, same as /api/apify/sync.
 export const maxDuration = 300
@@ -15,13 +16,10 @@ export const maxDuration = 300
 // immediately instead of after the next scheduled cycle.
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json().catch(() => ({}))
-
-    const cronSecret = process.env.CRON_SECRET
-    const authHeader = request.headers.get("authorization")
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}` && !body.manual) {
+    if (!isAuthorizedCron(request)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+    const body = await request.json().catch(() => ({}))
 
     // One-off: fire historical scrapes for the roster's F7-era posts
     // (July 2025); results are harvested by subsequent ingest passes.
@@ -69,14 +67,7 @@ export async function POST(request: NextRequest) {
 // The workflow gates itself by date, and this route also self-disables once
 // the campaign window closes on Aug 1st, 2026 — belt and suspenders.
 export async function GET(request: NextRequest) {
-  const isVercelCron =
-    request.headers.get("x-vercel-cron-schedule") !== null ||
-    (request.headers.get("user-agent") || "").startsWith("vercel-cron")
-  const cronSecret = process.env.CRON_SECRET
-  const hasCronSecret =
-    !!cronSecret && request.headers.get("authorization") === `Bearer ${cronSecret}`
-
-  if (!isVercelCron && !hasCronSecret) {
+  if (!isAuthorizedCron(request)) {
     return NextResponse.json({
       campaign: "Galaxy Unpacked",
       schedule: "09:00 and 14:00 Gulf time, daily until Aug 1st 2026",
