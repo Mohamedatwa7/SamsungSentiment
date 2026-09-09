@@ -71,9 +71,13 @@ function LaunchStatusChip({ launchAt, trackingEndsAt }: { launchAt: string; trac
 }
 
 export default function CompetitionWatchPage() {
-  const { data, error, isLoading } = useSWR<IFoldPayload>("/api/ifold", fetcher, {
+  // The first cold read after idle can 500 while the DB cache warms — keep
+  // retrying quickly and show a warming state instead of a dead error panel.
+  const { data, error, isLoading, isValidating } = useSWR<IFoldPayload>("/api/ifold", fetcher, {
     revalidateOnFocus: false,
     dedupingInterval: 60000,
+    errorRetryCount: 10,
+    errorRetryInterval: 4000,
   })
   const [focus, setFocus] = useState<FocusFilter>("fold")
   const [region, setRegion] = useState<RegionFilter>("all")
@@ -130,13 +134,13 @@ export default function CompetitionWatchPage() {
         </div>
       </div>
 
-      {isLoading && <LoadingState />}
+      {(isLoading || (error && !hasData && isValidating)) && <LoadingState />}
 
-      {!isLoading && (error || !hasData) && (
+      {!isLoading && error && !hasData && !isValidating && (
         <div className="glass-panel flex flex-col items-center gap-3 rounded-2xl p-12 text-center">
-          <Swords className="h-8 w-8 text-muted-foreground" />
+          <Swords className="h-8 w-8 animate-pulse text-muted-foreground" />
           <p className="text-sm text-muted-foreground">
-            Could not load Competition Watch data. Try refreshing the page.
+            Warming up the data store — retrying automatically…
           </p>
         </div>
       )}

@@ -25,6 +25,9 @@ import {
 
 // Always read live from Supabase — never prerendered at build time.
 export const dynamic = "force-dynamic"
+// Cold-cache rebuilds page through ~15k rows across four queries; the
+// default function budget cuts them off mid-retry.
+export const maxDuration = 120
 
 const PAGE_SIZE = 1000
 
@@ -48,7 +51,7 @@ function fallbackSentiment(text: string): IFoldSentiment {
 async function withRetry<T>(
   label: string,
   fn: () => PromiseLike<{ data: T | null; error: { message: string } | null }>,
-  attempts = 3,
+  attempts = 5,
 ): Promise<T> {
   let lastError = "unknown"
   for (let i = 0; i < attempts; i++) {
@@ -56,7 +59,7 @@ async function withRetry<T>(
     if (!error) return (data || []) as T
     lastError = error.message
     console.error(`[ifold] ${label} attempt ${i + 1} failed:`, error.message)
-    await new Promise((r) => setTimeout(r, 500))
+    await new Promise((r) => setTimeout(r, 600))
   }
   throw new Error(`${label} failed after ${attempts} attempts: ${lastError}`)
 }
@@ -271,8 +274,10 @@ export async function GET() {
 
     return NextResponse.json(payload, {
       headers: {
-        // Launch-night data moves fast; keep the edge window short.
-        "Cache-Control": "public, s-maxage=120, stale-while-revalidate=600",
+        // Fresh for 2 minutes, then serve stale instantly while the edge
+        // revalidates in the background — the slow cold rebuild never sits
+        // on a visitor's request path (same pattern as /api/comments).
+        "Cache-Control": "public, s-maxage=120, stale-while-revalidate=86400",
       },
     })
   } catch (error) {
