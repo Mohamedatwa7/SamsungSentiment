@@ -109,11 +109,14 @@ export async function GET() {
         .limit(4000),
     )
 
+    // Project only the two raw_data keys we use — a full JSONB detoast across
+    // thousands of comment rows trips the cold-cache statement timeout.
     const commentRows = await fetchPrefixedComments(
       supabase,
       IFOLD_ID_PREFIX,
       "external_id,external_post_id,platform,text,author_username,likes_count," +
-        "published_at,sentiment,sentiment_score,sentiment_analyzed_at,flags,raw_data",
+        "published_at,sentiment,sentiment_score,sentiment_analyzed_at,flags," +
+        "_platform:raw_data->_platform,_gcc:raw_data->_gcc",
     )
 
     // ---- Normalize posts + register comment-parent aliases ----------------
@@ -197,7 +200,6 @@ export async function GET() {
     const comments: IFoldComment[] = []
     for (const c of commentRows) {
       const text = c.text || ""
-      const raw = (c.raw_data || {}) as any
       const analyzed = !!c.sentiment_analyzed_at && !!c.sentiment
       const { topics, lean } = parseIFoldFlags(c.flags)
       const ref = String(c.external_post_id || "")
@@ -214,7 +216,7 @@ export async function GET() {
       comments.push({
         id: String(c.external_id),
         postId: parent?.id || ref,
-        platform: raw._platform || c.platform,
+        platform: c._platform || c.platform,
         text,
         author: c.author_username || "anonymous",
         likes: c.likes_count || 0,
@@ -224,7 +226,7 @@ export async function GET() {
         topics,
         lean,
         analyzed,
-        gcc: raw._gcc ?? isGccText(text),
+        gcc: c._gcc ?? isGccText(text),
       })
     }
 
