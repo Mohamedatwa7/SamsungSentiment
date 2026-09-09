@@ -204,7 +204,7 @@ export default function CompetitionWatchPage() {
               {(
                 [
                   { key: "all", label: "Global" },
-                  { key: "gcc", label: "GCC / Arabic" },
+                  { key: "gcc", label: "GCC" },
                 ] as { key: RegionFilter; label: string }[]
               ).map((f) => (
                 <button

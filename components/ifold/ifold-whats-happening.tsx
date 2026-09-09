@@ -81,7 +81,7 @@ export function IFoldWhatsHappening({
         iconCls: "text-accent",
         text: (
           <>
-            The conversation is dominated by <b>{hottest.label}</b> —{" "}
+            The <b>iPhone Fold</b> conversation is dominated by <b>{hottest.label}</b> —{" "}
             {formatCompactNum(hottest.count)} mentions,{" "}
             {hottest.negPct >= hottest.posPct
               ? `${hottest.negPct}% of them critical`
@@ -89,7 +89,10 @@ export function IFoldWhatsHappening({
             .
           </>
         ),
-        drill: { title: `${hottest.label} — all mentions`, items: byTopic(reactions, hottest.key) },
+        drill: {
+          title: `iPhone Fold · ${hottest.label} — all mentions`,
+          items: byTopic(reactions, hottest.key),
+        },
       })
     }
     if (mostPraised && mostPraised.posPct > 0) {
@@ -98,12 +101,12 @@ export function IFoldWhatsHappening({
         iconCls: "text-negative", // praise for Apple = threat to us
         text: (
           <>
-            What people praise most about the iPhone Fold: <b>{mostPraised.label}</b> (
+            What people praise most about the <b>iPhone Fold</b>: <b>{mostPraised.label}</b> (
             {mostPraised.posPct}% positive of {formatCompactNum(mostPraised.count)} mentions).
           </>
         ),
         drill: {
-          title: `${mostPraised.label} — positive reactions`,
+          title: `iPhone Fold · ${mostPraised.label} — positive reactions`,
           items: byTopic(reactions, mostPraised.key, "positive"),
         },
       })
@@ -114,12 +117,13 @@ export function IFoldWhatsHappening({
         iconCls: "text-positive", // criticism of Apple = our opening
         text: (
           <>
-            What they criticize most: <b>{mostCriticized.label}</b> ({mostCriticized.negPct}% negative
-            of {formatCompactNum(mostCriticized.count)} mentions) — Fold8&apos;s opening.
+            What they criticize most about the <b>iPhone Fold</b>: <b>{mostCriticized.label}</b> (
+            {mostCriticized.negPct}% negative of {formatCompactNum(mostCriticized.count)} mentions) —
+            an opening for the <b>Galaxy Fold8</b>.
           </>
         ),
         drill: {
-          title: `${mostCriticized.label} — critical reactions`,
+          title: `iPhone Fold · ${mostCriticized.label} — critical reactions`,
           items: byTopic(reactions, mostCriticized.key, "negative"),
         },
       })
@@ -131,11 +135,12 @@ export function IFoldWhatsHappening({
         iconCls: pct >= 50 ? "text-positive" : "text-negative",
         text: (
           <>
-            When people compare the two folds directly, <b>{pct}% side with Samsung</b> (
-            {formatCompactNum(samsungLeans.length)} vs {formatCompactNum(appleLeans.length)}).
+            When people compare the <b>iPhone Fold</b> with the <b>Galaxy Fold8</b> directly,{" "}
+            <b>{pct}% side with Samsung</b> ({formatCompactNum(samsungLeans.length)} vs{" "}
+            {formatCompactNum(appleLeans.length)}).
           </>
         ),
-        drill: { title: "Comparisons favoring Samsung", items: samsungLeans },
+        drill: { title: "iPhone Fold vs Galaxy Fold8 — comparisons favoring Samsung", items: samsungLeans },
       })
     }
     if (news.length >= MIN_MENTIONS) {
@@ -146,11 +151,12 @@ export function IFoldWhatsHappening({
         iconCls: "text-muted-foreground",
         text: (
           <>
-            Press coverage is <b>{tone}</b>: {formatCompactNum(news.length)} scored headlines (
-            {formatCompactNum(newsPositive)} positive / {formatCompactNum(newsNegative)} critical).
+            Press coverage of the <b>iPhone Fold launch</b> is <b>{tone}</b>:{" "}
+            {formatCompactNum(news.length)} scored headlines ({formatCompactNum(newsPositive)} positive
+            / {formatCompactNum(newsNegative)} critical).
           </>
         ),
-        drill: { title: "Scored press headlines", items: news },
+        drill: { title: "iPhone Fold launch — scored press headlines", items: news },
       })
     }
     return out
