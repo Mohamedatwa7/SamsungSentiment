@@ -229,6 +229,27 @@ export function parseRssItems(xml: string): RssItem[] {
   return out
 }
 
+// Ingest upserts rewrite raw_data from the fresh scrape item, which would
+// wipe the stored _analysis verdicts and re-bill the LLM for every news
+// headline and tweet each cycle — carry the existing verdicts over.
+async function getExistingAnalyses(): Promise<Map<string, unknown>> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("social_posts")
+    .select("external_id,_analysis:raw_data->_analysis")
+    .like("external_id", `${IFOLD_ID_PREFIX}%`)
+    .eq("platform", "twitter")
+  if (error) {
+    console.error("[ifold] analysis-carryover read failed:", error.message)
+    return new Map()
+  }
+  const map = new Map<string, unknown>()
+  for (const r of (data as any[]) || []) {
+    if (r._analysis) map.set(String(r.external_id), r._analysis)
+  }
+  return map
+}
+
 // Stable short hash for article ids (links are too long for readable keys).
 function hashId(s: string): string {
   let h = 5381
@@ -248,6 +269,7 @@ export async function syncIFoldNews() {
   let matched = 0
   let inserted = 0
   const feedErrors: string[] = []
+  const existingAnalyses = await getExistingAnalyses()
 
   const results = await Promise.allSettled(
     IFOLD_NEWS_FEEDS.map(async (feed) => {
@@ -281,10 +303,12 @@ export async function syncIFoldNews() {
       if (item.publishedAt && !isInTrackingWindow(item.publishedAt)) continue
       matched++
 
+      const newsId = IFOLD_NEWS_PREFIX + hashId(item.link)
+      const prevAnalysis = existingAnalyses.get(newsId)
       const { error } = await supabase.from("social_posts").upsert(
         {
           platform: "twitter", // storage constraint — real platform in raw_data
-          external_id: IFOLD_NEWS_PREFIX + hashId(item.link),
+          external_id: newsId,
           post_url: item.link,
           caption: item.description ? `${title}\n${item.description}` : title,
           media_type: "article",
@@ -300,6 +324,7 @@ export async function syncIFoldNews() {
             _sourceLang: feed.lang,
             title,
             description: item.description,
+            ...(prevAnalysis ? { _analysis: prevAnalysis } : {}),
           },
         },
         { onConflict: "platform,external_id", ignoreDuplicates: false },
@@ -492,6 +517,7 @@ export async function syncIFoldTweets(runCount = RUNS_TO_SYNC) {
   let inserted = 0
   let matched = 0
   const seen = new Set<string>()
+  const existingAnalyses = items.length > 0 ? await getExistingAnalyses() : new Map()
   for (const t of items) {
     if (t.type && t.type !== "tweet") continue
     const text = t.fullText || t.text || ""
@@ -502,6 +528,7 @@ export async function syncIFoldTweets(runCount = RUNS_TO_SYNC) {
     if (!isInTrackingWindow(createdAt)) continue
     seen.add(t.id)
     matched++
+    const prevAnalysis = existingAnalyses.get(IFOLD_ID_PREFIX + String(t.id))
     const { error } = await supabase.from("social_posts").upsert(
       {
         platform: "twitter",
@@ -515,7 +542,13 @@ export async function syncIFoldTweets(runCount = RUNS_TO_SYNC) {
         views_count: Math.max(0, t.viewCount || 0),
         published_at: createdAt ? createdAt.toISOString() : new Date().toISOString(),
         scraped_at: new Date().toISOString(),
-        raw_data: { ...t, _ifold: true, _focus: focus, _gcc: isGccText(text) },
+        raw_data: {
+          ...t,
+          _ifold: true,
+          _focus: focus,
+          _gcc: isGccText(text),
+          ...(prevAnalysis ? { _analysis: prevAnalysis } : {}),
+        },
       },
       { onConflict: "platform,external_id" },
     )
