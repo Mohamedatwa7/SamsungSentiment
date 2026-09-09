@@ -4,7 +4,7 @@ import Link from "next/link"
 import Image from "next/image"
 import useSWR from "swr"
 import { useEffect, useRef, useState } from "react"
-import { ArrowRight, ArrowUpRight, Clapperboard, LayoutDashboard, Loader2, MessageSquareText, Star } from "lucide-react"
+import { ArrowRight, ArrowUpRight, Clapperboard, LayoutDashboard, Loader2, MessageSquareText, Star, Swords } from "lucide-react"
 
 // Throw on failure so SWR keeps retrying — /api/comments can 500 while the
 // DB warms up, and a swallowed error body would leave the KPIs spinning
@@ -88,6 +88,15 @@ const MODULES = [
     description:
       "Influencer campaign tracker — every #newshape × @samsunggulf video on Instagram and TikTok with playable embeds, engagement rates and AI comment sentiment.",
     tags: ["#NewShape", "Instagram + TikTok", "2× Daily Sync"],
+  },
+  {
+    index: "05",
+    title: "Competition Watch — iPhone Fold",
+    href: "/competition",
+    icon: Swords,
+    description:
+      "Apple foldable launch tracker — GCC and global buzz across social, press and influencers, AI-scored against our Fold8 corpus to surface Apple's strengths and the weaknesses we can capitalize on.",
+    tags: ["iPhone Fold vs Fold8", "News + Social + X", "Daily Until Oct 1"],
   },
 ]
 
