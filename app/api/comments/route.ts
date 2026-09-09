@@ -76,6 +76,7 @@ async function fetchAll(
         .select(columns)
         .not("external_id", "like", "unpacked\\_%")
         .not("external_id", "like", "roster\\_%")
+        .not("external_id", "like", "ifold\\_%")
       if (platform) q = q.eq("platform", platform)
       const { data, error } = await q.order("id", { ascending: true }).range(from, from + PAGE_SIZE - 1)
       if (!error) return data || []

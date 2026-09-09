@@ -10,6 +10,7 @@ import {
   MessageSquareText,
   Home,
   Star,
+  Swords,
   LogOut,
 } from "lucide-react"
 
@@ -25,6 +26,7 @@ import {
 
 const navItems = [
   { title: "Home", href: "/", icon: Home },
+  { title: "Competition Watch — iPhone Fold", href: "/competition", icon: Swords },
   { title: "Social Reviews Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { title: "S.com Reviews", href: "/reviews", icon: Star },
   { title: "AI Chatbot", href: "/chatbot", icon: MessageSquareText },
