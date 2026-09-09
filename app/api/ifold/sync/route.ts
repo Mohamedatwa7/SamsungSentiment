@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { syncIFold } from "@/lib/ifold-sync"
+import { analyzeIFoldComments, analyzeIFoldPosts, syncIFold } from "@/lib/ifold-sync"
 import { ifoldTrackingEnded, IFOLD_TRACKING_END } from "@/lib/ifold-data"
 
 // Two Apify scrape waves + RSS + LLM analysis need headroom, same as the
@@ -17,6 +17,16 @@ export async function POST(request: NextRequest) {
     const authHeader = request.headers.get("authorization")
     if (cronSecret && authHeader !== `Bearer ${cronSecret}` && !body.manual) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    // LLM analysis only, with a fresh time budget — the full sync's ingest
+    // phase can consume the whole invocation before analysis gets a turn, so
+    // the scheduled workflow calls this as its own step to drain the backlog.
+    if (body.analyzeOnly === true) {
+      const deadline = Date.now() + 240000
+      const postsAnalyzed = await analyzeIFoldPosts(deadline)
+      const commentsAnalyzed = await analyzeIFoldComments(deadline)
+      return NextResponse.json({ success: true, postsAnalyzed, commentsAnalyzed })
     }
 
     if (ifoldTrackingEnded() && !body.force) {

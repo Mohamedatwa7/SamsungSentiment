@@ -53,6 +53,17 @@ jobs:
             --fail-with-body \
             --max-time 570
 
+      # Ingest can consume the whole invocation before the LLM analysis phase
+      # gets a turn — drain the sentiment backlog with its own time budget.
+      - name: Analyze backlog
+        if: steps.gate.outputs.active == 'true'
+        run: |
+          curl -sS -X POST "https://samsungtrack.com/api/ifold/sync" \
+            -H "Content-Type: application/json" \
+            -d '{"manual": true, "analyzeOnly": true}' \
+            --fail-with-body \
+            --max-time 570 || true
+
       # Rebuild the dashboard payload into the edge cache right after data
       # changes, so no visitor pays the slow cold DB read.
       - name: Warm dashboard cache
