@@ -26,11 +26,11 @@ import {
 
 const navItems = [
   { title: "Home", href: "/", icon: Home },
-  { title: "Competition Watch — iPhone Fold", href: "/competition", icon: Swords },
   { title: "Social Reviews Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { title: "S.com Reviews", href: "/reviews", icon: Star },
   { title: "AI Chatbot", href: "/chatbot", icon: MessageSquareText },
   { title: "Galaxy Unpacked", href: "/unpacked", icon: Clapperboard },
+  { title: "Competition Watch — iPhone Fold", href: "/competition", icon: Swords },
 ]
 
 /* Floating glass dock — vertical rail on desktop (left, vertically centered),
