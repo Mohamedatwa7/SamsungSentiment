@@ -230,6 +230,9 @@ function VideoCard({
               <MessageSquare className="h-3 w-3 shrink-0" /> Comments
             </p>
             <p className="kpi-value mt-1 text-xl">{formatCompactNum(post.commentsCount)}</p>
+            <p className={cn("truncate text-[10px]", comments.length > 0 ? "text-muted-foreground" : "text-accent/80")}>
+              {comments.length > 0 ? `${formatCompactNum(comments.length)} readable` : "scrape queued"}
+            </p>
           </button>
           <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-2.5">
             <p className="section-label flex items-center gap-1 truncate">
@@ -349,7 +352,9 @@ function VideoCard({
           <div className="-mr-2 max-h-[60vh] space-y-2 overflow-y-auto pr-2">
             {comments.length === 0 && (
               <p className="py-8 text-center text-sm text-muted-foreground">
-                Comments will appear after the next scheduled sync scrapes this video.
+                The platform reports {formatCompactNum(post.commentsCount)} comments on this video, but our
+                scraper hasn&apos;t pulled them yet — it targets newly discovered videos on the next sync
+                cycle. They&apos;ll be readable (and AI-scored) here once it runs.
               </p>
             )}
             {comments.length > 0 && dialogComments.length === 0 && (
