@@ -307,6 +307,24 @@ export async function GET() {
     posts.sort((a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime())
     comments.sort((a, b) => b.likes - a.likes)
 
+    // Cap the shipped comment list (stats above already counted every
+    // comment). Past ~10MB the edge cannot cache the response AT ALL — every
+    // visit then pays a full DB rebuild, which is what melted the DB on
+    // launch day +1. Per-post cap keeps each video's browser well stocked;
+    // the global cap bounds the total. List is likes-sorted, so what's
+    // dropped is the zero-engagement tail.
+    const PER_POST_CAP = 80
+    const GLOBAL_CAP = 15000
+    const perPost = new Map<string, number>()
+    const shippedComments: IFoldComment[] = []
+    for (const c of comments) {
+      const n = perPost.get(c.postId) || 0
+      if (n >= PER_POST_CAP) continue
+      perPost.set(c.postId, n + 1)
+      shippedComments.push(c)
+      if (shippedComments.length >= GLOBAL_CAP) break
+    }
+
     // ---- Samsung Fold8 baseline (Galaxy Unpacked + FF8 roster corpus) -----
     const baseline: IFoldSamsungBaseline = {
       analyzed: 0,
@@ -330,7 +348,7 @@ export async function GET() {
 
     const payload: IFoldPayload = {
       posts,
-      comments,
+      comments: shippedComments,
       samsungBaseline: baseline,
       meta: {
         generatedAt: new Date().toISOString(),
