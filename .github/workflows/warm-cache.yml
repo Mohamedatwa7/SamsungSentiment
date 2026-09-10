@@ -1,0 +1,27 @@
+# Every push to main triggers a Vercel deploy, and every deploy clears the
+# edge cache — so the first Competition Watch visitor used to pay the slow
+# cold payload rebuild (or time out). Rebuild it into the cache ourselves
+# right after the deploy lands.
+name: Warm dashboard cache
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  warm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for the Vercel deploy to go live
+        run: sleep 180
+
+      - name: Warm /api/ifold
+        run: |
+          curl -sS -o /dev/null -w "ifold: HTTP %{http_code} in %{time_total}s\n" \
+            "https://samsungtrack.com/api/ifold" --max-time 280 || true
+
+      - name: Warm /api/comments
+        run: |
+          curl -sS -o /dev/null -w "comments: HTTP %{http_code} in %{time_total}s\n" \
+            "https://samsungtrack.com/api/comments" --max-time 280 || true

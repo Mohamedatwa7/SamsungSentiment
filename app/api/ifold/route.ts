@@ -101,43 +101,51 @@ export async function GET() {
   try {
     const supabase = await createClient()
 
-    // Paged like the comments below — Supabase caps a single request at 1000
-    // rows regardless of .limit(), and the corpus passed that on day 2.
-    // Project ONLY the raw_data keys the payload uses: detoasting the full
-    // scrape JSON across thousands of rows trips the cold-cache statement
-    // timeout (the launch-week corpus took this route down on Sep 10).
-    const postRows: any[] = []
-    for (let from = 0; ; from += PAGE_SIZE) {
-      const page = await withRetry<any[]>("posts query", () =>
-        supabase
-          .from("social_posts")
-          .select(
-            "external_id,platform,post_url,caption,likes_count,comments_count," +
-              "shares_count,views_count,published_at," +
-              "_analysis:raw_data->_analysis,_focus:raw_data->>_focus,_gcc:raw_data->_gcc," +
-              "_source:raw_data->>_source,_sourceLang:raw_data->>_sourceLang," +
-              "_title:raw_data->>title,_owner:raw_data->>ownerUsername," +
-              "_ttAuthor:raw_data->authorMeta->>name,_xAuthor:raw_data->author->>userName," +
-              "_channel:raw_data->>channelName,_channelU:raw_data->>channelUsername," +
-              "_shortCode:raw_data->>shortCode",
-          )
-          .like("external_id", `${IFOLD_ID_PREFIX}%`)
-          .order("external_id", { ascending: true })
-          .range(from, from + PAGE_SIZE - 1),
-      )
-      postRows.push(...page)
-      if (page.length < PAGE_SIZE || postRows.length >= 8000) break
+    // Paged like the comments — Supabase caps a single request at 1000 rows
+    // regardless of .limit(), and the corpus passed that on day 2. Project
+    // ONLY the raw_data keys the payload uses: detoasting the full scrape
+    // JSON across thousands of rows trips the cold-cache statement timeout
+    // (the launch-week corpus took this route down on Sep 10).
+    const fetchPostRows = async (): Promise<any[]> => {
+      const rows: any[] = []
+      for (let from = 0; ; from += PAGE_SIZE) {
+        const page = await withRetry<any[]>("posts query", () =>
+          supabase
+            .from("social_posts")
+            .select(
+              "external_id,platform,post_url,caption,likes_count,comments_count," +
+                "shares_count,views_count,published_at," +
+                "_analysis:raw_data->_analysis,_focus:raw_data->>_focus,_gcc:raw_data->_gcc," +
+                "_source:raw_data->>_source,_sourceLang:raw_data->>_sourceLang," +
+                "_title:raw_data->>title,_owner:raw_data->>ownerUsername," +
+                "_ttAuthor:raw_data->authorMeta->>name,_xAuthor:raw_data->author->>userName," +
+                "_channel:raw_data->>channelName,_channelU:raw_data->>channelUsername," +
+                "_shortCode:raw_data->>shortCode",
+            )
+            .like("external_id", `${IFOLD_ID_PREFIX}%`)
+            .order("external_id", { ascending: true })
+            .range(from, from + PAGE_SIZE - 1),
+        )
+        rows.push(...page)
+        if (page.length < PAGE_SIZE || rows.length >= 8000) break
+      }
+      return rows
     }
 
-    // Project only the two raw_data keys we use — a full JSONB detoast across
-    // thousands of comment rows trips the cold-cache statement timeout.
-    const commentRows = await fetchPrefixedComments(
-      supabase,
-      IFOLD_ID_PREFIX,
-      "external_id,external_post_id,platform,text,author_username,likes_count," +
-        "published_at,sentiment,sentiment_score,sentiment_analyzed_at,flags," +
-        "_platform:raw_data->_platform,_gcc:raw_data->_gcc",
-    )
+    // The four reads are independent — run them concurrently; sequential they
+    // put a cold rebuild near the client's patience budget.
+    const [postRows, commentRows, unpackedBaselineRows, rosterBaselineRows] = await Promise.all([
+      fetchPostRows(),
+      fetchPrefixedComments(
+        supabase,
+        IFOLD_ID_PREFIX,
+        "external_id,external_post_id,platform,text,author_username,likes_count," +
+          "published_at,sentiment,sentiment_score,sentiment_analyzed_at,flags," +
+          "_platform:raw_data->_platform,_gcc:raw_data->_gcc",
+      ),
+      fetchPrefixedComments(supabase, UNPACKED_ID_PREFIX, "external_id,sentiment,flags,sentiment_analyzed_at"),
+      fetchPrefixedComments(supabase, ROSTER_ID_PREFIX, "external_id,sentiment,flags,sentiment_analyzed_at"),
+    ])
 
     // ---- Normalize posts + register comment-parent aliases ----------------
     const posts: IFoldPost[] = []
@@ -259,8 +267,7 @@ export async function GET() {
       sentiment: { positive: 0, neutral: 0, negative: 0 },
       topics: {},
     }
-    for (const prefix of [UNPACKED_ID_PREFIX, ROSTER_ID_PREFIX]) {
-      const rows = await fetchPrefixedComments(supabase, prefix, "external_id,sentiment,flags,sentiment_analyzed_at")
+    for (const rows of [unpackedBaselineRows, rosterBaselineRows]) {
       for (const r of rows) {
         if (!r.sentiment_analyzed_at || !r.sentiment) continue
         baseline.analyzed++
@@ -290,10 +297,11 @@ export async function GET() {
 
     return NextResponse.json(payload, {
       headers: {
-        // Fresh for 2 minutes, then serve stale instantly while the edge
+        // Fresh for 10 minutes, then serve stale instantly while the edge
         // revalidates in the background — the slow cold rebuild never sits
-        // on a visitor's request path (same pattern as /api/comments).
-        "Cache-Control": "public, s-maxage=120, stale-while-revalidate=86400",
+        // on a visitor's request path. Data only changes on sync cycles, so
+        // longer freshness costs nothing.
+        "Cache-Control": "public, s-maxage=600, stale-while-revalidate=86400",
       },
     })
   } catch (error) {

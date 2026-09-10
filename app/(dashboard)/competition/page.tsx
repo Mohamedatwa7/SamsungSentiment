@@ -27,7 +27,9 @@ import { IFoldWatchlist } from "@/components/ifold/ifold-watchlist"
 import { Skeleton } from "@/components/ui/skeleton"
 
 const fetcher = async (url: string) => {
-  const res = await fetch(url, { signal: AbortSignal.timeout(30000) })
+  // A cold-cache payload rebuild takes ~30-50s server-side; aborting sooner
+  // than that leaves the page stuck retrying forever after each deploy.
+  const res = await fetch(url, { signal: AbortSignal.timeout(180000) })
   const json = await res.json()
   if (!res.ok || json?.error) throw new Error(json?.error || `HTTP ${res.status}`)
   return json
