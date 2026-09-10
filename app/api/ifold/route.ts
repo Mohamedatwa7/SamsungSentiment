@@ -132,9 +132,10 @@ export async function GET() {
       return rows
     }
 
-    // The four reads are independent — run them concurrently; sequential they
-    // put a cold rebuild near the client's patience budget.
-    const [postRows, commentRows, unpackedBaselineRows, rosterBaselineRows] = await Promise.all([
+    // Two parallel pairs, not four-wide: concurrent rebuilds already stack up
+    // when the cache is cold (page retries, edge revalidation, cache warmer),
+    // and four-wide × several rebuilds pegged the DB into statement timeouts.
+    const [postRows, commentRows] = await Promise.all([
       fetchPostRows(),
       fetchPrefixedComments(
         supabase,
@@ -143,6 +144,8 @@ export async function GET() {
           "published_at,sentiment,sentiment_score,sentiment_analyzed_at,flags," +
           "_platform:raw_data->_platform,_gcc:raw_data->_gcc",
       ),
+    ])
+    const [unpackedBaselineRows, rosterBaselineRows] = await Promise.all([
       fetchPrefixedComments(supabase, UNPACKED_ID_PREFIX, "external_id,sentiment,flags,sentiment_analyzed_at"),
       fetchPrefixedComments(supabase, ROSTER_ID_PREFIX, "external_id,sentiment,flags,sentiment_analyzed_at"),
     ])

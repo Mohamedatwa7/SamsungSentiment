@@ -92,8 +92,10 @@ export default function CompetitionWatchPage() {
   const { data, error, isLoading, isValidating } = useSWR<IFoldPayload>("/api/ifold", fetcher, {
     revalidateOnFocus: false,
     dedupingInterval: 60000,
-    errorRetryCount: 10,
-    errorRetryInterval: 4000,
+    errorRetryCount: 8,
+    // Each retry can trigger a full server-side rebuild — rapid-fire retries
+    // from a few open tabs stack rebuilds and peg the DB into timeouts.
+    errorRetryInterval: 20000,
   })
   const { data: unpackedData } = useSWR<UnpackedPayload>("/api/unpacked", unpackedFetcher, {
     revalidateOnFocus: false,
