@@ -696,13 +696,16 @@ interface IFoldPostRow {
 }
 
 // Comment activity dies off within days; only fresh posts get re-scraped,
-// capped to the highest-viewed per platform to bound actor spend.
-const COMMENT_RESCRAPE_DAYS = 5
-const COMMENT_SCRAPE_TOP_N = 40
+// capped per platform to bound actor spend. During launch week the caps
+// widen and the window stretches back to tracking start — the keynote flood
+// IS the story, and cycle N only discovers what cycle N+1 can comment-scrape.
+const commentBoost = () => Date.now() < LAUNCH_WEEK_END.getTime()
+const COMMENT_RESCRAPE_DAYS = () => (commentBoost() ? 9 : 5)
+const COMMENT_SCRAPE_TOP_N = () => (commentBoost() ? 60 : 40)
 
 function isFreshPost(row: { published_at: string | null }): boolean {
   const t = new Date(row.published_at || 0).getTime()
-  return !isNaN(t) && t >= Date.now() - COMMENT_RESCRAPE_DAYS * 86400000
+  return !isNaN(t) && t >= Date.now() - COMMENT_RESCRAPE_DAYS() * 86400000
 }
 
 async function getIFoldPostRows(): Promise<IFoldPostRow[]> {
@@ -718,7 +721,7 @@ async function getIFoldPostRows(): Promise<IFoldPostRow[]> {
   return (data as IFoldPostRow[]) || []
 }
 
-function topFresh(rows: IFoldPostRow[], filter: (r: IFoldPostRow) => boolean, n = COMMENT_SCRAPE_TOP_N): string[] {
+function topFresh(rows: IFoldPostRow[], filter: (r: IFoldPostRow) => boolean, n = COMMENT_SCRAPE_TOP_N()): string[] {
   // GCC-relevant posts first (they're what the dashboard's video cards and
   // Gulf drill-downs surface), then global reach fills the remaining slots.
   return [
@@ -735,29 +738,33 @@ function topFresh(rows: IFoldPostRow[], filter: (r: IFoldPostRow) => boolean, n 
 export async function startIFoldCommentScrapes() {
   const rows = await getIFoldPostRows()
   const started: Record<string, string | null> = {}
+  const charge = commentBoost() ? 5 : 3
 
   const igUrls = topFresh(rows, (r) => r.platform === "instagram")
   if (igUrls.length > 0) {
-    started.instagramComments = await startActorRun(IFOLD_ACTORS.instagramComments, {
-      directUrls: igUrls,
-      resultsLimit: 100,
-    })
+    started.instagramComments = await startActorRun(
+      IFOLD_ACTORS.instagramComments,
+      { directUrls: igUrls, resultsLimit: 100 },
+      charge,
+    )
   }
 
   const ttUrls = topFresh(rows, (r) => r.platform === "tiktok")
   if (ttUrls.length > 0) {
-    started.tiktokComments = await startActorRun(IFOLD_ACTORS.tiktokComments, {
-      postURLs: ttUrls,
-      commentsPerPost: 100,
-    })
+    started.tiktokComments = await startActorRun(
+      IFOLD_ACTORS.tiktokComments,
+      { postURLs: ttUrls, commentsPerPost: 100 },
+      charge,
+    )
   }
 
-  const ytUrls = topFresh(rows, (r) => String(r.external_id).startsWith(IFOLD_YT_PREFIX), 25)
+  const ytUrls = topFresh(rows, (r) => String(r.external_id).startsWith(IFOLD_YT_PREFIX), commentBoost() ? 40 : 25)
   if (ytUrls.length > 0) {
-    started.youtubeComments = await startActorRun(IFOLD_ACTORS.youtubeComments, {
-      startUrls: ytUrls.map((url) => ({ url })),
-      maxComments: 100,
-    })
+    started.youtubeComments = await startActorRun(
+      IFOLD_ACTORS.youtubeComments,
+      { startUrls: ytUrls.map((url) => ({ url })), maxComments: 100 },
+      charge,
+    )
   }
 
   return started
