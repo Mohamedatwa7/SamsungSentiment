@@ -313,6 +313,34 @@ function hashId(s: string): string {
   return h.toString(36)
 }
 
+// Launch-coverage articles hand-collected by the comms team (Sep 10) from
+// GCC outlets with no usable RSS — seeded into every news ingest pass so
+// they sit in the wire alongside the feed items and get LLM-scored like the
+// rest. Where no permalink could be verified, the link is a precise search
+// (never a guessed URL).
+const IFOLD_SEED_ARTICLES: {
+  source: string
+  title: string
+  url: string
+  lang: "ar" | "en"
+  focus: IFoldFocus
+  publishedAt: string
+}[] = [
+  { source: "Gulf News", title: "iPhone Duo's folding animation is a feature no other foldable phone have", url: "https://gulfnews.com/technology/iphone-duos-folding-animation-is-a-feature-no-other-foldable-phone-have-1.500669297", lang: "en", focus: "fold", publishedAt: "2026-09-10T09:00:00+04:00" },
+  { source: "WIRED Middle East", title: "Apple Debuts the iPhone Duo, Its First Folding iPhone", url: "https://www.google.com/search?q=%22Apple+Debuts+the+iPhone+Duo%2C+Its+First+Folding+iPhone%22+wired.me", lang: "en", focus: "fold", publishedAt: "2026-09-09T22:00:00+04:00" },
+  { source: "PC Mag Middle East", title: "iPhone Duo Is Apple's First Foldable Phone. Surprise, It's Expensive!", url: "https://www.google.com/search?q=%22iPhone+Duo+Is+Apple%27s+First+Foldable+Phone.+Surprise%2C+It%27s+Expensive%22+pcmag", lang: "en", focus: "fold", publishedAt: "2026-09-09T22:00:00+04:00" },
+  { source: "Gulf Business", title: "Apple launches $1,999 iPhone Duo in biggest redesign in years", url: "https://www.google.com/search?q=%22Apple+launches+%241%2C999+iPhone+Duo+in+biggest+redesign+in+years%22+gulfbusiness", lang: "en", focus: "fold", publishedAt: "2026-09-09T22:00:00+04:00" },
+  { source: "The National", title: "Apple's iPhone Duo: Everything you need to know about the Dh8,499 foldable", url: "https://www.thenationalnews.com/future/technology/2026/09/09/iphone-duo-price-apple-uae/", lang: "en", focus: "fold", publishedAt: "2026-09-09T22:00:00+04:00" },
+  { source: "Arabian Business", title: "Apple iPhone Duo in UAE: Prices hit $3,700 for foldable phone as release date revealed", url: "https://www.arabianbusiness.com/business/retail/apple-iphone-duo-uae-price-date", lang: "en", focus: "fold", publishedAt: "2026-09-10T09:00:00+04:00" },
+  { source: "Al Qiyady", title: "iPhone Duo surprises users with a hidden camera and a SIM-less design", url: "https://www.google.com/search?q=iPhone+Duo+hidden+camera+SIM-less+%D8%A7%D9%84%D9%82%D9%8A%D8%A7%D8%AF%D9%8A", lang: "ar", focus: "fold", publishedAt: "2026-09-10T09:00:00+04:00" },
+  { source: "Khaleej Times", title: "Apple's first foldable: iPhone Duo price in UAE; when pre-orders will begin", url: "https://www.khaleejtimes.com/business/tech/apple-iphone-duo-uae-price-preorder-availability", lang: "en", focus: "fold", publishedAt: "2026-09-10T09:00:00+04:00" },
+  { source: "Al Khaleej", title: "An unprecedented technological leap.. Apple officially unveils its latest icons, the iPhone 18 Pro and Pro Max", url: "https://www.alkhaleej.ae/2026-09-09/%D9%85%D9%86%D9%88%D8%B9%D8%A7%D8%AA/%D8%B9%D9%84%D9%88%D9%85-%D9%88%D8%AA%D9%82%D9%86%D9%8A%D8%A9/%D9%82%D9%81%D8%B2%D8%A9-%D8%AA%D9%83%D9%86%D9%88%D9%84%D9%88%D8%AC%D9%8A%D8%A9-%D8%BA%D9%8A%D8%B1-%D9%85%D8%B3%D8%A8%D9%88%D9%82%D8%A9-%D8%A3%D8%A8%D9%84-%D8%AA%D8%B2%D9%8A%D8%AD-%D8%A7%D9%84%D8%B3%D8%AA%D8%A7%D8%B1-%D8%B1%D8%B3%D9%85%D9%8A%D8%A7-%D8%B9%D9%86-%D8%A3%D8%AD%D8%AF%D8%AB-%D8%A3%D9%8A%D9%82%D9%88%D9%86%D8%A7%D8%AA%D9%87%D8%A7-iphone-18-pro-%D9%88pro-max", lang: "ar", focus: "launch", publishedAt: "2026-09-09T22:00:00+04:00" },
+  { source: "PC Mag Middle East", title: "Why I Regret Buying a Foldable Phone (And Why You Should Think Twice About the iPhone Duo)", url: "https://www.google.com/search?q=%22Why+I+Regret+Buying+a+Foldable+Phone%22+iPhone+Duo+pcmag", lang: "en", focus: "fold", publishedAt: "2026-09-10T09:00:00+04:00" },
+  { source: "MENA Tech", title: "Apple iPhone Duo adds a foldable screen at a premium price", url: "https://www.google.com/search?q=%22Apple+iPhone+Duo+adds+a+foldable+screen+at+a+premium+price%22+MENA+Tech", lang: "en", focus: "fold", publishedAt: "2026-09-10T09:00:00+04:00" },
+  { source: "Emirates 247", title: "Apple joins foldable phone race with passport-shaped iPhone Duo", url: "https://www.emirates247.com/world/apple-joins-foldable-phone-race-with-passport-shaped-iphone-duo/5448", lang: "en", focus: "fold", publishedAt: "2026-09-09T22:00:00+04:00" },
+  { source: "Al Jazeera", title: "Apple debuts $1,999 passport-shaped foldable phone, called Duo", url: "https://www.aljazeera.com/economy/2026/9/9/apple-debuts-1999-passport-shaped-foldable-phone-called-duo", lang: "en", focus: "fold", publishedAt: "2026-09-09T22:00:00+04:00" },
+]
+
 // Google News items carry the outlet as a " - Outlet" title suffix.
 function googleNewsSource(title: string): { title: string; source: string | null } {
   const m = title.match(/^(.*)\s-\s([^-]{2,60})$/)
@@ -385,6 +413,36 @@ export async function syncIFoldNews() {
       })
     }
   }
+
+  // Hand-collected seed articles ride every pass — the upsert keeps them
+  // fresh and the analysis carryover keeps their verdicts.
+  for (const a of IFOLD_SEED_ARTICLES) {
+    const newsId = IFOLD_NEWS_PREFIX + hashId(a.url)
+    const prevAnalysis = existingAnalyses.get(newsId)
+    matched++
+    rows.push({
+      platform: "twitter", // storage constraint — real platform in raw_data
+      external_id: newsId,
+      post_url: a.url,
+      caption: a.title,
+      media_type: "article",
+      published_at: a.publishedAt,
+      scraped_at: new Date().toISOString(),
+      raw_data: {
+        _ifold: true,
+        _platform: "news",
+        _focus: a.focus,
+        _gcc: true,
+        _source: a.source,
+        _sourceId: "seed",
+        _sourceLang: a.lang,
+        _seed: true,
+        title: a.title,
+        ...(prevAnalysis ? { _analysis: prevAnalysis } : {}),
+      },
+    })
+  }
+
   inserted = await batchUpsert(supabase, "social_posts", rows)
 
   if (feedErrors.length > 0) console.error("[ifold] Feed errors:", feedErrors.slice(0, 8))
