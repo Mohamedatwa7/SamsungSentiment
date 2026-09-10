@@ -101,16 +101,24 @@ export async function GET() {
   try {
     const supabase = await createClient()
 
-    const postRows = await withRetry<any[]>("posts query", () =>
-      supabase
-        .from("social_posts")
-        .select(
-          "external_id,platform,post_url,caption,media_url,likes_count,comments_count," +
-            "shares_count,views_count,published_at,raw_data",
-        )
-        .like("external_id", `${IFOLD_ID_PREFIX}%`)
-        .limit(4000),
-    )
+    // Paged like the comments below — Supabase caps a single request at 1000
+    // rows regardless of .limit(), and the corpus passed that on day 2.
+    const postRows: any[] = []
+    for (let from = 0; ; from += PAGE_SIZE) {
+      const page = await withRetry<any[]>("posts query", () =>
+        supabase
+          .from("social_posts")
+          .select(
+            "external_id,platform,post_url,caption,media_url,likes_count,comments_count," +
+              "shares_count,views_count,published_at,raw_data",
+          )
+          .like("external_id", `${IFOLD_ID_PREFIX}%`)
+          .order("external_id", { ascending: true })
+          .range(from, from + PAGE_SIZE - 1),
+      )
+      postRows.push(...page)
+      if (page.length < PAGE_SIZE || postRows.length >= 8000) break
+    }
 
     // Project only the two raw_data keys we use — a full JSONB detoast across
     // thousands of comment rows trips the cold-cache statement timeout.
