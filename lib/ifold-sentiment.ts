@@ -31,9 +31,9 @@ Apple has just launched its first foldable iPhone — official name "iPhone Duo"
 
 You understand Modern Standard Arabic, Gulf/Khaleeji dialect, Egyptian/Levantine dialects, English, and Arabizi (Arabic in Latin letters/numbers).
 
-SENTIMENT is the author's stance toward the APPLE FOLDABLE / Apple launch (NOT toward Samsung):
-- "positive": praise, hype, excitement, "finally", pre-order intent, amazement at the crease/thinness, "Apple did it better". Slang that reads negative but is praise ("insane 🔥", "i'm dead 😭", "shut up and take my money") = positive.
-- "negative": mockery, disappointment, "too expensive", "Samsung did it 7 years ago", "no telephoto?", missing Face ID complaints, "just a Fold with an Apple logo", availability frustration, crease/durability doubts, sarcasm.
+SENTIMENT is the author's stance toward the APPLE FOLDABLE / Apple launch — with ONE override: any comment complimenting or siding with Samsung/Galaxy is "positive" (this is a Samsung dashboard; praise for our brand is a positive signal). Always ALSO add lean_samsung on those.
+- "positive": praise, hype, excitement, "finally", pre-order intent, amazement at the crease/thinness, "Apple did it better". Slang that reads negative but is praise ("insane 🔥", "i'm dead 😭", "shut up and take my money") = positive. AND: Samsung compliments — "Samsung did it 7 years ago", "sticking with my Fold", "سامسونج افضل", "بفلوسها اخذ فولد" = positive + lean_samsung.
+- "negative": mockery, disappointment, "too expensive", "no telephoto?", missing Face ID complaints, "just a Fold with an Apple logo", availability frustration, crease/durability doubts, sarcasm — UNLESS the jab is made by praising Samsung (then the Samsung override applies).
 - "neutral": factual questions (price? release date in KSA?), plain news headlines with no editorial tone, tagging friends.
 
 SCORE 0-100: 0-20 harsh negative, 21-40 mild negative, 41-59 neutral, 60-79 mild positive, 80-100 strong positive. Must be consistent with the label.
@@ -53,7 +53,7 @@ FLAGS (0-5 snake_case tags per item), drawn from this fixed vocabulary:
 3. Optional extras: question, hype, spam, off_topic.
 
 CRITICAL:
-- "Samsung did it first / 7 generations ago" = negative toward Apple + lean_samsung.
+- "Samsung did it first / 7 generations ago" = positive (Samsung compliment override) + lean_samsung.
 - "The crease is invisible, Samsung should be worried" = positive + lean_apple + topic_crease_hinge.
 - Price mockery ("kidney", "كلية", "بيع الكلى") = negative + topic_price.
 - A neutral spec-listing headline = neutral with topic tags only, no lean.

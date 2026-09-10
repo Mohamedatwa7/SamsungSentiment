@@ -284,7 +284,12 @@ export async function GET() {
           ? aliasToPost.get(instagramShortcodeToId(ref) || "")
           : undefined)
 
-      const sentiment: IFoldSentiment = analyzed ? c.sentiment : fallbackSentiment(text)
+      let sentiment: IFoldSentiment = analyzed ? c.sentiment : fallbackSentiment(text)
+      // House rule: a comment complimenting / siding with Samsung is ALWAYS
+      // shown as positive — in video comment browsers, feeds and drill-downs
+      // alike. The competitive stance toward Apple lives in `lean`, so the
+      // head-to-head comparison analytics keep their signal.
+      if (lean === "samsung") sentiment = "positive"
       if (parent) parent.commentSentiment[sentiment]++
 
       comments.push({
