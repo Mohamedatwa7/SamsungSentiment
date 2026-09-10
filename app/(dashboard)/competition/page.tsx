@@ -26,13 +26,25 @@ import { IFoldCommentsFeed } from "@/components/ifold/ifold-comments-feed"
 import { IFoldWatchlist } from "@/components/ifold/ifold-watchlist"
 import { Skeleton } from "@/components/ui/skeleton"
 
+// Guaranteed fallback: the last successfully built payload, persisted to
+// Supabase Storage (public CDN) by /api/ifold on every rebuild. Independent
+// of DB health — loads in ~1s.
+const SNAPSHOT_URL = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/snapshots/ifold.json`
+
 const fetcher = async (url: string) => {
-  // A cold-cache payload rebuild takes ~30-50s server-side; aborting sooner
-  // than that leaves the page stuck retrying forever after each deploy.
-  const res = await fetch(url, { signal: AbortSignal.timeout(180000) })
-  const json = await res.json()
-  if (!res.ok || json?.error) throw new Error(json?.error || `HTTP ${res.status}`)
-  return json
+  try {
+    // Cached edge responses answer in seconds; a cold rebuild can take ~50s.
+    // Rather than make a visitor wait it out, fall back to the snapshot —
+    // the rebuild finishes server-side and primes the cache for next time.
+    const res = await fetch(url, { signal: AbortSignal.timeout(25000) })
+    const json = await res.json()
+    if (res.ok && json && !json.error && Array.isArray(json.posts)) return json
+    throw new Error(json?.error || `HTTP ${res.status}`)
+  } catch (err) {
+    const snap = await fetch(SNAPSHOT_URL, { signal: AbortSignal.timeout(15000) }).catch(() => null)
+    if (!snap || !snap.ok) throw err instanceof Error ? err : new Error("Competition data unavailable")
+    return snap.json()
+  }
 }
 
 // The FF8 side of the pie charts comes from the Galaxy Unpacked + roster

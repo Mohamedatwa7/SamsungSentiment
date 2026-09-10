@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { createClient as createAdminClient } from "@supabase/supabase-js"
 import { createClient } from "@/lib/supabase/server"
 import { instagramShortcodeToId, instagramShortcodeFromUrl } from "@/lib/instagram-id"
 import {
@@ -106,6 +107,33 @@ const SAMSUNG_FLAG_TOPICS: Record<string, string> = {
   overheating: "durability",
   warranty_issue: "durability",
   ai_content_backlash: "ai_features",
+}
+
+// Persist every successfully built payload to Supabase Storage. The public
+// CDN file is the page's guaranteed fallback: it loads in ~1s regardless of
+// DB health, so the dashboard always paints even mid-outage or on a cold
+// cache after a deploy.
+async function persistSnapshot(payload: IFoldPayload): Promise<void> {
+  try {
+    const admin = createAdminClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    )
+    const upload = () =>
+      admin.storage.from("snapshots").upload("ifold.json", JSON.stringify(payload), {
+        upsert: true,
+        contentType: "application/json",
+        cacheControl: "300",
+      })
+    let { error } = await upload()
+    if (error && /bucket/i.test(error.message)) {
+      await admin.storage.createBucket("snapshots", { public: true }).catch(() => undefined)
+      ;({ error } = await upload())
+    }
+    if (error) console.error("[ifold] snapshot persist failed:", error.message)
+  } catch (e) {
+    console.error("[ifold] snapshot persist failed:", e)
+  }
 }
 
 export async function GET() {
@@ -312,6 +340,8 @@ export async function GET() {
         trackingEnded: ifoldTrackingEnded(),
       },
     }
+
+    await persistSnapshot(payload)
 
     return NextResponse.json(payload, {
       headers: {
