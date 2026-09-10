@@ -691,6 +691,7 @@ interface IFoldPostRow {
   post_url: string | null
   published_at: string | null
   views_count: number | null
+  _gcc?: boolean | null
 }
 
 // Comment activity dies off within days; only fresh posts get re-scraped,
@@ -707,7 +708,7 @@ async function getIFoldPostRows(): Promise<IFoldPostRow[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from("social_posts")
-    .select("external_id,platform,post_url,published_at,views_count")
+    .select("external_id,platform,post_url,published_at,views_count,_gcc:raw_data->_gcc")
     .like("external_id", `${IFOLD_ID_PREFIX}%`)
   if (error) {
     console.error("[ifold] Failed to read posts:", error.message)
@@ -717,11 +718,13 @@ async function getIFoldPostRows(): Promise<IFoldPostRow[]> {
 }
 
 function topFresh(rows: IFoldPostRow[], filter: (r: IFoldPostRow) => boolean, n = COMMENT_SCRAPE_TOP_N): string[] {
+  // GCC-relevant posts first (they're what the dashboard's video cards and
+  // Gulf drill-downs surface), then global reach fills the remaining slots.
   return [
     ...new Set(
       rows
         .filter((r) => filter(r) && r.post_url && isFreshPost(r))
-        .sort((a, b) => (b.views_count || 0) - (a.views_count || 0))
+        .sort((a, b) => Number(!!b._gcc) - Number(!!a._gcc) || (b.views_count || 0) - (a.views_count || 0))
         .slice(0, n)
         .map((r) => String(r.post_url)),
     ),

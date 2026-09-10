@@ -6,9 +6,22 @@
 // "Duo vs Fold8" comparison videos specifically.
 
 import { useMemo, useState } from "react"
-import { Activity, ExternalLink, Eye, Heart, MessageSquare, Play, Share2, ThumbsUp, Video } from "lucide-react"
+import {
+  Activity,
+  ExternalLink,
+  Eye,
+  Heart,
+  Languages,
+  Loader2,
+  MessageSquare,
+  Play,
+  Share2,
+  ThumbsUp,
+  Video,
+} from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { useCommentTranslations } from "@/hooks/use-comment-translations"
 import { formatCompactNum, type IFoldComment, type IFoldPost } from "@/lib/ifold-data"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -50,6 +63,19 @@ interface RankedVideo {
   comparison: boolean
 }
 
+// The most-liked scraped comments, shown inline under the video.
+const SAMPLE_COUNT = 3
+
+function sampleComments(v: RankedVideo): IFoldComment[] {
+  return v.comments.slice().sort((a, b) => b.likes - a.likes).slice(0, SAMPLE_COUNT)
+}
+
+const SENTIMENT_DOT: Record<string, string> = {
+  positive: "var(--positive)",
+  negative: "var(--negative)",
+  neutral: "var(--neutral)",
+}
+
 function PlatformBadge({ platform }: { platform: VideoPlatform }) {
   return (
     <span
@@ -67,10 +93,17 @@ function PlatformBadge({ platform }: { platform: VideoPlatform }) {
   )
 }
 
-function VideoCard({ video }: { video: RankedVideo }) {
+function VideoCard({
+  video,
+  displayText,
+}: {
+  video: RankedVideo
+  displayText: (c: { id: string; text: string }) => string
+}) {
   const { post, comments } = video
   const [commentsOpen, setCommentsOpen] = useState(false)
   const [playerRequested, setPlayerRequested] = useState(false)
+  const samples = sampleComments(video)
 
   const s = post.commentSentiment
   const scored = s.positive + s.neutral + s.negative
@@ -220,6 +253,31 @@ function VideoCard({ video }: { video: RankedVideo }) {
             <span className="text-negative">{s.negative} negative</span>
           </div>
         </div>
+
+        {/* Inline top comments — the card reads as a story without opening anything */}
+        {samples.length > 0 && (
+          <div className="space-y-1.5 border-l border-white/[0.08] pl-3">
+            {samples.map((c) => (
+              <p key={c.id} className="line-clamp-2 text-xs leading-relaxed text-muted-foreground" dir="auto">
+                <span
+                  className="mr-1.5 inline-block h-1.5 w-1.5 shrink-0 rounded-full align-middle"
+                  style={{ background: SENTIMENT_DOT[c.sentiment] }}
+                />
+                “{displayText({ id: c.id, text: c.text })}”
+                {c.likes > 0 && <span className="ml-1.5 opacity-70">♥ {formatCompactNum(c.likes)}</span>}
+              </p>
+            ))}
+            {comments.length > samples.length && (
+              <button
+                type="button"
+                onClick={() => setCommentsOpen(true)}
+                className="text-[11px] font-medium text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
+              >
+                Read all {formatCompactNum(comments.length)} scraped comments
+              </button>
+            )}
+          </div>
+        )}
       </CardContent>
 
       {/* Per-video comment browser with sentiment on every comment */}
@@ -245,7 +303,7 @@ function VideoCard({ video }: { video: RankedVideo }) {
                       @{c.author}
                     </p>
                     <p className="mt-1 text-sm leading-relaxed" dir="auto">
-                      {c.text}
+                      {displayText({ id: c.id, text: c.text })}
                     </p>
                   </div>
                   <SentimentBadge sentiment={c.sentiment} />
@@ -268,6 +326,8 @@ function VideoCard({ video }: { video: RankedVideo }) {
 
 export function IFoldVideos({ posts, comments }: { posts: IFoldPost[]; comments: IFoldComment[] }) {
   const [lens, setLens] = useState<"duo" | "vs">("duo")
+  const { showTranslations, setShowTranslations, translating, ensureTranslations, displayText } =
+    useCommentTranslations()
 
   const { duo, vs } = useMemo(() => {
     const byPost = new Map<string, IFoldComment[]>()
@@ -297,6 +357,21 @@ export function IFoldVideos({ posts, comments }: { posts: IFoldPost[]; comments:
   const shown = lens === "duo" ? duo : vs
   if (duo.length === 0) return null
 
+  // Only what's on screen gets translated: the inline samples per shown card.
+  const translatables = (set: RankedVideo[]) =>
+    set.flatMap((v) => sampleComments(v).map((c) => ({ id: c.id, text: c.text })))
+
+  const toggleTranslations = async () => {
+    const next = !showTranslations
+    setShowTranslations(next)
+    if (next) await ensureTranslations(translatables(shown))
+  }
+
+  const switchLens = async (key: "duo" | "vs") => {
+    setLens(key)
+    if (showTranslations) await ensureTranslations(translatables(key === "duo" ? duo : vs))
+  }
+
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 pt-3 accent-top">
@@ -320,7 +395,7 @@ export function IFoldVideos({ posts, comments }: { posts: IFoldPost[]; comments:
             <button
               key={f.key}
               type="button"
-              onClick={() => setLens(f.key)}
+              onClick={() => switchLens(f.key)}
               className={cn(
                 "rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors",
                 lens === f.key
@@ -331,6 +406,19 @@ export function IFoldVideos({ posts, comments }: { posts: IFoldPost[]; comments:
               {f.label}
             </button>
           ))}
+          <button
+            type="button"
+            onClick={toggleTranslations}
+            className={cn(
+              "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+              showTranslations
+                ? "border-primary/50 bg-primary/15 text-foreground"
+                : "border-white/[0.08] bg-white/[0.03] text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {translating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Languages className="h-3 w-3" />}
+            {showTranslations ? "Original" : "Translate"}
+          </button>
         </div>
       </div>
 
@@ -342,7 +430,7 @@ export function IFoldVideos({ posts, comments }: { posts: IFoldPost[]; comments:
       ) : (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {shown.map((v) => (
-            <VideoCard key={v.post.id} video={v} />
+            <VideoCard key={v.post.id} video={v} displayText={displayText} />
           ))}
         </div>
       )}
