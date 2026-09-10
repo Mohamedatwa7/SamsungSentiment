@@ -32,14 +32,16 @@ jobs:
             echo "active=false" >> "$GITHUB_OUTPUT"
           fi
 
-      # Fires fresh scrapes and ingests the previous cycle's completed runs.
-      - name: Trigger sync (fires scrapes)
+      # Fires the scrape actors + RSS only — run harvesting and analysis get
+      # their own bounded invocations below (the all-in-one call outgrew the
+      # 300s function budget at launch-week corpus size).
+      - name: Fire scrapes
         if: steps.gate.outputs.active == 'true' && inputs.ingest_only != true
         run: |
           curl -sS -X POST "https://samsungtrack.com/api/ifold/sync" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            -d '{"wait": false}' \
+            -d '{"scrapesOnly": true}' \
             --fail-with-body \
             --max-time 570
 

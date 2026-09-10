@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
-import { analyzeIFoldComments, analyzeIFoldPosts, syncIFold } from "@/lib/ifold-sync"
+import {
+  analyzeIFoldComments,
+  analyzeIFoldPosts,
+  startIFoldCommentScrapes,
+  startIFoldPostScrapes,
+  syncIFold,
+  syncIFoldNews,
+} from "@/lib/ifold-sync"
 import { ifoldTrackingEnded, IFOLD_TRACKING_END } from "@/lib/ifold-data"
 import { isAuthorizedCron } from "@/lib/cron-auth"
 
@@ -25,6 +32,20 @@ export async function POST(request: NextRequest) {
       const postsAnalyzed = await analyzeIFoldPosts(deadline)
       const commentsAnalyzed = await analyzeIFoldComments(deadline)
       return NextResponse.json({ success: true, postsAnalyzed, commentsAnalyzed })
+    }
+
+    // Fire the scrape actors (+ cheap RSS ingest) and return — no run
+    // harvesting, no analysis. At launch-week corpus size the all-in-one
+    // invocation blows the 300s function budget, so the workflow runs
+    // scrapes / ingest / analysis as separate bounded calls.
+    if (body.scrapesOnly === true) {
+      if (ifoldTrackingEnded() && !body.force) {
+        return NextResponse.json({ skipped: true, reason: "tracking ended" })
+      }
+      const news = await syncIFoldNews().catch((e) => ({ error: String(e) }))
+      const postRuns = await startIFoldPostScrapes()
+      const commentRuns = await startIFoldCommentScrapes()
+      return NextResponse.json({ success: true, news, startedRuns: { ...postRuns, ...commentRuns } })
     }
 
     if (ifoldTrackingEnded() && !body.force) {
