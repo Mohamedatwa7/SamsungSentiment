@@ -91,7 +91,7 @@ const MODULES = [
   },
   {
     index: "05",
-    title: "Competition Watch — iPhone Duo",
+    title: "Co.A Watch — iPhone Duo",
     href: "/competition",
     icon: Swords,
     description:

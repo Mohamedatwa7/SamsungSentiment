@@ -20,6 +20,8 @@ import { IFoldTrend } from "@/components/ifold/ifold-trend"
 import { IFoldInsights } from "@/components/ifold/ifold-insights"
 import { IFoldNewsWire } from "@/components/ifold/ifold-news-wire"
 import { IFoldTopPosts } from "@/components/ifold/ifold-top-posts"
+import { IFoldVideos } from "@/components/ifold/ifold-videos"
+import { IFoldExportButton } from "@/components/ifold/ifold-export"
 import { IFoldCommentsFeed } from "@/components/ifold/ifold-comments-feed"
 import { IFoldWatchlist } from "@/components/ifold/ifold-watchlist"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -140,10 +142,24 @@ export default function CompetitionWatchPage() {
     <div className="flex flex-col gap-6 p-4 md:p-6">
       {/* Editorial masthead */}
       <div className="animate-in fade-in slide-in-from-bottom-2 pt-4 duration-500">
-        <p className="section-label">Samsung Gulf · Competition Analysis</p>
-        <h1 className="display-title text-gradient mt-2 text-3xl md:text-4xl">
-          Competition Watch — iPhone Duo
-        </h1>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="section-label">Samsung Gulf · Competition Analysis</p>
+            <h1 className="display-title text-gradient mt-2 text-3xl md:text-4xl">
+              Co.A Watch — iPhone Duo
+            </h1>
+          </div>
+          {hasData && filtered && data && (
+            <div className="pt-1">
+              <IFoldExportButton
+                data={data}
+                posts={filtered.posts}
+                comments={filtered.comments}
+                filterLabel={`${focus === "fold" ? "iPhone Duo" : "Full launch"} · ${region === "gcc" ? "GCC" : "Global"} · ${platform === "all" ? "All channels" : platform}`}
+              />
+            </div>
+          )}
+        </div>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground md:text-base">
           Live GCC + global reactions to Apple&apos;s first foldable, scored by AI and compared with our
           Galaxy Fold8 campaign. Every number is clickable — tap any stat, slice or bar to read the
@@ -280,6 +296,9 @@ export default function CompetitionWatchPage() {
 
               {/* Strengths to answer / weaknesses to attack — click any topic */}
               <IFoldInsights reactions={appleReactions} onDrill={setDrill} />
+
+              {/* Playable GCC video coverage — Unpacked-style cards */}
+              <IFoldVideos posts={filtered.posts} comments={filtered.comments} />
 
               {/* Press + top social conversations side by side on wide screens */}
               <div className="grid items-start gap-6 xl:grid-cols-2">
