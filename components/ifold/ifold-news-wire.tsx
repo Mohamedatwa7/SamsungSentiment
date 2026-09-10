@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { ExternalLink, Languages, Loader2, Newspaper } from "lucide-react"
+import { ExternalLink, Languages, Loader2, Newspaper, Pin } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { useCommentTranslations } from "@/hooks/use-comment-translations"
@@ -35,7 +35,12 @@ export function IFoldNewsWire({ posts }: { posts: IFoldPost[] }) {
     () =>
       posts
         .filter((p) => p.kind === "news" && (lang === "all" || p.sourceLang === lang))
-        .sort((a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime()),
+        .sort(
+          (a, b) =>
+            // Comms-team picks pinned first, then the wire runs newest-first.
+            Number(!!b.seeded) - Number(!!a.seeded) ||
+            new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime(),
+        ),
     [posts, lang],
   )
 
@@ -121,6 +126,11 @@ export function IFoldNewsWire({ posts }: { posts: IFoldPost[] }) {
                 <span className="font-medium">{a.source}</span>
                 <span>·</span>
                 <span>{timeAgo(a.publishedAt)}</span>
+                {a.seeded && (
+                  <span className="flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2 py-px text-foreground">
+                    <Pin className="h-2.5 w-2.5" /> Pinned
+                  </span>
+                )}
                 {a.focus === "fold" && (
                   <span className="rounded-full border border-accent/30 bg-accent/10 px-2 py-px text-accent">
                     Fold

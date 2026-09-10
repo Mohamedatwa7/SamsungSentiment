@@ -161,7 +161,7 @@ export async function GET() {
                   "_title:raw_data->>title,_owner:raw_data->>ownerUsername," +
                   "_ttAuthor:raw_data->authorMeta->>name,_xAuthor:raw_data->author->>userName," +
                   "_channel:raw_data->>channelName,_channelU:raw_data->>channelUsername," +
-                  "_shortCode:raw_data->>shortCode",
+                  "_shortCode:raw_data->>shortCode,_seed:raw_data->_seed",
               )
               .eq("platform", platform)
               .like("external_id", `${IFOLD_ID_PREFIX}%`)
@@ -247,6 +247,7 @@ export async function GET() {
         shares: Math.max(0, p.shares_count || 0),
         focus: p._focus === "launch" ? "launch" : "fold",
         gcc: !!p._gcc,
+        seeded: !!p._seed,
         analysis: analysisRaw
           ? {
               sentiment: analysisRaw.sentiment,

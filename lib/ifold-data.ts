@@ -113,6 +113,8 @@ export interface IFoldPost {
   shares: number
   focus: IFoldFocus
   gcc: boolean
+  // Hand-collected by the comms team (news only) — pinned atop the wire.
+  seeded?: boolean
   // LLM analysis of the post's own text (news headlines, tweets)
   analysis: IFoldAnalysis | null
   // aggregate sentiment of scraped comments under this post
