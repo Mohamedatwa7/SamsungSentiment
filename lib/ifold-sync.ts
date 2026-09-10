@@ -272,6 +272,31 @@ async function getExistingAnalyses(): Promise<Map<string, unknown>> {
   return map
 }
 
+// Chunked bulk upsert — per-row awaits made launch-week ingest take ~1000s
+// of sequential round-trips and blow the function budget; batching lands the
+// same rows in a handful of statements. One statement cannot touch the same
+// row twice, so keep the LAST occurrence per key (ingest iterates oldest →
+// newest, so last = freshest scrape wins, same as the old sequential order).
+async function batchUpsert(
+  supabase: any,
+  table: "social_posts" | "social_comments",
+  rows: Record<string, unknown>[],
+): Promise<number> {
+  if (rows.length === 0) return 0
+  const byKey = new Map<string, Record<string, unknown>>()
+  for (const r of rows) byKey.set(`${r.platform}|${r.external_id}`, r)
+  const unique = [...byKey.values()]
+  let ok = 0
+  const CHUNK = 400
+  for (let i = 0; i < unique.length; i += CHUNK) {
+    const chunk = unique.slice(i, i + CHUNK)
+    const { error } = await supabase.from(table).upsert(chunk, { onConflict: "platform,external_id" })
+    if (error) console.error(`[ifold] batch upsert ${table} failed:`, error.message)
+    else ok += chunk.length
+  }
+  return ok
+}
+
 // Stable short hash for article ids (links are too long for readable keys).
 function hashId(s: string): string {
   let h = 5381
@@ -290,6 +315,7 @@ export async function syncIFoldNews() {
   let fetched = 0
   let matched = 0
   let inserted = 0
+  const rows: Record<string, unknown>[] = []
   const feedErrors: string[] = []
   const existingAnalyses = await getExistingAnalyses()
 
@@ -327,33 +353,30 @@ export async function syncIFoldNews() {
 
       const newsId = IFOLD_NEWS_PREFIX + hashId(item.link)
       const prevAnalysis = existingAnalyses.get(newsId)
-      const { error } = await supabase.from("social_posts").upsert(
-        {
-          platform: "twitter", // storage constraint — real platform in raw_data
-          external_id: newsId,
-          post_url: item.link,
-          caption: item.description ? `${title}\n${item.description}` : title,
-          media_type: "article",
-          published_at: item.publishedAt || new Date().toISOString(),
-          scraped_at: new Date().toISOString(),
-          raw_data: {
-            _ifold: true,
-            _platform: "news",
-            _focus: focus,
-            _gcc: feed.region === "gcc" || isGccText(text),
-            _source: source || feed.name,
-            _sourceId: feed.id,
-            _sourceLang: feed.lang,
-            title,
-            description: item.description,
-            ...(prevAnalysis ? { _analysis: prevAnalysis } : {}),
-          },
+      rows.push({
+        platform: "twitter", // storage constraint — real platform in raw_data
+        external_id: newsId,
+        post_url: item.link,
+        caption: item.description ? `${title}\n${item.description}` : title,
+        media_type: "article",
+        published_at: item.publishedAt || new Date().toISOString(),
+        scraped_at: new Date().toISOString(),
+        raw_data: {
+          _ifold: true,
+          _platform: "news",
+          _focus: focus,
+          _gcc: feed.region === "gcc" || isGccText(text),
+          _source: source || feed.name,
+          _sourceId: feed.id,
+          _sourceLang: feed.lang,
+          title,
+          description: item.description,
+          ...(prevAnalysis ? { _analysis: prevAnalysis } : {}),
         },
-        { onConflict: "platform,external_id", ignoreDuplicates: false },
-      )
-      if (!error) inserted++
+      })
     }
   }
+  inserted = await batchUpsert(supabase, "social_posts", rows)
 
   if (feedErrors.length > 0) console.error("[ifold] Feed errors:", feedErrors.slice(0, 8))
   return { fetched, matched, inserted, feedErrors: feedErrors.length }
@@ -479,33 +502,30 @@ export async function syncIFoldInstagramPosts(runCount = RUNS_TO_SYNC) {
     }
   }
 
-  let inserted = 0
   let matched = 0
+  const rows: Record<string, unknown>[] = []
   for (const post of items) {
     const focus = ifoldFocus(post.caption) ?? appleOfficialFocus(post.ownerUsername)
     if (!focus || !isInTrackingWindow(post.timestamp)) continue
     const externalId = post.id || post.shortCode || instagramShortcodeFromUrl(post.url || "")
     if (!externalId) continue
     matched++
-    const { error } = await supabase.from("social_posts").upsert(
-      {
-        platform: "instagram",
-        external_id: IFOLD_ID_PREFIX + String(externalId),
-        post_url: post.url || (post.shortCode ? `https://www.instagram.com/p/${post.shortCode}/` : ""),
-        caption: post.caption || "",
-        media_type: post.type || "Video",
-        media_url: post.displayUrl,
-        likes_count: Math.max(0, post.likesCount || 0),
-        comments_count: Math.max(0, post.commentsCount || 0),
-        views_count: post.videoPlayCount || post.videoViewCount || 0,
-        published_at: post.timestamp ? new Date(post.timestamp).toISOString() : new Date().toISOString(),
-        scraped_at: new Date().toISOString(),
-        raw_data: { ...post, _ifold: true, _focus: focus, _gcc: isGccText(post.caption) },
-      },
-      { onConflict: "platform,external_id" },
-    )
-    if (!error) inserted++
+    rows.push({
+      platform: "instagram",
+      external_id: IFOLD_ID_PREFIX + String(externalId),
+      post_url: post.url || (post.shortCode ? `https://www.instagram.com/p/${post.shortCode}/` : ""),
+      caption: post.caption || "",
+      media_type: post.type || "Video",
+      media_url: post.displayUrl,
+      likes_count: Math.max(0, post.likesCount || 0),
+      comments_count: Math.max(0, post.commentsCount || 0),
+      views_count: post.videoPlayCount || post.videoViewCount || 0,
+      published_at: post.timestamp ? new Date(post.timestamp).toISOString() : new Date().toISOString(),
+      scraped_at: new Date().toISOString(),
+      raw_data: { ...post, _ifold: true, _focus: focus, _gcc: isGccText(post.caption) },
+    })
   }
+  const inserted = await batchUpsert(supabase, "social_posts", rows)
   return { inserted, matched, total: items.length }
 }
 
@@ -538,9 +558,9 @@ export async function syncIFoldTikTokPosts(runCount = RUNS_TO_SYNC) {
     ...(await getRecentRunsItems<TikTokItem>(IFOLD_ACTORS.tiktokProfiles, runCount)),
   ]
 
-  let inserted = 0
   let matched = 0
   const seen = new Set<string>()
+  const rows: Record<string, unknown>[] = []
   for (const post of items) {
     if (!post.id || seen.has(post.id)) continue
     const text = tiktokText(post)
@@ -550,26 +570,23 @@ export async function syncIFoldTikTokPosts(runCount = RUNS_TO_SYNC) {
     seen.add(post.id)
     matched++
     const author = post.authorMeta?.name
-    const { error } = await supabase.from("social_posts").upsert(
-      {
-        platform: "tiktok",
-        external_id: IFOLD_ID_PREFIX + String(post.id),
-        post_url: post.webVideoUrl || `https://www.tiktok.com/@${author || "user"}/video/${post.id}`,
-        caption: post.text || "",
-        media_type: "video",
-        media_url: post.videoMeta?.coverUrl,
-        likes_count: Math.max(0, post.diggCount || 0),
-        comments_count: Math.max(0, post.commentCount || 0),
-        shares_count: Math.max(0, post.shareCount || 0),
-        views_count: Math.max(0, post.playCount || 0),
-        published_at: publishedAt ? new Date(publishedAt).toISOString() : new Date().toISOString(),
-        scraped_at: new Date().toISOString(),
-        raw_data: { ...post, _ifold: true, _focus: focus, _gcc: isGccText(text) },
-      },
-      { onConflict: "platform,external_id" },
-    )
-    if (!error) inserted++
+    rows.push({
+      platform: "tiktok",
+      external_id: IFOLD_ID_PREFIX + String(post.id),
+      post_url: post.webVideoUrl || `https://www.tiktok.com/@${author || "user"}/video/${post.id}`,
+      caption: post.text || "",
+      media_type: "video",
+      media_url: post.videoMeta?.coverUrl,
+      likes_count: Math.max(0, post.diggCount || 0),
+      comments_count: Math.max(0, post.commentCount || 0),
+      shares_count: Math.max(0, post.shareCount || 0),
+      views_count: Math.max(0, post.playCount || 0),
+      published_at: publishedAt ? new Date(publishedAt).toISOString() : new Date().toISOString(),
+      scraped_at: new Date().toISOString(),
+      raw_data: { ...post, _ifold: true, _focus: focus, _gcc: isGccText(text) },
+    })
   }
+  const inserted = await batchUpsert(supabase, "social_posts", rows)
   return { inserted, matched, total: items.length }
 }
 
@@ -594,9 +611,9 @@ export async function syncIFoldTweets(runCount = RUNS_TO_SYNC) {
   const supabase = await createClient()
   const items = await getRecentRunsItems<TweetItem>(IFOLD_ACTORS.twitterSearch, runCount)
 
-  let inserted = 0
   let matched = 0
   const seen = new Set<string>()
+  const rows: Record<string, unknown>[] = []
   const existingAnalyses = items.length > 0 ? await getExistingAnalyses() : new Map()
   for (const t of items) {
     if (t.type && t.type !== "tweet") continue
@@ -609,31 +626,28 @@ export async function syncIFoldTweets(runCount = RUNS_TO_SYNC) {
     seen.add(t.id)
     matched++
     const prevAnalysis = existingAnalyses.get(IFOLD_ID_PREFIX + String(t.id))
-    const { error } = await supabase.from("social_posts").upsert(
-      {
-        platform: "twitter",
-        external_id: IFOLD_ID_PREFIX + String(t.id),
-        post_url: t.url || t.twitterUrl || "",
-        caption: text,
-        media_type: "tweet",
-        likes_count: Math.max(0, t.likeCount || 0),
-        comments_count: Math.max(0, t.replyCount || 0),
-        shares_count: Math.max(0, (t.retweetCount || 0) + (t.quoteCount || 0)),
-        views_count: Math.max(0, t.viewCount || 0),
-        published_at: createdAt ? createdAt.toISOString() : new Date().toISOString(),
-        scraped_at: new Date().toISOString(),
-        raw_data: {
-          ...t,
-          _ifold: true,
-          _focus: focus,
-          _gcc: isGccText(text),
-          ...(prevAnalysis ? { _analysis: prevAnalysis } : {}),
-        },
+    rows.push({
+      platform: "twitter",
+      external_id: IFOLD_ID_PREFIX + String(t.id),
+      post_url: t.url || t.twitterUrl || "",
+      caption: text,
+      media_type: "tweet",
+      likes_count: Math.max(0, t.likeCount || 0),
+      comments_count: Math.max(0, t.replyCount || 0),
+      shares_count: Math.max(0, (t.retweetCount || 0) + (t.quoteCount || 0)),
+      views_count: Math.max(0, t.viewCount || 0),
+      published_at: createdAt ? createdAt.toISOString() : new Date().toISOString(),
+      scraped_at: new Date().toISOString(),
+      raw_data: {
+        ...t,
+        _ifold: true,
+        _focus: focus,
+        _gcc: isGccText(text),
+        ...(prevAnalysis ? { _analysis: prevAnalysis } : {}),
       },
-      { onConflict: "platform,external_id" },
-    )
-    if (!error) inserted++
+    })
   }
+  const inserted = await batchUpsert(supabase, "social_posts", rows)
   return { inserted, matched, total: items.length }
 }
 
@@ -641,8 +655,8 @@ export async function syncIFoldYouTubePosts(runCount = RUNS_TO_SYNC) {
   const supabase = await createClient()
   const items = await getRecentRunsItems<any>(IFOLD_ACTORS.youtubeSearch, runCount)
 
-  let inserted = 0
   let matched = 0
+  const rows: Record<string, unknown>[] = []
   for (const item of items) {
     const url = item.url || (item.id ? `https://www.youtube.com/watch?v=${item.id}` : "")
     const videoId = item.id || youtubeVideoId(url)
@@ -654,31 +668,28 @@ export async function syncIFoldYouTubePosts(runCount = RUNS_TO_SYNC) {
     const publishedAt = item.date || item.uploadDate
     if (!focus || !isInTrackingWindow(publishedAt)) continue
     matched++
-    const { error } = await supabase.from("social_posts").upsert(
-      {
-        platform: "twitter", // storage constraint — real platform in raw_data
-        external_id: `${IFOLD_YT_PREFIX}${videoId}`,
-        post_url: url,
-        caption: item.title || "",
-        media_type: "video",
-        media_url: item.thumbnailUrl,
-        likes_count: Math.max(0, item.likes || 0),
-        comments_count: Math.max(0, item.commentsCount || 0),
-        views_count: Math.max(0, item.viewCount || 0),
-        published_at: new Date(publishedAt).toISOString(),
-        scraped_at: new Date().toISOString(),
-        raw_data: {
-          ...item,
-          _ifold: true,
-          _platform: "youtube",
-          _focus: focus,
-          _gcc: isGccText(`${text} ${item.channelName || ""}`),
-        },
+    rows.push({
+      platform: "twitter", // storage constraint — real platform in raw_data
+      external_id: `${IFOLD_YT_PREFIX}${videoId}`,
+      post_url: url,
+      caption: item.title || "",
+      media_type: "video",
+      media_url: item.thumbnailUrl,
+      likes_count: Math.max(0, item.likes || 0),
+      comments_count: Math.max(0, item.commentsCount || 0),
+      views_count: Math.max(0, item.viewCount || 0),
+      published_at: new Date(publishedAt).toISOString(),
+      scraped_at: new Date().toISOString(),
+      raw_data: {
+        ...item,
+        _ifold: true,
+        _platform: "youtube",
+        _focus: focus,
+        _gcc: isGccText(`${text} ${item.channelName || ""}`),
       },
-      { onConflict: "platform,external_id" },
-    )
-    if (!error) inserted++
+    })
   }
+  const inserted = await batchUpsert(supabase, "social_posts", rows)
   return { inserted, matched, total: items.length }
 }
 
@@ -798,7 +809,7 @@ export async function syncIFoldComments(runCount = RUNS_TO_SYNC) {
   const supabase = await createClient()
   const rows = await getIFoldPostRows()
   const keys = buildPostKeySet(rows)
-  let inserted = 0
+  const commentRows: Record<string, unknown>[] = []
 
   // Instagram — apify/instagram-comment-scraper (shared actor; parent-filtered).
   const igItems = await getRecentRunsItems<any>(IFOLD_ACTORS.instagramComments, runCount)
@@ -813,21 +824,17 @@ export async function syncIFoldComments(runCount = RUNS_TO_SYNC) {
     const commentId = c.id || `${sc}_${c.ownerUsername || "user"}_${c.timestamp || text.slice(0, 40)}`
     if (igSeen.has(String(commentId))) continue
     igSeen.add(String(commentId))
-    const { error } = await supabase.from("social_comments").upsert(
-      {
-        platform: "instagram",
-        external_id: IFOLD_ID_PREFIX + String(commentId),
-        external_post_id: numeric || sc,
-        text,
-        author_username: c.ownerUsername || "unknown",
-        likes_count: c.likesCount || 0,
-        published_at: c.timestamp ? new Date(c.timestamp).toISOString() : new Date().toISOString(),
-        scraped_at: new Date().toISOString(),
-        raw_data: { ...c, _ifold: true, _gcc: isGccText(text) },
-      },
-      { onConflict: "platform,external_id" },
-    )
-    if (!error) inserted++
+    commentRows.push({
+      platform: "instagram",
+      external_id: IFOLD_ID_PREFIX + String(commentId),
+      external_post_id: numeric || sc,
+      text,
+      author_username: c.ownerUsername || "unknown",
+      likes_count: c.likesCount || 0,
+      published_at: c.timestamp ? new Date(c.timestamp).toISOString() : new Date().toISOString(),
+      scraped_at: new Date().toISOString(),
+      raw_data: { ...c, _ifold: true, _gcc: isGccText(text) },
+    })
   }
 
   // TikTok — clockworks/tiktok-comments-scraper (shared actor; parent-filtered).
@@ -842,25 +849,21 @@ export async function syncIFoldComments(runCount = RUNS_TO_SYNC) {
     const commentId = c.cid || c.id
     if (!commentId || ttSeen.has(String(commentId))) continue
     ttSeen.add(String(commentId))
-    const { error } = await supabase.from("social_comments").upsert(
-      {
-        platform: "tiktok",
-        external_id: IFOLD_ID_PREFIX + String(commentId),
-        external_post_id: videoId,
-        text,
-        author_username: c.uniqueId || c.user?.uniqueId || c.author_username || "unknown",
-        likes_count: c.diggCount ?? c.likes ?? 0,
-        published_at: c.createTimeISO
-          ? new Date(c.createTimeISO).toISOString()
-          : c.created_at
-            ? new Date(c.created_at).toISOString()
-            : new Date().toISOString(),
-        scraped_at: new Date().toISOString(),
-        raw_data: { ...c, _ifold: true, _gcc: isGccText(text) },
-      },
-      { onConflict: "platform,external_id" },
-    )
-    if (!error) inserted++
+    commentRows.push({
+      platform: "tiktok",
+      external_id: IFOLD_ID_PREFIX + String(commentId),
+      external_post_id: videoId,
+      text,
+      author_username: c.uniqueId || c.user?.uniqueId || c.author_username || "unknown",
+      likes_count: c.diggCount ?? c.likes ?? 0,
+      published_at: c.createTimeISO
+        ? new Date(c.createTimeISO).toISOString()
+        : c.created_at
+          ? new Date(c.created_at).toISOString()
+          : new Date().toISOString(),
+      scraped_at: new Date().toISOString(),
+      raw_data: { ...c, _ifold: true, _gcc: isGccText(text) },
+    })
   }
 
   // YouTube — streamers/youtube-comments-scraper (shared actor; parent-filtered).
@@ -879,23 +882,20 @@ export async function syncIFoldComments(runCount = RUNS_TO_SYNC) {
     const commentId = c.cid || c.commentId || c.id || `${videoId}_${c.author || "user"}_${text.slice(0, 40)}`
     if (ytSeen.has(String(commentId))) continue
     ytSeen.add(String(commentId))
-    const { error } = await supabase.from("social_comments").upsert(
-      {
-        platform: "twitter", // storage constraint — real platform in raw_data
-        external_id: `${IFOLD_YT_PREFIX}${commentId}`,
-        external_post_id: videoId,
-        text,
-        author_username: (c.author || c.authorName || "unknown").replace(/^@/, ""),
-        likes_count: c.voteCount || c.likesCount || 0,
-        published_at: c.date ? new Date(c.date).toISOString() : new Date().toISOString(),
-        scraped_at: new Date().toISOString(),
-        raw_data: { ...c, _ifold: true, _platform: "youtube", _gcc: isGccText(text) },
-      },
-      { onConflict: "platform,external_id" },
-    )
-    if (!error) inserted++
+    commentRows.push({
+      platform: "twitter", // storage constraint — real platform in raw_data
+      external_id: `${IFOLD_YT_PREFIX}${commentId}`,
+      external_post_id: videoId,
+      text,
+      author_username: (c.author || c.authorName || "unknown").replace(/^@/, ""),
+      likes_count: c.voteCount || c.likesCount || 0,
+      published_at: c.date ? new Date(c.date).toISOString() : new Date().toISOString(),
+      scraped_at: new Date().toISOString(),
+      raw_data: { ...c, _ifold: true, _platform: "youtube", _gcc: isGccText(text) },
+    })
   }
 
+  const inserted = await batchUpsert(supabase, "social_comments", commentRows)
   return { inserted, total: igItems.length + ttItems.length + ytItems.length }
 }
 
