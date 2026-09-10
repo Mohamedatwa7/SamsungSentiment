@@ -8,7 +8,12 @@ on:
     # Off-peak minutes fire near-immediately on GitHub (on-the-hour slots
     # queue behind heavy load), so schedule 20 minutes early at an odd minute.
     - cron: "40 4 * * *" # target 09:00 Dubai (UTC+4)
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      ingest_only:
+        description: "Only harvest completed Apify runs — no new paid scrapes"
+        type: boolean
+        default: false
 
 jobs:
   sync:
@@ -29,7 +34,7 @@ jobs:
 
       # Fires fresh scrapes and ingests the previous cycle's completed runs.
       - name: Trigger sync (fires scrapes)
-        if: steps.gate.outputs.active == 'true'
+        if: steps.gate.outputs.active == 'true' && inputs.ingest_only != true
         run: |
           curl -sS -X POST "https://samsungtrack.com/api/ifold/sync" \
             -H "Content-Type: application/json" \
@@ -40,7 +45,7 @@ jobs:
 
       # Let the freshly fired scrape runs finish.
       - name: Wait for scrapes
-        if: steps.gate.outputs.active == 'true'
+        if: steps.gate.outputs.active == 'true' && inputs.ingest_only != true
         run: sleep 420
 
       # Harvest the fresh runs in the SAME cycle (dataset reads are free on
