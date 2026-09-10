@@ -27,7 +27,7 @@ import {
 export const dynamic = "force-dynamic"
 // Cold-cache rebuilds page through ~15k rows across four queries; the
 // default function budget cuts them off mid-retry.
-export const maxDuration = 120
+export const maxDuration = 300
 
 const PAGE_SIZE = 1000
 
@@ -103,14 +103,23 @@ export async function GET() {
 
     // Paged like the comments below — Supabase caps a single request at 1000
     // rows regardless of .limit(), and the corpus passed that on day 2.
+    // Project ONLY the raw_data keys the payload uses: detoasting the full
+    // scrape JSON across thousands of rows trips the cold-cache statement
+    // timeout (the launch-week corpus took this route down on Sep 10).
     const postRows: any[] = []
     for (let from = 0; ; from += PAGE_SIZE) {
       const page = await withRetry<any[]>("posts query", () =>
         supabase
           .from("social_posts")
           .select(
-            "external_id,platform,post_url,caption,media_url,likes_count,comments_count," +
-              "shares_count,views_count,published_at,raw_data",
+            "external_id,platform,post_url,caption,likes_count,comments_count," +
+              "shares_count,views_count,published_at," +
+              "_analysis:raw_data->_analysis,_focus:raw_data->>_focus,_gcc:raw_data->_gcc," +
+              "_source:raw_data->>_source,_sourceLang:raw_data->>_sourceLang," +
+              "_title:raw_data->>title,_owner:raw_data->>ownerUsername," +
+              "_ttAuthor:raw_data->authorMeta->>name,_xAuthor:raw_data->author->>userName," +
+              "_channel:raw_data->>channelName,_channelU:raw_data->>channelUsername," +
+              "_shortCode:raw_data->>shortCode",
           )
           .like("external_id", `${IFOLD_ID_PREFIX}%`)
           .order("external_id", { ascending: true })
@@ -139,7 +148,6 @@ export async function GET() {
 
     for (const p of postRows) {
       const ext = String(p.external_id || "")
-      const raw = (p.raw_data || {}) as any
       const url = p.post_url || ""
       const isNews = ext.startsWith(IFOLD_NEWS_PREFIX)
       const isYt = ext.startsWith(IFOLD_YT_PREFIX)
@@ -150,23 +158,23 @@ export async function GET() {
       let title = p.caption || ""
       if (isNews) {
         platform = "news"
-        author = raw._source || "News"
-        title = raw.title || title.split("\n")[0]
+        author = p._source || "News"
+        title = p._title || title.split("\n")[0]
       } else if (isYt) {
         platform = "youtube"
-        author = raw.channelName || raw.channelUsername || "YouTube"
+        author = p._channel || p._channelU || "YouTube"
       } else if (p.platform === "instagram") {
         platform = "instagram"
-        author = raw.ownerUsername || "unknown"
+        author = p._owner || "unknown"
       } else if (p.platform === "tiktok") {
         platform = "tiktok"
-        author = raw.authorMeta?.name || "unknown"
+        author = p._ttAuthor || "unknown"
       } else {
         platform = "twitter"
-        author = raw.author?.userName || "unknown"
+        author = p._xAuthor || "unknown"
       }
 
-      const analysisRaw = raw._analysis as { sentiment: IFoldSentiment; score: number; flags: string[] } | undefined
+      const analysisRaw = p._analysis as { sentiment: IFoldSentiment; score: number; flags: string[] } | undefined
       const parsed = analysisRaw ? parseIFoldFlags(analysisRaw.flags) : null
 
       const post: IFoldPost = {
@@ -176,15 +184,15 @@ export async function GET() {
         url,
         title,
         author,
-        source: isNews ? raw._source || null : null,
-        sourceLang: isNews ? raw._sourceLang || null : null,
+        source: isNews ? p._source || null : null,
+        sourceLang: isNews ? p._sourceLang || null : null,
         publishedAt: p.published_at || null,
         views: Math.max(0, p.views_count || 0),
         likes: Math.max(0, p.likes_count || 0),
         commentsCount: Math.max(0, p.comments_count || 0),
         shares: Math.max(0, p.shares_count || 0),
-        focus: raw._focus === "launch" ? "launch" : "fold",
-        gcc: !!raw._gcc,
+        focus: p._focus === "launch" ? "launch" : "fold",
+        gcc: !!p._gcc,
         analysis: analysisRaw
           ? {
               sentiment: analysisRaw.sentiment,
@@ -200,7 +208,7 @@ export async function GET() {
       register(realId, post)
       register(url.replace(/\/+$/, ""), post)
       if (platform === "instagram") {
-        const sc = instagramShortcodeFromUrl(url) || raw.shortCode
+        const sc = instagramShortcodeFromUrl(url) || p._shortCode
         register(sc, post)
         if (sc) register(instagramShortcodeToId(sc), post)
         if (!/^\d+$/.test(realId)) register(instagramShortcodeToId(realId), post)
