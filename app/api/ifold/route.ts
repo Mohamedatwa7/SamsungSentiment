@@ -64,22 +64,33 @@ async function withRetry<T>(
   throw new Error(`${label} failed after ${attempts} attempts: ${lastError}`)
 }
 
+// The storage check-constraint allows exactly these platform values.
+const STORAGE_PLATFORMS = ["instagram", "tiktok", "twitter", "facebook"]
+
+// Query per platform: with the leading equality the planner serves
+// eq(platform) + order(external_id) + limit straight from the existing
+// (platform, external_id) unique index — a prefix LIKE alone forces a
+// full-table scan + sort, which started exceeding the statement timeout
+// once the launch-week corpus and upsert churn fattened the table.
 async function fetchPrefixedComments(supabase: any, prefix: string, columns: string): Promise<any[]> {
   const rows: any[] = []
-  let from = 0
-  while (true) {
-    const page = await withRetry<any[]>(`comments ${prefix}`, () =>
-      supabase
-        .from("social_comments")
-        .select(columns)
-        .like("external_id", `${prefix}%`)
-        .order("external_id", { ascending: true })
-        .range(from, from + PAGE_SIZE - 1),
-    )
-    if (page.length === 0) break
-    rows.push(...page)
-    if (page.length < PAGE_SIZE) break
-    from += PAGE_SIZE
+  for (const platform of STORAGE_PLATFORMS) {
+    let from = 0
+    while (true) {
+      const page = await withRetry<any[]>(`comments ${prefix}/${platform}`, () =>
+        supabase
+          .from("social_comments")
+          .select(columns)
+          .eq("platform", platform)
+          .like("external_id", `${prefix}%`)
+          .order("external_id", { ascending: true })
+          .range(from, from + PAGE_SIZE - 1),
+      )
+      if (page.length === 0) break
+      rows.push(...page)
+      if (page.length < PAGE_SIZE) break
+      from += PAGE_SIZE
+    }
   }
   return rows
 }
@@ -108,26 +119,30 @@ export async function GET() {
     // (the launch-week corpus took this route down on Sep 10).
     const fetchPostRows = async (): Promise<any[]> => {
       const rows: any[] = []
-      for (let from = 0; ; from += PAGE_SIZE) {
-        const page = await withRetry<any[]>("posts query", () =>
-          supabase
-            .from("social_posts")
-            .select(
-              "external_id,platform,post_url,caption,likes_count,comments_count," +
-                "shares_count,views_count,published_at," +
-                "_analysis:raw_data->_analysis,_focus:raw_data->>_focus,_gcc:raw_data->_gcc," +
-                "_source:raw_data->>_source,_sourceLang:raw_data->>_sourceLang," +
-                "_title:raw_data->>title,_owner:raw_data->>ownerUsername," +
-                "_ttAuthor:raw_data->authorMeta->>name,_xAuthor:raw_data->author->>userName," +
-                "_channel:raw_data->>channelName,_channelU:raw_data->>channelUsername," +
-                "_shortCode:raw_data->>shortCode",
-            )
-            .like("external_id", `${IFOLD_ID_PREFIX}%`)
-            .order("external_id", { ascending: true })
-            .range(from, from + PAGE_SIZE - 1),
-        )
-        rows.push(...page)
-        if (page.length < PAGE_SIZE || rows.length >= 8000) break
+      // Per-platform for the same index-path reason as fetchPrefixedComments.
+      for (const platform of STORAGE_PLATFORMS) {
+        for (let from = 0; ; from += PAGE_SIZE) {
+          const page = await withRetry<any[]>(`posts query/${platform}`, () =>
+            supabase
+              .from("social_posts")
+              .select(
+                "external_id,platform,post_url,caption,likes_count,comments_count," +
+                  "shares_count,views_count,published_at," +
+                  "_analysis:raw_data->_analysis,_focus:raw_data->>_focus,_gcc:raw_data->_gcc," +
+                  "_source:raw_data->>_source,_sourceLang:raw_data->>_sourceLang," +
+                  "_title:raw_data->>title,_owner:raw_data->>ownerUsername," +
+                  "_ttAuthor:raw_data->authorMeta->>name,_xAuthor:raw_data->author->>userName," +
+                  "_channel:raw_data->>channelName,_channelU:raw_data->>channelUsername," +
+                  "_shortCode:raw_data->>shortCode",
+              )
+              .eq("platform", platform)
+              .like("external_id", `${IFOLD_ID_PREFIX}%`)
+              .order("external_id", { ascending: true })
+              .range(from, from + PAGE_SIZE - 1),
+          )
+          rows.push(...page)
+          if (page.length < PAGE_SIZE || rows.length >= 12000) break
+        }
       }
       return rows
     }

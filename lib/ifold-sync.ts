@@ -256,18 +256,27 @@ export function parseRssItems(xml: string): RssItem[] {
 // headline and tweet each cycle — carry the existing verdicts over.
 async function getExistingAnalyses(): Promise<Map<string, unknown>> {
   const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("social_posts")
-    .select("external_id,_analysis:raw_data->_analysis")
-    .like("external_id", `${IFOLD_ID_PREFIX}%`)
-    .eq("platform", "twitter")
-  if (error) {
-    console.error("[ifold] analysis-carryover read failed:", error.message)
-    return new Map()
-  }
   const map = new Map<string, unknown>()
-  for (const r of (data as any[]) || []) {
-    if (r._analysis) map.set(String(r.external_id), r._analysis)
+  // Paged — the twitter-platform rows (tweets + news + YouTube) passed the
+  // silent 1000-row cap, which was dropping carryover verdicts and re-billing
+  // the LLM for already-scored items.
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase
+      .from("social_posts")
+      .select("external_id,_analysis:raw_data->_analysis")
+      .eq("platform", "twitter")
+      .like("external_id", `${IFOLD_ID_PREFIX}%`)
+      .order("external_id", { ascending: true })
+      .range(from, from + 999)
+    if (error) {
+      console.error("[ifold] analysis-carryover read failed:", error.message)
+      break
+    }
+    const page = (data as any[]) || []
+    for (const r of page) {
+      if (r._analysis) map.set(String(r.external_id), r._analysis)
+    }
+    if (page.length < 1000) break
   }
   return map
 }
@@ -721,15 +730,31 @@ function isFreshPost(row: { published_at: string | null }): boolean {
 
 async function getIFoldPostRows(): Promise<IFoldPostRow[]> {
   const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("social_posts")
-    .select("external_id,platform,post_url,published_at,views_count,_gcc:raw_data->_gcc")
-    .like("external_id", `${IFOLD_ID_PREFIX}%`)
-  if (error) {
-    console.error("[ifold] Failed to read posts:", error.message)
-    return []
+  const rows: IFoldPostRow[] = []
+  // Per-platform + paged: the leading equality lets the planner use the
+  // (platform, external_id) unique index (a bare prefix LIKE seq-scans the
+  // whole table), and Supabase silently caps un-ranged reads at 1000 rows —
+  // which was truncating the comment-scrape target list and the parent key
+  // set once the corpus outgrew it.
+  for (const platform of ["instagram", "tiktok", "twitter"]) {
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await supabase
+        .from("social_posts")
+        .select("external_id,platform,post_url,published_at,views_count,_gcc:raw_data->_gcc")
+        .eq("platform", platform)
+        .like("external_id", `${IFOLD_ID_PREFIX}%`)
+        .order("external_id", { ascending: true })
+        .range(from, from + 999)
+      if (error) {
+        console.error(`[ifold] Failed to read posts (${platform}):`, error.message)
+        break
+      }
+      const page = (data as IFoldPostRow[]) || []
+      rows.push(...page)
+      if (page.length < 1000) break
+    }
   }
-  return (data as IFoldPostRow[]) || []
+  return rows
 }
 
 function topFresh(rows: IFoldPostRow[], filter: (r: IFoldPostRow) => boolean, n = COMMENT_SCRAPE_TOP_N()): string[] {
@@ -958,16 +983,22 @@ export async function analyzeIFoldComments(deadlineMs: number): Promise<number> 
 export async function analyzeIFoldPosts(deadlineMs: number): Promise<number> {
   const supabase = await createClient()
   // News + tweets + YouTube all store under platform="twitter"; the prefix
-  // separates them.
-  const { data, error } = await supabase
-    .from("social_posts")
-    .select("id, external_id, caption, raw_data")
-    .like("external_id", `${IFOLD_ID_PREFIX}%`)
-    .eq("platform", "twitter")
-    .limit(3000)
-  if (error) {
-    console.error("[ifold] post-analysis select failed:", error.message)
-    return 0
+  // separates them. Paged — .limit() past 1000 is silently capped.
+  const data: any[] = []
+  for (let from = 0; from < 6000; from += 1000) {
+    const { data: page, error } = await supabase
+      .from("social_posts")
+      .select("id, external_id, caption, raw_data")
+      .eq("platform", "twitter")
+      .like("external_id", `${IFOLD_ID_PREFIX}%`)
+      .order("external_id", { ascending: true })
+      .range(from, from + 999)
+    if (error) {
+      console.error("[ifold] post-analysis select failed:", error.message)
+      break
+    }
+    data.push(...(page || []))
+    if ((page || []).length < 1000) break
   }
 
   const pending = (data || []).filter((r: any) => {
