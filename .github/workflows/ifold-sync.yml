@@ -49,16 +49,23 @@ jobs:
         run: sleep 420
 
       # Harvest the fresh runs in the SAME cycle (dataset reads are free on
-      # Apify — no new actor runs are started).
+      # Apify — no new actor runs are started). Retried: a timed-out attempt
+      # leaves its upserts + warm DB caches behind, so the retry finishes.
       - name: Ingest fresh results
         if: steps.gate.outputs.active == 'true'
         run: |
-          curl -sS -X POST "https://samsungtrack.com/api/ifold/sync" \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            -d '{"ingestOnly": true}' \
-            --fail-with-body \
-            --max-time 570
+          ok=0
+          for attempt in 1 2 3; do
+            if curl -sS -X POST "https://samsungtrack.com/api/ifold/sync" \
+              -H "Content-Type: application/json" \
+              -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+              -d '{"ingestOnly": true}' \
+              --fail-with-body \
+              --max-time 570; then ok=1; break; fi
+            echo "ingest attempt ${attempt} failed — retrying"
+            sleep 45
+          done
+          [ "$ok" = "1" ]
 
       # Ingest can consume the whole invocation before the LLM analysis phase
       # gets a turn — drain the sentiment backlog with its own time budget.

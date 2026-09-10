@@ -134,9 +134,10 @@ export function isInTrackingWindow(publishedAt: string | Date | null | undefined
 // ---------------------------------------------------------------------------
 
 // Several harvested actors are shared with the roster pipeline (profiles,
-// YouTube), so one day can produce 2-3 runs per actor — 12 runs keeps roughly
-// 4-6 days of backfill while dataset reads stay free.
-const RUNS_TO_SYNC = 12
+// YouTube), so one day can produce 2-3 runs per actor. 8 runs keeps ~3 days
+// of backfill; deeper reads blew past the route's 300s function budget once
+// launch-week datasets fattened up (FUNCTION_INVOCATION_TIMEOUT, Sep 10).
+const RUNS_TO_SYNC = 8
 
 async function getRecentRunsItems<T>(actorId: string, runCount = RUNS_TO_SYNC): Promise<T[]> {
   try {
