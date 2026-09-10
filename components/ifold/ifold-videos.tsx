@@ -22,7 +22,12 @@ import {
 
 import { cn } from "@/lib/utils"
 import { useCommentTranslations } from "@/hooks/use-comment-translations"
-import { formatCompactNum, type IFoldComment, type IFoldPost } from "@/lib/ifold-data"
+import {
+  formatCompactNum,
+  type IFoldComment,
+  type IFoldPost,
+  type IFoldSentiment,
+} from "@/lib/ifold-data"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { SentimentBadge, SentimentBar } from "@/components/unpacked/sentiment-badge"
@@ -96,14 +101,33 @@ function PlatformBadge({ platform }: { platform: VideoPlatform }) {
 function VideoCard({
   video,
   displayText,
+  onCommentsOpened,
 }: {
   video: RankedVideo
   displayText: (c: { id: string; text: string }) => string
+  onCommentsOpened: (video: RankedVideo) => void
 }) {
   const { post, comments } = video
   const [commentsOpen, setCommentsOpen] = useState(false)
   const [playerRequested, setPlayerRequested] = useState(false)
+  const [sentimentFilter, setSentimentFilter] = useState<"all" | IFoldSentiment>("all")
   const samples = sampleComments(video)
+
+  const openComments = () => {
+    setCommentsOpen(true)
+    onCommentsOpened(video)
+  }
+
+  const sentimentCounts = useMemo(() => {
+    const counts = { positive: 0, neutral: 0, negative: 0 }
+    for (const c of comments) counts[c.sentiment]++
+    return counts
+  }, [comments])
+
+  const dialogComments = useMemo(() => {
+    const list = sentimentFilter === "all" ? comments : comments.filter((c) => c.sentiment === sentimentFilter)
+    return list.slice().sort((a, b) => b.likes - a.likes)
+  }, [comments, sentimentFilter])
 
   const s = post.commentSentiment
   const scored = s.positive + s.neutral + s.negative
@@ -199,7 +223,7 @@ function VideoCard({
           </div>
           <button
             type="button"
-            onClick={() => setCommentsOpen(true)}
+            onClick={openComments}
             className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-2.5 text-left transition-colors hover:border-primary/40 hover:bg-primary/10"
           >
             <p className="section-label flex items-center gap-1 truncate">
@@ -270,7 +294,7 @@ function VideoCard({
             {comments.length > samples.length && (
               <button
                 type="button"
-                onClick={() => setCommentsOpen(true)}
+                onClick={openComments}
                 className="text-[11px] font-medium text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
               >
                 Read all {formatCompactNum(comments.length)} scraped comments
@@ -289,13 +313,51 @@ function VideoCard({
               {formatCompactNum(post.commentsCount)} on the platform · {comments.length} scraped and scored
             </DialogDescription>
           </DialogHeader>
+
+          {/* Sentiment filter — counts double as the video's reaction split */}
+          {comments.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {(
+                [
+                  { key: "all", label: `All (${comments.length})` },
+                  { key: "positive", label: `Positive (${sentimentCounts.positive})` },
+                  { key: "neutral", label: `Neutral (${sentimentCounts.neutral})` },
+                  { key: "negative", label: `Negative (${sentimentCounts.negative})` },
+                ] as { key: "all" | IFoldSentiment; label: string }[]
+              ).map((f) => (
+                <button
+                  key={f.key}
+                  type="button"
+                  onClick={() => setSentimentFilter(f.key)}
+                  className={cn(
+                    "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                    sentimentFilter === f.key
+                      ? f.key === "positive"
+                        ? "border-positive/50 bg-positive/15 text-positive"
+                        : f.key === "negative"
+                          ? "border-negative/50 bg-negative/15 text-negative"
+                          : "border-primary/50 bg-primary/15 text-foreground"
+                      : "border-white/[0.08] bg-white/[0.03] text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          )}
+
           <div className="-mr-2 max-h-[60vh] space-y-2 overflow-y-auto pr-2">
             {comments.length === 0 && (
               <p className="py-8 text-center text-sm text-muted-foreground">
                 Comments will appear after the next scheduled sync scrapes this video.
               </p>
             )}
-            {comments.map((c) => (
+            {comments.length > 0 && dialogComments.length === 0 && (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                No {sentimentFilter} comments on this video.
+              </p>
+            )}
+            {dialogComments.map((c) => (
               <div key={c.id} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -342,7 +404,8 @@ export function IFoldVideos({ posts, comments }: { posts: IFoldPost[]; comments:
       if (post.kind !== "social" || !isVideoPlatform(post.platform) || post.focus !== "fold") continue
       const embedUrl = embedUrlFor(post)
       if (!embedUrl) continue
-      const postComments = (byPost.get(post.id) || []).slice(0, 120)
+      // Every scraped comment rides along — the browser dialog shows them all.
+      const postComments = byPost.get(post.id) || []
       const comparison =
         VS_PATTERN.test(post.title) ||
         post.analysis?.lean != null ||
@@ -370,6 +433,14 @@ export function IFoldVideos({ posts, comments }: { posts: IFoldPost[]; comments:
   const switchLens = async (key: "duo" | "vs") => {
     setLens(key)
     if (showTranslations) await ensureTranslations(translatables(key === "duo" ? duo : vs))
+  }
+
+  // When a comment browser opens with translation on, cover its full list
+  // (bounded — the translate API is per-comment).
+  const handleCommentsOpened = (v: RankedVideo) => {
+    if (showTranslations) {
+      void ensureTranslations(v.comments.slice(0, 150).map((c) => ({ id: c.id, text: c.text })))
+    }
   }
 
   return (
@@ -430,7 +501,7 @@ export function IFoldVideos({ posts, comments }: { posts: IFoldPost[]; comments:
       ) : (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {shown.map((v) => (
-            <VideoCard key={v.post.id} video={v} displayText={displayText} />
+            <VideoCard key={v.post.id} video={v} displayText={displayText} onCommentsOpened={handleCommentsOpened} />
           ))}
         </div>
       )}
