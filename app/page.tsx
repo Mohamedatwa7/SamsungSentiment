@@ -91,12 +91,12 @@ const MODULES = [
   },
   {
     index: "05",
-    title: "Competition Watch — iPhone Fold",
+    title: "Competition Watch — iPhone Duo",
     href: "/competition",
     icon: Swords,
     description:
       "Apple foldable launch tracker — GCC and global buzz across social, press and influencers, AI-scored against our Fold8 corpus to surface Apple's strengths and the weaknesses we can capitalize on.",
-    tags: ["iPhone Fold vs Fold8", "News + Social + X", "Daily Until Oct 1"],
+    tags: ["iPhone Duo vs Fold8", "News + Social + X", "Daily Until Oct 1"],
   },
 ]
 

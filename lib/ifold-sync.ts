@@ -1,6 +1,8 @@
-// Competition Watch sync — Apple iPhone Fold launch tracking.
+// Competition Watch sync — Apple iPhone Duo launch tracking.
+// ("iPhone Duo" is the official name from the Sep 9 2026 keynote; the press
+// called it "iPhone Fold" through the rumor cycle, hence the ifold_ keys.)
 //
-// Ingests iPhone Fold / iPhone 18 launch conversations across Instagram,
+// Ingests iPhone Duo / iPhone 18 launch conversations across Instagram,
 // TikTok, X, YouTube (Apify actors) and GCC/global tech press (RSS), lands
 // everything in the SAME social_posts / social_comments tables as the other
 // pipelines, tagged with the ifold_ external_id prefix + raw_data._ifold.
@@ -42,6 +44,12 @@ export function stripIFoldPrefix(id: string): string {
 export const IFOLD_ACTORS = {
   instagramHashtag: "reGe1ST3OBgYZSsZJ", // apify/instagram-hashtag-scraper
   instagramComments: "SbK00X0JYCPblD2wp", // apify/instagram-comment-scraper
+  // Profile scrapers shared with the roster pipeline: its daily FF8-roster
+  // runs and our Apple-account runs land under the same actors, and the
+  // marker-filtered ingest below reads BOTH — that's how the Samsung
+  // influencer roster's Duo coverage flows into this section for free.
+  instagramProfiles: "dSCLg0C3YEZ83HzYX", // apify/instagram-profile-scraper (latestPosts)
+  tiktokProfiles: "0FXVyOXXEmdGcV88a", // clockworks/tiktok-profile-scraper
   tiktokHashtag: "f1ZeP0K58iwlqG2pY", // clockworks/tiktok-hashtag-scraper
   tiktokSearch: "GdWCkxBtKWOsKjdch", // clockworks/tiktok-scraper (keyword search)
   tiktokComments: "BDec00yAmCm1QbMEI", // clockworks/tiktok-comments-scraper
@@ -53,11 +61,12 @@ export const IFOLD_ACTORS = {
 }
 
 // ---------------------------------------------------------------------------
-// Qualification — what counts as iPhone Fold / launch conversation
+// Qualification — what counts as iPhone Duo / launch conversation
 // ---------------------------------------------------------------------------
 
-// Names in the wild pre-keynote: iPhone Fold (press), iPhone Duo (day-of
-// leak), iPhone Ultra (earlier rumor cycle). Arabic press: آيفون القابل للطي.
+// "iPhone Duo" is the official keynote name; the wild still says iPhone Fold
+// (press rumor cycle) and iPhone Ultra (earlier rumors), so all three match.
+// Arabic press: آيفون القابل للطي / ايفون ديو.
 const FOLD_SPECIFIC = [
   /iphone\s*fold/i,
   /iphone\s*duo/i,
@@ -91,6 +100,17 @@ export function ifoldFocus(text: string | null | undefined): IFoldFocus | null {
   return null
 }
 
+// Apple's own accounts are scraped directly — during the tracking window
+// everything they publish is launch conversation, even when the caption never
+// names the product (teasers, keynote clips, availability posts). Used as a
+// fallback where ifoldFocus() finds no textual marker.
+const APPLE_OFFICIAL_HANDLES = new Set(["apple", "tim_cook"])
+
+export function appleOfficialFocus(handle: string | null | undefined): IFoldFocus | null {
+  const h = String(handle || "").replace(/^@/, "").toLowerCase()
+  return APPLE_OFFICIAL_HANDLES.has(h) ? "launch" : null
+}
+
 // GCC relevance — Arabic script is the strongest available proxy for the
 // Arab/Gulf audience on global hashtag feeds; explicit Gulf geography terms
 // catch the English-language GCC conversation.
@@ -113,9 +133,10 @@ export function isInTrackingWindow(publishedAt: string | Date | null | undefined
 // Apify helpers (same fire-then-harvest model as the unpacked pipeline)
 // ---------------------------------------------------------------------------
 
-// Once-daily schedule → 6 runs ≈ 6 days of history per actor, enough to
-// backfill several missed cycles while keeping ingest fast.
-const RUNS_TO_SYNC = 6
+// Several harvested actors are shared with the roster pipeline (profiles,
+// YouTube), so one day can produce 2-3 runs per actor — 12 runs keeps roughly
+// 4-6 days of backfill while dataset reads stay free.
+const RUNS_TO_SYNC = 12
 
 async function getRecentRunsItems<T>(actorId: string, runCount = RUNS_TO_SYNC): Promise<T[]> {
   try {
@@ -341,9 +362,20 @@ export async function syncIFoldNews() {
 // Social post scrapes + ingest
 // ---------------------------------------------------------------------------
 
-const IFOLD_HASHTAGS = ["iphonefold", "iphoneduo", "iphone18pro"]
-const IFOLD_SEARCHES_AR = ["ايفون فولد", "آيفون القابل للطي", "ايفون 18"]
-const IFOLD_SEARCHES_EN = ["iphone fold", "iphone fold vs galaxy fold", "iphone duo"]
+// Official name first; "iphone fold" stays because the wild keeps using it.
+const IFOLD_HASHTAGS = ["iphoneduo", "iphonefold", "iphone18pro"]
+const IFOLD_SEARCHES_AR = ["ايفون ديو", "ايفون فولد", "آيفون القابل للطي", "ايفون 18"]
+const IFOLD_SEARCHES_EN = ["iphone duo", "iphone fold", "iphone duo vs galaxy fold"]
+
+// Apple official accounts scraped directly (X handles ride the tweet-scraper
+// query below; YouTube rides a channel-mode run of the shared YT actor).
+const APPLE_IG_ACCOUNTS = ["apple", "tim_cook"]
+const APPLE_TIKTOK_ACCOUNTS = ["apple"]
+const APPLE_YT_CHANNEL = "https://www.youtube.com/@Apple/videos"
+// GCC tech-voice X accounts from the watchlist (the Samsung-roster reviewers
+// have no X presence worth polling; their YT/IG/TikTok flow via shared runs).
+const WATCHLIST_X_QUERY =
+  "(from:iphoneislam OR from:faisal_sabahii OR from:TechWD OR from:WiredMiddleEast)"
 
 // The keynote reaction wave (launch week) is the densest window of the whole
 // campaign — scrape deeper so the daily harvest doesn't truncate it, then
@@ -371,7 +403,17 @@ export async function startIFoldPostScrapes() {
   started.twitterSearch = await startActorRun(
     IFOLD_ACTORS.twitterSearch,
     {
-      searchTerms: ['"iphone fold"', '"iphone duo"', '"foldable iphone"', "ايفون فولد", "آيفون القابل للطي"],
+      searchTerms: [
+        '"iphone duo"',
+        '"iphone fold"',
+        '"foldable iphone"',
+        "ايفون ديو",
+        "ايفون فولد",
+        "آيفون القابل للطي",
+        "from:Apple",
+        "from:tim_cook",
+        WATCHLIST_X_QUERY,
+      ],
       maxItems: boost ? 600 : 300,
       sort: "Latest",
       start: "2026-09-02",
@@ -379,10 +421,27 @@ export async function startIFoldPostScrapes() {
     5,
   )
   started.youtubeSearch = await startActorRun(IFOLD_ACTORS.youtubeSearch, {
-    searchQueries: ["iphone fold review", "iphone fold مراجعة", "ايفون فولد", "iphone fold vs galaxy z fold"],
+    searchQueries: ["iphone duo review", "iphone duo مراجعة", "ايفون ديو", "iphone duo vs galaxy z fold", "iphone fold review"],
     maxResults: boost ? 25 : 15,
     maxResultsShorts: boost ? 15 : 10,
     maxResultStreams: 0,
+    oldestPostDate: "2026-09-02",
+  })
+  // Apple official accounts — profile/channel scrapes. The Samsung FF8 roster
+  // profiles are NOT re-fired here: the roster pipeline already scrapes them
+  // daily with these same actors, and our ingest harvests those runs too.
+  started.appleInstagram = await startActorRun(IFOLD_ACTORS.instagramProfiles, {
+    usernames: APPLE_IG_ACCOUNTS,
+  })
+  started.appleTikTok = await startActorRun(IFOLD_ACTORS.tiktokProfiles, {
+    profiles: APPLE_TIKTOK_ACCOUNTS,
+    resultsPerPage: boost ? 20 : 10,
+    profileSorting: "latest",
+    excludePinnedPosts: false,
+  })
+  started.appleYouTube = await startActorRun(IFOLD_ACTORS.youtubeSearch, {
+    startUrls: [{ url: APPLE_YT_CHANNEL }],
+    maxResults: boost ? 15 : 8,
     oldestPostDate: "2026-09-02",
   })
   return started
@@ -408,10 +467,21 @@ export async function syncIFoldInstagramPosts(runCount = RUNS_TO_SYNC) {
   const supabase = await createClient()
   const items = await getRecentRunsItems<IgHashtagItem>(IFOLD_ACTORS.instagramHashtag, runCount)
 
+  // Profile-scraper runs return profile objects carrying latestPosts. The
+  // actor is shared with the roster pipeline, so this harvests BOTH our
+  // Apple-account runs and the daily Samsung FF8-roster runs — the focus
+  // filter keeps only Duo/launch-matching posts from either.
+  const profiles = await getRecentRunsItems<any>(IFOLD_ACTORS.instagramProfiles, runCount)
+  for (const profile of profiles) {
+    for (const p of [...(profile?.latestPosts || []), ...(profile?.latestIgtvVideos || [])]) {
+      items.push({ ...p, ownerUsername: p.ownerUsername || profile?.username })
+    }
+  }
+
   let inserted = 0
   let matched = 0
   for (const post of items) {
-    const focus = ifoldFocus(post.caption)
+    const focus = ifoldFocus(post.caption) ?? appleOfficialFocus(post.ownerUsername)
     if (!focus || !isInTrackingWindow(post.timestamp)) continue
     const externalId = post.id || post.shortCode || instagramShortcodeFromUrl(post.url || "")
     if (!externalId) continue
@@ -462,6 +532,9 @@ export async function syncIFoldTikTokPosts(runCount = RUNS_TO_SYNC) {
   const items = [
     ...(await getRecentRunsItems<TikTokItem>(IFOLD_ACTORS.tiktokHashtag, runCount)),
     ...(await getRecentRunsItems<TikTokItem>(IFOLD_ACTORS.tiktokSearch, runCount)),
+    // Shared with the roster pipeline — harvests our Apple-account runs and
+    // the Samsung FF8-roster profile runs alike (focus-filtered below).
+    ...(await getRecentRunsItems<TikTokItem>(IFOLD_ACTORS.tiktokProfiles, runCount)),
   ]
 
   let inserted = 0
@@ -470,7 +543,7 @@ export async function syncIFoldTikTokPosts(runCount = RUNS_TO_SYNC) {
   for (const post of items) {
     if (!post.id || seen.has(post.id)) continue
     const text = tiktokText(post)
-    const focus = ifoldFocus(text)
+    const focus = ifoldFocus(text) ?? appleOfficialFocus(post.authorMeta?.name)
     const publishedAt = post.createTimeISO || (post.createTime ? new Date(post.createTime * 1000) : null)
     if (!focus || !isInTrackingWindow(publishedAt)) continue
     seen.add(post.id)
@@ -527,7 +600,7 @@ export async function syncIFoldTweets(runCount = RUNS_TO_SYNC) {
   for (const t of items) {
     if (t.type && t.type !== "tweet") continue
     const text = t.fullText || t.text || ""
-    const focus = ifoldFocus(text)
+    const focus = ifoldFocus(text) ?? appleOfficialFocus(t.author?.userName)
     if (!t.id || !focus || seen.has(t.id)) continue
     const createdAt = t.createdAt ? new Date(t.createdAt) : null
     if (createdAt && isNaN(createdAt.getTime())) continue
@@ -574,7 +647,9 @@ export async function syncIFoldYouTubePosts(runCount = RUNS_TO_SYNC) {
     const videoId = item.id || youtubeVideoId(url)
     if (!videoId) continue
     const text = `${item.title || ""} ${item.text || item.description || ""}`
-    const focus = ifoldFocus(text)
+    // channelName "Apple" → the direct channel scrape; keynote/product films
+    // rarely say "Duo" in the title but are all launch content right now.
+    const focus = ifoldFocus(text) ?? appleOfficialFocus(item.channelName)
     const publishedAt = item.date || item.uploadDate
     if (!focus || !isInTrackingWindow(publishedAt)) continue
     matched++

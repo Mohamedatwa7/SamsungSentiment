@@ -1,5 +1,7 @@
 // Shared (client-safe) types, config and helpers for the Competition Watch
-// section — Apple iPhone Fold launch tracking vs Galaxy Z Fold8.
+// section — Apple iPhone Duo launch tracking vs Galaxy Z Fold8.
+// ("iPhone Duo" is the official keynote name; internal ids keep the ifold_
+// prefix from the rumor-cycle "iPhone Fold" naming.)
 //
 // The payload shape is produced by /api/ifold and consumed by the components
 // under components/ifold/. Server-side sync logic lives in lib/ifold-sync.ts.
@@ -62,9 +64,9 @@ export const IFOLD_PLAYBOOK: Record<IFoldTopicKey, string> = {
   design_thinness:
     "If thinness praise dominates, shift the frame to what thinness costs: camera hardware, battery, hinge durability.",
   price:
-    "iPhone Fold opens around $2,000 — Fold8's price advantage is a direct conquest message for upgraders on the fence.",
+    "iPhone Duo opens around $2,000 — Fold8's price advantage is a direct conquest message for upgraders on the fence.",
   cameras:
-    "No telephoto on the iPhone Fold — Fold8 zoom demos are a visible, filmable difference GCC creators can reproduce.",
+    "No telephoto on the iPhone Duo — Fold8 zoom demos are a visible, filmable difference GCC creators can reproduce.",
   battery:
     "Battery complaints on a v1 foldable are common — Fold8 battery + charging-speed comparisons land well here.",
   display:
@@ -295,9 +297,21 @@ export interface IFoldInfluencer {
   note?: string
 }
 
-// GCC tech voices expected to drive iPhone Fold coverage — verified 2026-09-09.
-// Reviewers already on the FF8 roster are marked; their fold coverage also
-// flows through the roster pipeline.
+// Apple's official accounts — scraped directly every sync cycle (IG/TikTok
+// profile runs, YouTube channel run, from: queries on the X scraper).
+export const IFOLD_APPLE_ACCOUNTS: IFoldInfluencer[] = [
+  { name: "Apple", handle: "apple", platform: "instagram", url: "https://www.instagram.com/apple/", country: "Global", lang: "en", note: "Official account" },
+  { name: "Apple", handle: "apple", platform: "tiktok", url: "https://www.tiktok.com/@apple", country: "Global", lang: "en", note: "Official account" },
+  { name: "Apple", handle: "Apple", platform: "x", url: "https://x.com/Apple", country: "Global", lang: "en", note: "Official account" },
+  { name: "Apple", handle: "Apple", platform: "youtube", url: "https://www.youtube.com/@Apple", country: "Global", lang: "en", note: "Keynote + product films" },
+  { name: "Tim Cook", handle: "tim_cook", platform: "x", url: "https://x.com/tim_cook", country: "Global", lang: "en", note: "Apple CEO" },
+  { name: "Tim Cook", handle: "tim_cook", platform: "instagram", url: "https://www.instagram.com/tim_cook/", country: "Global", lang: "en", note: "Apple CEO" },
+]
+
+// GCC tech voices expected to drive iPhone Duo coverage — verified 2026-09-09.
+// Reviewers already on the FF8 roster are marked; every FF8-roster profile
+// (all 34 Samsung campaign accounts) is also scraped daily and any of their
+// Duo coverage flows into this section automatically.
 export const IFOLD_INFLUENCER_WATCHLIST: IFoldInfluencer[] = [
   { name: "فيصل السيف (UTD / Tech Pills)", handle: "falsaif", platform: "youtube", url: "https://www.youtube.com/TechPillsShow", country: "KSA", lang: "ar", note: "8.6M subs — top MENA tech creator · FF8 roster" },
   { name: "عبدالله السبع", handle: "alsabe3", platform: "instagram", url: "https://www.instagram.com/alsabe3/", country: "KSA", lang: "ar", note: "5.5M IG" },
@@ -308,6 +322,7 @@ export const IFOLD_INFLUENCER_WATCHLIST: IFoldInfluencer[] = [
   { name: "Android Basha", handle: "AndroidBasha", platform: "youtube", url: "https://www.youtube.com/@AndroidBasha", country: "Pan-Arab", lang: "ar", note: "FF8 roster" },
   { name: "Omardizer", handle: "omardizer", platform: "youtube", url: "https://www.youtube.com/@omardizer", country: "Pan-Arab", lang: "ar", note: "FF8 roster" },
   { name: "Slorks", handle: "slorks", platform: "youtube", url: "https://www.youtube.com/@slorks", country: "Gulf-wide", lang: "ar", note: "FF8 roster" },
+  { name: "Tech Voice Net", handle: "techvoicenet", platform: "youtube", url: "https://www.youtube.com/@techvoicenet", country: "Pan-Arab", lang: "ar", note: "FF8 roster" },
   { name: "Issudeen Ibrahim", handle: "issutechy", platform: "instagram", url: "https://www.instagram.com/issutechy/", country: "KSA", lang: "en", note: "552K IG" },
   { name: "بدر منصور GameTech", handle: "gametech_sa", platform: "instagram", url: "https://www.instagram.com/gametech_sa/", country: "KSA", lang: "ar" },
   { name: "Feras Alsarami", handle: "realferas", platform: "instagram", url: "https://www.instagram.com/realferas/", country: "KSA", lang: "ar" },
@@ -321,14 +336,14 @@ export const IFOLD_INFLUENCER_WATCHLIST: IFoldInfluencer[] = [
 
 // Hashtags & search terms the scrapers monitor (shown as chips in the UI).
 export const IFOLD_TRACKED_TERMS = [
-  "#iPhoneFold",
   "#iPhoneDuo",
+  "#iPhoneFold",
   "#AppleEvent",
   "#iPhone18Pro",
-  "iPhone Fold vs Galaxy Fold",
+  "iPhone Duo vs Galaxy Fold",
+  "ايفون ديو",
   "آيفون القابل للطي",
   "ايفون فولد",
-  "ايفون ديو",
   "مؤتمر أبل",
   "سامسونج ولا ابل",
 ]

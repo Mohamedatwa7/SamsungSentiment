@@ -54,18 +54,18 @@ export function IFoldKPIs({
       drill: { title: "All scored reactions", items: reactions },
     },
     {
-      title: "Positive on iPhone Fold",
+      title: "Positive on iPhone Duo",
       value: scored > 0 ? `${Math.round((positive.length / scored) * 100)}%` : "—",
       subValue: `${formatCompactNum(positive.length)} positive reactions`,
       icon: ThumbsUp,
-      drill: { title: "Positive on the iPhone Fold", items: positive },
+      drill: { title: "Positive on the iPhone Duo", items: positive },
     },
     {
-      title: "Negative on iPhone Fold",
+      title: "Negative on iPhone Duo",
       value: scored > 0 ? `${Math.round((negative.length / scored) * 100)}%` : "—",
       subValue: `${formatCompactNum(negative.length)} critical reactions`,
       icon: ThumbsDown,
-      drill: { title: "Critical of the iPhone Fold", items: negative },
+      drill: { title: "Critical of the iPhone Duo", items: negative },
     },
     {
       title: "Comparisons Favor Samsung",

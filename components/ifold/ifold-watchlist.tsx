@@ -5,10 +5,12 @@ import { ChevronDown, ExternalLink, Radar } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import {
+  IFOLD_APPLE_ACCOUNTS,
   IFOLD_INFLUENCER_WATCHLIST,
   IFOLD_NEWS_FEEDS,
   IFOLD_TRACKED_TERMS,
 } from "@/lib/ifold-data"
+import { FF8_ROSTER } from "@/lib/roster"
 
 const PLATFORM_LABELS: Record<string, string> = {
   youtube: "YouTube",
@@ -35,7 +37,8 @@ export function IFoldWatchlist() {
             Monitoring Watchlist
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {IFOLD_NEWS_FEEDS.length} press feeds · {IFOLD_INFLUENCER_WATCHLIST.length} GCC tech voices ·{" "}
+            {IFOLD_APPLE_ACCOUNTS.length} Apple official accounts · {IFOLD_NEWS_FEEDS.length} press feeds ·{" "}
+            {IFOLD_INFLUENCER_WATCHLIST.length} GCC tech voices · {FF8_ROSTER.length} Samsung roster accounts ·{" "}
             {IFOLD_TRACKED_TERMS.length} tracked terms
           </p>
         </div>
@@ -44,6 +47,29 @@ export function IFoldWatchlist() {
 
       {open && (
         <div className="mt-5 space-y-6">
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Apple official accounts
+            </p>
+            <div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
+              {IFOLD_APPLE_ACCOUNTS.map((inf) => (
+                <a
+                  key={`${inf.platform}-${inf.handle}`}
+                  href={inf.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group rounded-lg px-2 py-1.5 text-xs transition-colors hover:bg-white/[0.04]"
+                >
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="truncate font-medium">{inf.name}</span>
+                    <span className="shrink-0 text-[10px] text-muted-foreground">{PLATFORM_LABELS[inf.platform]}</span>
+                  </span>
+                  {inf.note && <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">{inf.note}</span>}
+                </a>
+              ))}
+            </div>
+          </div>
+
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Tracked terms &amp; hashtags
@@ -113,6 +139,32 @@ export function IFoldWatchlist() {
                     </span>
                   </span>
                   {inf.note && <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">{inf.note}</span>}
+                </a>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Samsung FF8 campaign roster
+            </p>
+            <p className="mb-2 text-[11px] text-muted-foreground">
+              All {FF8_ROSTER.length} campaign influencer profiles are scraped daily — any iPhone Duo coverage they
+              post lands in this section automatically.
+            </p>
+            <div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
+              {FF8_ROSTER.map((inf) => (
+                <a
+                  key={inf.id}
+                  href={inf.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-xs transition-colors hover:bg-white/[0.04]"
+                >
+                  <span className="truncate font-medium">{inf.name}</span>
+                  <span className="shrink-0 text-[10px] text-muted-foreground">
+                    {PLATFORM_LABELS[inf.platform]} · {inf.category}
+                  </span>
                 </a>
               ))}
             </div>

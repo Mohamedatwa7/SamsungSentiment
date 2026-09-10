@@ -142,7 +142,7 @@ export default function CompetitionWatchPage() {
       <div className="animate-in fade-in slide-in-from-bottom-2 pt-4 duration-500">
         <p className="section-label">Samsung Gulf · Competition Analysis</p>
         <h1 className="display-title text-gradient mt-2 text-3xl md:text-4xl">
-          Competition Watch — iPhone Fold
+          Competition Watch — iPhone Duo
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground md:text-base">
           Live GCC + global reactions to Apple&apos;s first foldable, scored by AI and compared with our
@@ -179,7 +179,7 @@ export default function CompetitionWatchPage() {
               <span className="section-label mr-1">Focus</span>
               {(
                 [
-                  { key: "fold", label: "iPhone Fold" },
+                  { key: "fold", label: "iPhone Duo" },
                   { key: "all", label: "Full launch" },
                 ] as { key: FocusFilter; label: string }[]
               ).map((f) => (
@@ -268,7 +268,7 @@ export default function CompetitionWatchPage() {
               {/* Plain-language digest of what's going on */}
               <IFoldWhatsHappening reactions={appleReactions} onDrill={setDrill} />
 
-              {/* FF8 vs iPhone Fold pie charts */}
+              {/* FF8 vs iPhone Duo pie charts */}
               <IFoldPies apple={appleReactions} samsung={samsungReactions} onDrill={setDrill} />
 
               {/* Daily sentiment volume — click a day to read it */}

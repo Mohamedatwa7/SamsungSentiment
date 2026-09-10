@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     if (ifoldTrackingEnded() && !body.force) {
       return NextResponse.json({
         skipped: true,
-        reason: `iPhone Fold tracking ended on ${IFOLD_TRACKING_END.toISOString()}. Pass { "force": true } to sync anyway.`,
+        reason: `iPhone Duo tracking ended on ${IFOLD_TRACKING_END.toISOString()}. Pass { "force": true } to sync anyway.`,
       })
     }
 
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   if (!isAuthorizedCron(request)) {
     return NextResponse.json({
-      campaign: "iPhone Fold Competition Watch",
+      campaign: "iPhone Duo Competition Watch",
       schedule: "09:00 Gulf time, daily until Oct 1st 2026",
       trackingEnded: ifoldTrackingEnded(),
       endsAt: IFOLD_TRACKING_END.toISOString(),

@@ -1,8 +1,8 @@
-// Competitive sentiment analyzer for the iPhone Fold launch tracker.
+// Competitive sentiment analyzer for the iPhone Duo launch tracker.
 //
 // Unlike lib/sentiment.ts (which judges comments FOR SAMSUNG on Samsung's own
 // channels), this analyzer scores public reaction TO APPLE'S FOLDABLE: the
-// sentiment label is the commenter's stance toward the iPhone Fold itself,
+// sentiment label is the commenter's stance toward the iPhone Duo itself,
 // topics map to the fixed taxonomy in lib/ifold-data.ts, and a "lean" flag
 // captures which brand the comment favors when it compares the two.
 
@@ -27,7 +27,7 @@ const IFoldSchema = z.object({
 const TOPIC_LIST = IFOLD_TOPICS.map((t) => `topic_${t.key}`).join(", ")
 
 const SYSTEM_PROMPT = `You are a competitive-intelligence analyst for Samsung Gulf (UAE, Saudi Arabia, Kuwait, Qatar, Bahrain, Oman).
-Apple has just launched its first foldable iPhone (names in the wild: "iPhone Fold", "iPhone Duo", "iPhone Ultra", "آيفون القابل للطي", "ايفون فولد") alongside the iPhone 18 Pro. You are reading public reactions — social comments, tweets, and news headlines — to map what people LOVE and what they CRITICIZE about Apple's foldable, and how it compares to the Samsung Galaxy Z Fold line.
+Apple has just launched its first foldable iPhone — official name "iPhone Duo" (other names in the wild from the rumor cycle: "iPhone Fold", "iPhone Ultra", "آيفون القابل للطي", "ايفون فولد", "ايفون ديو") — alongside the iPhone 18 Pro. You are reading public reactions — social comments, tweets, and news headlines — to map what people LOVE and what they CRITICIZE about Apple's foldable, and how it compares to the Samsung Galaxy Z Fold line.
 
 You understand Modern Standard Arabic, Gulf/Khaleeji dialect, Egyptian/Levantine dialects, English, and Arabizi (Arabic in Latin letters/numbers).
 
@@ -48,7 +48,7 @@ FLAGS (0-5 snake_case tags per item), drawn from this fixed vocabulary:
    - topic_software: iOS multitasking, split view, app support, One UI comparisons
    - topic_ai_features: Apple Intelligence vs Galaxy AI
 2. LEAN tags — ONLY when the item compares brands or clearly favors one:
-   - lean_apple: favors Apple / says the iPhone Fold beats Samsung's fold
+   - lean_apple: favors Apple / says the iPhone Duo beats Samsung's fold
    - lean_samsung: favors Samsung / says Galaxy Fold is better, "Samsung did it first", "بفلوسها اخذ فولد", sticking with Samsung
 3. Optional extras: question, hype, spam, off_topic.
 

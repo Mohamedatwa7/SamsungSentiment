@@ -136,7 +136,7 @@ export function IFoldInsights({
           What People Love — Apple&apos;s Strengths
         </p>
         <p className="mt-1 mb-4 text-xs text-muted-foreground">
-          Topics driving positive iPhone Fold reactions — click one to read them
+          Topics driving positive iPhone Duo reactions — click one to read them
         </p>
         <InsightList items={strengths} reactions={reactions} tone="positive" onDrill={onDrill} />
       </div>

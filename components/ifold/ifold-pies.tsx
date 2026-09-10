@@ -98,7 +98,7 @@ function SentimentDonut({
   )
 }
 
-// The centerpiece: three donuts — how the iPhone Fold launch is landing, how
+// The centerpiece: three donuts — how the iPhone Duo launch is landing, how
 // our own Fold8 campaign landed, and who wins when people compare the two.
 // Every slice and legend entry opens the reactions behind it.
 export function IFoldPies({
@@ -146,12 +146,12 @@ export function IFoldPies({
 
   return (
     <div>
-      <p className="section-label accent-top mb-4 pt-3">Head to Head — Galaxy Fold8 vs iPhone Fold</p>
+      <p className="section-label accent-top mb-4 pt-3">Head to Head — Galaxy Fold8 vs iPhone Duo</p>
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
         <SentimentDonut
-          title="iPhone Fold — launch reactions"
+          title="iPhone Duo — launch reactions"
           subtitle={`${formatCompactNum(apple.length)} scored reactions to Apple's foldable`}
-          slices={sentimentSlices(apple, "iPhone Fold")}
+          slices={sentimentSlices(apple, "iPhone Duo")}
           centerValue={`${applePositivePct}%`}
           centerLabel="positive"
           onDrill={onDrill}

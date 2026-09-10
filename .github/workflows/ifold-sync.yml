@@ -1,7 +1,7 @@
-# iPhone Fold Competition Watch sync — once daily at 9:00 AM Gulf time until
+# iPhone Duo Competition Watch sync — once daily at 9:00 AM Gulf time until
 # Oct 1st, 2026. The endpoint itself also self-disables after the tracking
 # end date. Mirrors unpacked-sync.yml.
-name: iPhone Fold sync
+name: iPhone Duo sync
 
 on:
   schedule:
@@ -23,7 +23,7 @@ jobs:
           if [ "$(date -u +%Y%m%d%H%M)" -lt 202609302000 ]; then
             echo "active=true" >> "$GITHUB_OUTPUT"
           else
-            echo "iPhone Fold tracking ended Oct 1st, 2026 — skipping."
+            echo "iPhone Duo tracking ended Oct 1st, 2026 — skipping."
             echo "active=false" >> "$GITHUB_OUTPUT"
           fi
 
