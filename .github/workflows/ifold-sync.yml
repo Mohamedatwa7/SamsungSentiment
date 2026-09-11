@@ -8,6 +8,9 @@ on:
     # Off-peak minutes fire near-immediately on GitHub (on-the-hour slots
     # queue behind heavy load), so schedule 20 minutes early at an odd minute.
     - cron: "40 4 * * *" # target 09:00 Dubai (UTC+4)
+    # Backup slot — GitHub occasionally drops a scheduled firing entirely
+    # (it did on Sep 11). The gate below skips it if the day's sync ran.
+    - cron: "40 6 * * *" # 10:40 Dubai, dedupe-gated
   workflow_dispatch:
     inputs:
       ingest_only:
@@ -24,13 +27,26 @@ jobs:
       # workflow file can be deleted after the window closes.
       - name: Check tracking window
         id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          if [ "$(date -u +%Y%m%d%H%M)" -lt 202609302000 ]; then
-            echo "active=true" >> "$GITHUB_OUTPUT"
-          else
+          if [ "$(date -u +%Y%m%d%H%M)" -ge 202609302000 ]; then
             echo "iPhone Duo tracking ended Oct 1st, 2026 — skipping."
             echo "active=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+          # Dedupe for the backup cron slot: skip when a scheduled sync
+          # already succeeded today. Manual dispatches always run.
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            today=$(date -u +%Y-%m-%d)
+            n=$(gh api "repos/${{ github.repository }}/actions/workflows/ifold-sync.yml/runs?status=success&event=schedule&created=$today&per_page=5" --jq '.workflow_runs | length' || echo 0)
+            if [ "$n" -gt 0 ]; then
+              echo "A scheduled sync already succeeded today — backup slot skipping."
+              echo "active=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+          echo "active=true" >> "$GITHUB_OUTPUT"
 
       # Fires the scrape actors + RSS only — run harvesting and analysis get
       # their own bounded invocations below (the all-in-one call outgrew the
