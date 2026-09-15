@@ -73,24 +73,30 @@ const STORAGE_PLATFORMS = ["instagram", "tiktok", "twitter", "facebook"]
 // (platform, external_id) unique index — a prefix LIKE alone forces a
 // full-table scan + sort, which started exceeding the statement timeout
 // once the launch-week corpus and upsert churn fattened the table.
+// Keyset (gt cursor) pagination, not OFFSET: with the leading platform
+// equality the cursor continues the composite-index walk right where the
+// previous page stopped, so every page does bounded work — offset pages
+// re-walk the index from the start and their cost compounds as the corpus
+// grows. external_id is unique within a platform, so the cursor never skips.
 async function fetchPrefixedComments(supabase: any, prefix: string, columns: string): Promise<any[]> {
   const rows: any[] = []
   for (const platform of STORAGE_PLATFORMS) {
-    let from = 0
+    let cursor: string | null = null
     while (true) {
-      const page = await withRetry<any[]>(`comments ${prefix}/${platform}`, () =>
-        supabase
+      const after = cursor
+      const page = await withRetry<any[]>(`comments ${prefix}/${platform}`, () => {
+        let q = supabase
           .from("social_comments")
           .select(columns)
           .eq("platform", platform)
           .like("external_id", `${prefix}%`)
-          .order("external_id", { ascending: true })
-          .range(from, from + PAGE_SIZE - 1),
-      )
+        if (after !== null) q = q.gt("external_id", after)
+        return q.order("external_id", { ascending: true }).limit(PAGE_SIZE)
+      })
       if (page.length === 0) break
       rows.push(...page)
+      cursor = String(page[page.length - 1].external_id)
       if (page.length < PAGE_SIZE) break
-      from += PAGE_SIZE
     }
   }
   return rows
@@ -147,11 +153,14 @@ export async function GET() {
     // (the launch-week corpus took this route down on Sep 10).
     const fetchPostRows = async (): Promise<any[]> => {
       const rows: any[] = []
-      // Per-platform for the same index-path reason as fetchPrefixedComments.
+      // Per-platform + keyset for the same index-path reasons as
+      // fetchPrefixedComments.
       for (const platform of STORAGE_PLATFORMS) {
-        for (let from = 0; ; from += PAGE_SIZE) {
-          const page = await withRetry<any[]>(`posts query/${platform}`, () =>
-            supabase
+        let cursor: string | null = null
+        while (true) {
+          const after = cursor
+          const page = await withRetry<any[]>(`posts query/${platform}`, () => {
+            let q = supabase
               .from("social_posts")
               .select(
                 "external_id,platform,post_url,caption,likes_count,comments_count," +
@@ -165,11 +174,12 @@ export async function GET() {
               )
               .eq("platform", platform)
               .like("external_id", `${IFOLD_ID_PREFIX}%`)
-              .order("external_id", { ascending: true })
-              .range(from, from + PAGE_SIZE - 1),
-          )
+            if (after !== null) q = q.gt("external_id", after)
+            return q.order("external_id", { ascending: true }).limit(PAGE_SIZE)
+          })
           rows.push(...page)
           if (page.length < PAGE_SIZE || rows.length >= 12000) break
+          cursor = String(page[page.length - 1].external_id)
         }
       }
       return rows

@@ -7,10 +7,21 @@ import {
   instagramShortcodeFromUrl,
 } from "@/lib/instagram-id"
 
+// A cold full-corpus rebuild takes ~2.5 minutes of sequential paging — give
+// it the same ceiling as the sync routes so the platform default can't cut
+// it off mid-rebuild.
+export const maxDuration = 300
+
 // Paginate in small pages: with 8+ JSONB projections per row, 1000-row pages
 // exceed the DB statement timeout on a cold cache — 500-row pages stay under
 // it (each statement does half the detoast work).
 const PAGE_SIZE = 500
+
+// `id` leads every column list: pagination is keyset (WHERE id > cursor), not
+// OFFSET. Offset pages re-walk the table from row zero, so total work grows
+// quadratically with the corpus — the launch-week iFold ingest (~40k rows in
+// one week) pushed later pages past the 8s statement timeout and the endpoint
+// could never finish a rebuild. A cursor keeps every page's work bounded.
 
 // Narrow column lists — selecting * would drag the full raw_data JSONB for
 // tens of thousands of rows and blow Supabase's statement timeout. The two
@@ -20,7 +31,7 @@ const PAGE_SIZE = 500
 // the author fields it actually needs. Twitter needs none — the post URL
 // carries the profile.
 const POST_BASE_COLUMNS =
-  "external_id,platform,post_url,caption,likes_count,views_count,published_at"
+  "id,external_id,platform,post_url,caption,likes_count,views_count,published_at"
 const POST_COLUMNS_BY_PLATFORM: Record<string, string> = {
   instagram: `${POST_BASE_COLUMNS},short_code:raw_data->>shortCode,owner_ig:raw_data->>ownerUsername`,
   tiktok: `${POST_BASE_COLUMNS},owner_tt:raw_data->authorMeta->>name`,
@@ -53,7 +64,7 @@ function isBrandPost(p: any): boolean {
   }
 }
 const COMMENT_COLUMNS =
-  "external_id,external_post_id,platform,text,author_username,published_at," +
+  "id,external_id,external_post_id,platform,text,author_username,published_at," +
   "sentiment,sentiment_score,sentiment_analyzed_at,flags,likes_count,features," +
   "product_model,department,raw_post_ref:raw_data->>postId,raw_post_url:raw_data->>postUrl"
 
@@ -68,7 +79,7 @@ async function fetchAll(
   // and NEVER return partial data (a truncated payload gets edge-cached and
   // silently hides most of the corpus). Galaxy Unpacked / FF8 roster rows are
   // excluded with cheap text predicates, not JSONB reads.
-  const fetchPage = async (from: number): Promise<any[]> => {
+  const fetchPage = async (cursor: string | null): Promise<any[]> => {
     let lastError = ""
     for (let attempt = 0; attempt < 5; attempt++) {
       let q = supabase
@@ -78,13 +89,14 @@ async function fetchAll(
         .not("external_id", "like", "roster\\_%")
         .not("external_id", "like", "ifold\\_%")
       if (platform) q = q.eq("platform", platform)
-      const { data, error } = await q.order("id", { ascending: true }).range(from, from + PAGE_SIZE - 1)
+      if (cursor !== null) q = q.gt("id", cursor)
+      const { data, error } = await q.order("id", { ascending: true }).limit(PAGE_SIZE)
       if (!error) return data || []
       lastError = error.message
-      console.error(`[v0] ${table}/${platform || "all"} page at ${from} attempt ${attempt + 1} failed:`, error.message)
+      console.error(`[v0] ${table}/${platform || "all"} page after id ${cursor ?? 0} attempt ${attempt + 1} failed:`, error.message)
       await new Promise((r) => setTimeout(r, 600))
     }
-    throw new Error(`Fetching ${table} failed at offset ${from}: ${lastError}`)
+    throw new Error(`Fetching ${table} failed after id ${cursor ?? 0}: ${lastError}`)
   }
 
   // SEQUENTIAL paging on purpose: parallel page fetches contend for the same
@@ -93,13 +105,13 @@ async function fetchAll(
   // they go and reliably complete; the day-long stale-while-revalidate below
   // keeps this rebuild off the user's request path.
   const all: any[] = []
-  let from = 0
+  let cursor: string | null = null
   while (true) {
-    const page = await fetchPage(from)
+    const page = await fetchPage(cursor)
     if (page.length === 0) break
     all.push(...page)
+    cursor = String(page[page.length - 1].id)
     if (page.length < PAGE_SIZE) break
-    from += PAGE_SIZE
   }
   return all
 }

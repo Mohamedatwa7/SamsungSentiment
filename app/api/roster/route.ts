@@ -7,6 +7,7 @@ import type { UnpackedComment, UnpackedSentiment, UnpackedVideo } from "@/lib/un
 
 // Always read live from Supabase — never prerendered at build time.
 export const dynamic = "force-dynamic"
+export const maxDuration = 300
 
 const PAGE_SIZE = 1000
 
@@ -66,21 +67,24 @@ export async function GET() {
         .limit(2000),
     )
 
+    // Keyset (gt cursor), not OFFSET — offset pages redo the whole
+    // scan-and-sort per page; see /api/unpacked for the full rationale.
     const commentRows: any[] = []
-    let from = 0
+    let cursor: string | null = null
     while (true) {
-      const page = await withRetry<any[]>("comments query", () =>
-        supabase
+      const after = cursor
+      const page = await withRetry<any[]>("comments query", () => {
+        let q = supabase
           .from("social_comments")
           .select(COMMENT_COLUMNS)
           .like("external_id", `${ROSTER_ID_PREFIX}%`)
-          .order("external_id", { ascending: true })
-          .range(from, from + PAGE_SIZE - 1),
-      )
+        if (after !== null) q = q.gt("external_id", after)
+        return q.order("external_id", { ascending: true }).limit(PAGE_SIZE)
+      })
       if (page.length === 0) break
       commentRows.push(...page)
+      cursor = String(page[page.length - 1].external_id)
       if (page.length < PAGE_SIZE) break
-      from += PAGE_SIZE
     }
 
     const videos: RosterVideo[] = []

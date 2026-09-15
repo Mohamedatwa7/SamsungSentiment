@@ -18,6 +18,7 @@ import type {
 
 // Always read live from Supabase — never prerendered at build time.
 export const dynamic = "force-dynamic"
+export const maxDuration = 300
 
 const PAGE_SIZE = 1000
 
@@ -79,22 +80,27 @@ export async function GET() {
     // Comments can grow into the thousands — paginate. Order by external_id,
     // NOT id: ORDER BY the pkey makes Postgres walk the pkey index evaluating
     // the LIKE against every row; external_id has no usable index so it
-    // seq-scans and sorts only the matches.
+    // seq-scans and sorts only the matches. Keyset (gt cursor), not OFFSET:
+    // offset pages redo the whole scan-and-sort per page, so cost grows
+    // quadratically as the table fattens. external_id is unique across the
+    // comments table (verified: no cross-platform collisions), so the cursor
+    // never skips rows.
     const commentRows: any[] = []
-    let from = 0
+    let cursor: string | null = null
     while (true) {
-      const page = await withRetry<any[]>("comments query", () =>
-        supabase
+      const after = cursor
+      const page = await withRetry<any[]>("comments query", () => {
+        let q = supabase
           .from("social_comments")
           .select(COMMENT_COLUMNS)
           .like("external_id", `${UNPACKED_ID_PREFIX}%`)
-          .order("external_id", { ascending: true })
-          .range(from, from + PAGE_SIZE - 1),
-      )
+        if (after !== null) q = q.gt("external_id", after)
+        return q.order("external_id", { ascending: true }).limit(PAGE_SIZE)
+      })
       if (page.length === 0) break
       commentRows.push(...page)
+      cursor = String(page[page.length - 1].external_id)
       if (page.length < PAGE_SIZE) break
-      from += PAGE_SIZE
     }
 
     // Build videos and register every alias a comment might use to reference
