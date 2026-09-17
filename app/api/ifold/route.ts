@@ -367,23 +367,29 @@ export async function GET() {
       if (cs && cs.positive + cs.neutral + cs.negative === 0) delete p.commentSentiment
     }
 
-    // Comments: recent days ship first (likes-sorted within), THEN the
-    // all-time likes ranking fills what's left. Without the reserve, a
-    // likes-only sort starves every fresh zero-like comment out of the
-    // payload and the dashboard reads as "no new data" between syncs.
+    // Comments: recent days ship first, THEN the all-time likes ranking
+    // fills what's left. Without the reserve, a likes-only sort starves
+    // every fresh zero-like comment out of the payload and the dashboard
+    // reads as "no new data" between syncs. The reserve itself fills
+    // NEWEST-first, not likes-first: the launch-flood days still carry
+    // enough liked comments to eat a likes-ordered reserve whole, which
+    // kept squeezing out brand-new (always 0-like) comments — verified
+    // live on Sep 17: zero 0-like comments shipped even with the reserve.
     const PER_POST_CAP = 80
     const GLOBAL_CAP = 11000
     const RECENT_RESERVE = 7000
     const SEVEN_DAYS = 7 * 86400000
-    const recentFirst: IFoldComment[] = []
-    const remainder: IFoldComment[] = []
+    const recent: IFoldComment[] = []
+    const rest: IFoldComment[] = []
     for (const c of comments) {
-      if (recentFirst.length < RECENT_RESERVE && now - new Date(c.publishedAt || 0).getTime() < SEVEN_DAYS) {
-        recentFirst.push(c)
-      } else {
-        remainder.push(c)
-      }
+      ;(now - new Date(c.publishedAt || 0).getTime() < SEVEN_DAYS ? recent : rest).push(c)
     }
+    recent.sort(
+      (a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime(),
+    )
+    const recentFirst = recent.slice(0, RECENT_RESERVE)
+    // Reserve overflow competes with the older corpus on likes again.
+    const remainder = [...recent.slice(RECENT_RESERVE), ...rest].sort((a, b) => b.likes - a.likes)
     const perPost = new Map<string, number>()
     const shippedComments: IFoldComment[] = []
     for (const c of [...recentFirst, ...remainder]) {
