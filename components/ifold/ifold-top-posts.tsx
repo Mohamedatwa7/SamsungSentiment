@@ -125,7 +125,7 @@ export function IFoldTopPosts({
 
       <div className="space-y-1">
         {ranked.slice(0, shown).map((p, index) => {
-          const cs = p.commentSentiment
+          const cs = p.commentSentiment ?? { positive: 0, neutral: 0, negative: 0 }
           const scored = cs.positive + cs.neutral + cs.negative
           const scrapedCount = (commentsByPost.get(p.id) || []).length
           const samples = index < SAMPLE_ROWS ? sampleComments(p) : []

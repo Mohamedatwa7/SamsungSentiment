@@ -92,10 +92,17 @@ const LAUNCH_PATTERNS = [
 
 // null = not our conversation; "fold" = the foldable specifically (the main
 // story); "launch" = wider iPhone 18 / Apple event coverage.
+// Post-launch shorthand: the wild now just says "the Duo" / "الديو" without
+// "iphone" attached — counts only alongside an Apple context (else Samsung's
+// own duo-camera chatter would qualify). Arabic needs explicit letter
+// boundaries (JS \b is ASCII-only): bare /ديو/ would match فيديو "video"
+// and راديو "radio", flooding the filter with false positives.
+const DUO_SHORTHAND = /\bduo\b|(?<![؀-ۿ])(?:ال)?ديو(?![؀-ۿ])/i
+
 export function ifoldFocus(text: string | null | undefined): IFoldFocus | null {
   const t = text || ""
   if (FOLD_SPECIFIC.some((p) => p.test(t))) return "fold"
-  if (FOLD_GENERIC.test(t) && APPLE_CONTEXT.test(t)) return "fold"
+  if ((FOLD_GENERIC.test(t) || DUO_SHORTHAND.test(t)) && APPLE_CONTEXT.test(t)) return "fold"
   if (LAUNCH_PATTERNS.some((p) => p.test(t))) return "launch"
   return null
 }
@@ -454,9 +461,11 @@ export async function syncIFoldNews() {
 // ---------------------------------------------------------------------------
 
 // Official name first; "iphone fold" stays because the wild keeps using it.
-const IFOLD_HASHTAGS = ["iphoneduo", "iphonefold", "iphone18pro"]
-const IFOLD_SEARCHES_AR = ["ايفون ديو", "ايفون فولد", "آيفون القابل للطي", "ايفون 18"]
-const IFOLD_SEARCHES_EN = ["iphone duo", "iphone fold", "iphone duo vs galaxy fold"]
+// "iphone18" added 2026-09-17 — post-keynote the wider launch conversation
+// moved off the event tags onto the model tag.
+const IFOLD_HASHTAGS = ["iphoneduo", "iphonefold", "iphone18pro", "iphone18"]
+const IFOLD_SEARCHES_AR = ["ايفون ديو", "ايفون فولد", "آيفون القابل للطي", "ايفون 18", "سعر ايفون ديو"]
+const IFOLD_SEARCHES_EN = ["iphone duo", "iphone fold", "iphone duo vs galaxy fold", "iphone duo unboxing"]
 
 // Apple official accounts scraped directly (X handles ride the tweet-scraper
 // query below; YouTube rides a channel-mode run of the shared YT actor).
@@ -470,22 +479,24 @@ const WATCHLIST_X_QUERY =
 
 // The keynote reaction wave (launch week) is the densest window of the whole
 // campaign — scrape deeper so the daily harvest doesn't truncate it, then
-// drop back to the cheaper steady-state depth.
-const LAUNCH_WEEK_END = new Date("2026-09-17T00:00:00+04:00")
+// drop back to the cheaper steady-state depth. Extended 2026-09-17: the
+// GCC pre-order/availability wave lands mid-to-late September and keeps
+// volumes near launch-week levels, so the boosted depth runs through it.
+const LAUNCH_WEEK_END = new Date("2026-09-24T00:00:00+04:00")
 
 export async function startIFoldPostScrapes() {
   const boost = Date.now() < LAUNCH_WEEK_END.getTime()
   const started: Record<string, string | null> = {}
   started.instagramHashtag = await startActorRun(IFOLD_ACTORS.instagramHashtag, {
     hashtags: IFOLD_HASHTAGS,
-    resultsLimit: boost ? 150 : 80,
+    resultsLimit: boost ? 150 : 100,
   })
   started.tiktokHashtag = await startActorRun(IFOLD_ACTORS.tiktokHashtag, {
     hashtags: IFOLD_HASHTAGS,
-    resultsPerPage: boost ? 150 : 80,
+    resultsPerPage: boost ? 150 : 100,
   })
   started.tiktokSearch = await startActorRun(IFOLD_ACTORS.tiktokSearch, {
-    searchQueries: [...IFOLD_SEARCHES_EN.slice(0, 2), ...IFOLD_SEARCHES_AR.slice(0, 2)],
+    searchQueries: [...IFOLD_SEARCHES_EN.slice(0, 3), ...IFOLD_SEARCHES_AR.slice(0, 3)],
     searchSection: "/video",
     videoSearchSorting: "LATEST",
     videoSearchDateFilter: "PAST_WEEK",
@@ -498,22 +509,35 @@ export async function startIFoldPostScrapes() {
         '"iphone duo"',
         '"iphone fold"',
         '"foldable iphone"',
+        // Tag-only tweets carry no "iphone duo" bigram — the hashtag term
+        // is its own query (added 2026-09-17).
+        "#iphoneduo",
         "ايفون ديو",
         "ايفون فولد",
         "آيفون القابل للطي",
+        "ايفون 18",
         "from:Apple",
         "from:tim_cook",
         WATCHLIST_X_QUERY,
       ],
-      maxItems: boost ? 600 : 300,
+      maxItems: boost ? 600 : 400,
       sort: "Latest",
       start: "2026-09-02",
     },
     5,
   )
   started.youtubeSearch = await startActorRun(IFOLD_ACTORS.youtubeSearch, {
-    searchQueries: ["iphone duo review", "iphone duo مراجعة", "ايفون ديو", "iphone duo vs galaxy z fold", "iphone fold review"],
-    maxResults: boost ? 25 : 15,
+    searchQueries: [
+      "iphone duo review",
+      "iphone duo مراجعة",
+      "ايفون ديو",
+      "iphone duo vs galaxy z fold",
+      "iphone fold review",
+      // Availability-wave content shapes (added 2026-09-17).
+      "iphone duo unboxing",
+      "iphone duo فتح صندوق",
+    ],
+    maxResults: boost ? 25 : 18,
     maxResultsShorts: boost ? 15 : 10,
     maxResultStreams: 0,
     oldestPostDate: "2026-09-02",
@@ -778,8 +802,8 @@ interface IFoldPostRow {
 // widen and the window stretches back to tracking start — the keynote flood
 // IS the story, and cycle N only discovers what cycle N+1 can comment-scrape.
 const commentBoost = () => Date.now() < LAUNCH_WEEK_END.getTime()
-const COMMENT_RESCRAPE_DAYS = () => (commentBoost() ? 9 : 5)
-const COMMENT_SCRAPE_TOP_N = () => (commentBoost() ? 60 : 40)
+const COMMENT_RESCRAPE_DAYS = () => (commentBoost() ? 9 : 7)
+const COMMENT_SCRAPE_TOP_N = () => (commentBoost() ? 60 : 50)
 
 function isFreshPost(row: { published_at: string | null }): boolean {
   const t = new Date(row.published_at || 0).getTime()
@@ -1041,9 +1065,11 @@ export async function analyzeIFoldComments(deadlineMs: number): Promise<number> 
 export async function analyzeIFoldPosts(deadlineMs: number): Promise<number> {
   const supabase = await createClient()
   // News + tweets + YouTube all store under platform="twitter"; the prefix
-  // separates them. Paged — .limit() past 1000 is silently capped.
+  // separates them. Paged — .limit() past 1000 is silently capped. Ceiling
+  // raised 12k→ the corpus passed 6k on Sep 16 and the newest tweets (last
+  // pages of the ascending walk) were silently skipped by analysis.
   const data: any[] = []
-  for (let from = 0; from < 6000; from += 1000) {
+  for (let from = 0; from < 12000; from += 1000) {
     const { data: page, error } = await supabase
       .from("social_posts")
       .select("id, external_id, caption, raw_data")
