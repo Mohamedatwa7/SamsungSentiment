@@ -147,6 +147,12 @@ export interface IFoldSamsungBaseline {
   topics: Record<string, { positive: number; negative: number }>
 }
 
+// True post counts over the WHOLE tracked corpus, keyed "focus|gccBit|platform"
+// (e.g. "fold|1|tiktok"). Computed server-side BEFORE the payload ship-caps,
+// so KPIs can report the real tracked volume while the shipped list stays
+// bounded by the 10MB edge-cache budget.
+export type IFoldPostTotals = Record<string, number>
+
 export interface IFoldPayload {
   posts: IFoldPost[]
   comments: IFoldComment[]
@@ -157,7 +163,29 @@ export interface IFoldPayload {
     trackingStart: string
     trackingEndsAt: string
     trackingEnded: boolean
+    // Optional: older cached payloads / snapshots predate it.
+    postTotals?: IFoldPostTotals
   }
+}
+
+// Sum the totals cube under the dashboard's current filter set. Returns null
+// when the payload predates the cube (callers fall back to shipped counts).
+export function sumPostTotals(
+  totals: IFoldPostTotals | undefined,
+  f: { focus: "fold" | "all"; region: "gcc" | "all"; platform: string },
+): { posts: number; news: number } | null {
+  if (!totals) return null
+  let posts = 0
+  let news = 0
+  for (const [key, n] of Object.entries(totals)) {
+    const [focus, gcc, platform] = key.split("|")
+    if (f.focus === "fold" && focus !== "fold") continue
+    if (f.region === "gcc" && gcc !== "1") continue
+    if (f.platform !== "all" && platform !== f.platform) continue
+    posts += n
+    if (platform === "news") news += n
+  }
+  return { posts, news }
 }
 
 // ---------------------------------------------------------------------------
