@@ -345,6 +345,15 @@ export async function GET() {
     // fresh (still unliked) comments and made the last few days look empty
     // on the dashboard even though ingest was landing thousands of rows.
 
+    // True tracked totals over the WHOLE corpus, computed BEFORE any ship
+    // cap — the "Buzz Tracked" KPI reads these so it reflects everything in
+    // the DB, not the bounded list the browser happens to receive.
+    const postTotals: Record<string, number> = {}
+    for (const p of posts) {
+      const key = `${p.focus}|${p.gcc ? 1 : 0}|${p.platform}`
+      postTotals[key] = (postTotals[key] || 0) + 1
+    }
+
     // Posts: drop stale zero-engagement hashtag spam (nobody surfaces it —
     // it only inflated the payload), then cap newest-first so any overflow
     // sheds the oldest tail, never the recent days.
@@ -431,6 +440,7 @@ export async function GET() {
         trackingStart: IFOLD_TRACKING_START.toISOString(),
         trackingEndsAt: IFOLD_TRACKING_END.toISOString(),
         trackingEnded: ifoldTrackingEnded(),
+        postTotals,
       },
     }
 

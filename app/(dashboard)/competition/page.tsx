@@ -7,6 +7,7 @@ import { CalendarClock, Swords, Timer } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   ifoldCampaignDay,
+  sumPostTotals,
   type IFoldPayload,
   type IFoldPost,
 } from "@/lib/ifold-data"
@@ -148,6 +149,12 @@ export default function CompetitionWatchPage() {
   const appleReactions = useMemo(
     () => (filtered ? buildAppleReactions(filtered.posts, filtered.comments) : []),
     [filtered],
+  )
+  // True whole-corpus counts for the current filters — the shipped post list
+  // is capped server-side, so counting it undercounts "Buzz Tracked".
+  const buzzTotals = useMemo(
+    () => sumPostTotals(data?.meta?.postTotals, { focus, region, platform }),
+    [data, focus, region, platform],
   )
   const samsungReactions = useMemo(
     () => buildSamsungReactions([unpackedData, rosterData]),
@@ -295,7 +302,7 @@ export default function CompetitionWatchPage() {
           ) : (
             <>
               {/* Headline numbers — each opens the reactions behind it */}
-              <IFoldKPIs posts={filtered.posts} reactions={appleReactions} onDrill={setDrill} />
+              <IFoldKPIs posts={filtered.posts} totals={buzzTotals} reactions={appleReactions} onDrill={setDrill} />
 
               {/* Plain-language digest of what's going on */}
               <IFoldWhatsHappening reactions={appleReactions} onDrill={setDrill} />

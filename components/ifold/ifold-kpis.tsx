@@ -9,10 +9,15 @@ import type { DrilldownState } from "@/components/ifold/drilldown"
 // Top stat rail — every number is clickable and opens the reactions behind it.
 export function IFoldKPIs({
   posts,
+  totals,
   reactions,
   onDrill,
 }: {
   posts: IFoldPost[]
+  // True whole-corpus counts under the current filters (meta.postTotals) —
+  // the shipped `posts` list is capped for payload size, so counting it
+  // undercounts. Null on payloads that predate the totals cube.
+  totals?: { posts: number; news: number } | null
   reactions: Reaction[]
   onDrill: (state: DrilldownState) => void
 }) {
@@ -21,7 +26,8 @@ export function IFoldKPIs({
   const negative = bySentiment(reactions, "negative")
   const samsungLeans = byLean(reactions, "samsung")
   const appleLeans = byLean(reactions, "apple")
-  const news = posts.filter((p) => p.kind === "news").length
+  const news = totals?.news ?? posts.filter((p) => p.kind === "news").length
+  const buzz = totals?.posts ?? posts.length
 
   // Post titles as drillable items so "Buzz Tracked" opens something useful.
   const postItems: Reaction[] = posts.map((p) => ({
@@ -41,8 +47,8 @@ export function IFoldKPIs({
   const kpis = [
     {
       title: "Buzz Tracked",
-      value: formatCompactNum(posts.length),
-      subValue: `${formatCompactNum(posts.length - news)} social posts · ${formatCompactNum(news)} news articles`,
+      value: formatCompactNum(buzz),
+      subValue: `${formatCompactNum(buzz - news)} social posts · ${formatCompactNum(news)} news articles`,
       icon: Flame,
       drill: { title: "All tracked posts & articles", items: postItems },
     },
