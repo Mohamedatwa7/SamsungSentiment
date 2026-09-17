@@ -129,7 +129,7 @@ function VideoCard({
     return list.slice().sort((a, b) => b.likes - a.likes)
   }, [comments, sentimentFilter])
 
-  const s = post.commentSentiment
+  const s = post.commentSentiment ?? { positive: 0, neutral: 0, negative: 0 }
   const scored = s.positive + s.neutral + s.negative
   const positivePercent = scored > 0 ? Math.round((s.positive / scored) * 100) : null
   const engagementRate = post.views > 0 ? (post.likes + post.commentsCount + post.shares) / post.views : null

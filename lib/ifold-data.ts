@@ -117,8 +117,10 @@ export interface IFoldPost {
   seeded?: boolean
   // LLM analysis of the post's own text (news headlines, tweets)
   analysis: IFoldAnalysis | null
-  // aggregate sentiment of scraped comments under this post
-  commentSentiment: { positive: number; neutral: number; negative: number }
+  // aggregate sentiment of scraped comments under this post — omitted from
+  // the payload when all-zero (most posts) to keep it under the 10MB
+  // edge-cache ceiling
+  commentSentiment?: { positive: number; neutral: number; negative: number }
 }
 
 export interface IFoldComment {
@@ -282,6 +284,11 @@ export const IFOLD_NEWS_FEEDS: IFoldFeed[] = [
     region: "gcc",
   },
   { id: "macrumors", name: "MacRumors", url: "https://feeds.macrumors.com/MacRumors-All", site: "macrumors.com", lang: "en", region: "global" },
+  // Added 2026-09-17 (verified returning valid XML with Duo coverage) — the
+  // post-launch review/availability wave runs through Apple-specialist and
+  // spec-focused outlets more than the general tech press.
+  { id: "appleinsider", name: "AppleInsider", url: "https://appleinsider.com/rss/news/", site: "appleinsider.com", lang: "en", region: "global" },
+  { id: "gsmarena", name: "GSMArena", url: "https://www.gsmarena.com/rss-news-reviews.php3", site: "gsmarena.com", lang: "en", region: "global" },
   { id: "9to5mac", name: "9to5Mac", url: "https://9to5mac.com/feed/", site: "9to5mac.com", lang: "en", region: "global" },
   { id: "engadget", name: "Engadget", url: "https://www.engadget.com/rss.xml", site: "engadget.com", lang: "en", region: "global" },
   { id: "techradar", name: "TechRadar", url: "https://www.techradar.com/feeds.xml", site: "techradar.com", lang: "en", region: "global" },

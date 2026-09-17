@@ -224,7 +224,7 @@ function buildReportHtml(
     .slice(0, 10)
   const socialRows = topSocial
     .map((p) => {
-      const cs = p.commentSentiment
+      const cs = p.commentSentiment ?? { positive: 0, neutral: 0, negative: 0 }
       const scored = cs.positive + cs.neutral + cs.negative
       return `<tr>
         <td dir="auto">@${esc(p.author)}</td>

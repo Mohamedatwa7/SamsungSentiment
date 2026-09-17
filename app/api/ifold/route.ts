@@ -151,14 +151,23 @@ export async function GET() {
     // ONLY the raw_data keys the payload uses: detoasting the full scrape
     // JSON across thousands of rows trips the cold-cache statement timeout
     // (the launch-week corpus took this route down on Sep 10).
+    //
+    // DESCENDING keyset walk with a PER-PLATFORM cap. The old cumulative
+    // 12k cap was order-sensitive: instagram+tiktok filled it first, the
+    // ascending walk of platform="twitter" then stopped mid-way — and since
+    // tweet ids sort before "ifold_news_"/"ifold_yt_", YouTube rows dropped
+    // out of the payload entirely (dashboard showed no YT from Sep 15).
+    // Descending, whatever a cap cuts is the ids that sort first — for the
+    // chronological tweet/IG ids that's the OLDEST rows, never the newest.
+    const PER_PLATFORM_FETCH_CAP = 9000
     const fetchPostRows = async (): Promise<any[]> => {
       const rows: any[] = []
-      // Per-platform + keyset for the same index-path reasons as
-      // fetchPrefixedComments.
-      for (const platform of STORAGE_PLATFORMS) {
+      // ifold posts only ever store under these three platform values.
+      for (const platform of ["instagram", "tiktok", "twitter"]) {
+        let fetched = 0
         let cursor: string | null = null
-        while (true) {
-          const after = cursor
+        while (fetched < PER_PLATFORM_FETCH_CAP) {
+          const before = cursor
           const page = await withRetry<any[]>(`posts query/${platform}`, () => {
             let q = supabase
               .from("social_posts")
@@ -174,11 +183,12 @@ export async function GET() {
               )
               .eq("platform", platform)
               .like("external_id", `${IFOLD_ID_PREFIX}%`)
-            if (after !== null) q = q.gt("external_id", after)
-            return q.order("external_id", { ascending: true }).limit(PAGE_SIZE)
+            if (before !== null) q = q.lt("external_id", before)
+            return q.order("external_id", { ascending: false }).limit(PAGE_SIZE)
           })
           rows.push(...page)
-          if (page.length < PAGE_SIZE || rows.length >= 12000) break
+          fetched += page.length
+          if (page.length < PAGE_SIZE) break
           cursor = String(page[page.length - 1].external_id)
         }
       }
@@ -241,6 +251,10 @@ export async function GET() {
       const analysisRaw = p._analysis as { sentiment: IFoldSentiment; score: number; flags: string[] } | undefined
       const parsed = analysisRaw ? parseIFoldFlags(analysisRaw.flags) : null
 
+      // Hashtag-wall captions run to 4000+ chars; the cards never show more
+      // than a few lines and the payload has a hard 10MB cacheability budget.
+      title = title.length > 300 ? `${title.slice(0, 300)}…` : title
+
       const post: IFoldPost = {
         id: ext,
         kind: isNews ? "news" : "social",
@@ -300,7 +314,7 @@ export async function GET() {
       // alike. The competitive stance toward Apple lives in `lean`, so the
       // head-to-head comparison analytics keep their signal.
       if (lean === "samsung") sentiment = "positive"
-      if (parent) parent.commentSentiment[sentiment]++
+      if (parent?.commentSentiment) parent.commentSentiment[sentiment]++
 
       comments.push({
         id: String(c.external_id),
@@ -323,17 +337,56 @@ export async function GET() {
     posts.sort((a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime())
     comments.sort((a, b) => b.likes - a.likes)
 
-    // Cap the shipped comment list (stats above already counted every
-    // comment). Past ~10MB the edge cannot cache the response AT ALL — every
-    // visit then pays a full DB rebuild, which is what melted the DB on
-    // launch day +1. Per-post cap keeps each video's browser well stocked;
-    // the global cap bounds the total. List is likes-sorted, so what's
-    // dropped is the zero-engagement tail.
+    // ---- Payload budget ----------------------------------------------------
+    // Past ~10MB the edge cannot cache the response AT ALL — every visit
+    // then pays a full DB rebuild, which is what melted the DB on launch
+    // day +1. Everything below exists to fit that budget while keeping the
+    // RECENT story complete: the old likes-only comment cap shipped zero
+    // fresh (still unliked) comments and made the last few days look empty
+    // on the dashboard even though ingest was landing thousands of rows.
+
+    // Posts: drop stale zero-engagement hashtag spam (nobody surfaces it —
+    // it only inflated the payload), then cap newest-first so any overflow
+    // sheds the oldest tail, never the recent days.
+    const POSTS_CAP = 11000
+    const now = Date.now()
+    const THREE_DAYS = 3 * 86400000
+    const shippedPosts = posts
+      .filter((p) => {
+        if (p.kind === "news" || p.analysis) return true
+        if (p.views + p.likes + p.commentsCount + p.shares > 0) return true
+        // Fresh posts keep their slot — engagement counts lag the scrape.
+        return now - new Date(p.publishedAt || 0).getTime() < THREE_DAYS
+      })
+      .slice(0, POSTS_CAP)
+
+    // Omit all-zero commentSentiment objects (the vast majority of posts
+    // have no scraped comments) — ~0.5MB of dead weight at current corpus.
+    for (const p of shippedPosts) {
+      const cs = p.commentSentiment
+      if (cs && cs.positive + cs.neutral + cs.negative === 0) delete p.commentSentiment
+    }
+
+    // Comments: recent days ship first (likes-sorted within), THEN the
+    // all-time likes ranking fills what's left. Without the reserve, a
+    // likes-only sort starves every fresh zero-like comment out of the
+    // payload and the dashboard reads as "no new data" between syncs.
     const PER_POST_CAP = 80
-    const GLOBAL_CAP = 15000
+    const GLOBAL_CAP = 11000
+    const RECENT_RESERVE = 7000
+    const SEVEN_DAYS = 7 * 86400000
+    const recentFirst: IFoldComment[] = []
+    const remainder: IFoldComment[] = []
+    for (const c of comments) {
+      if (recentFirst.length < RECENT_RESERVE && now - new Date(c.publishedAt || 0).getTime() < SEVEN_DAYS) {
+        recentFirst.push(c)
+      } else {
+        remainder.push(c)
+      }
+    }
     const perPost = new Map<string, number>()
     const shippedComments: IFoldComment[] = []
-    for (const c of comments) {
+    for (const c of [...recentFirst, ...remainder]) {
       const n = perPost.get(c.postId) || 0
       if (n >= PER_POST_CAP) continue
       perPost.set(c.postId, n + 1)
@@ -363,7 +416,7 @@ export async function GET() {
     }
 
     const payload: IFoldPayload = {
-      posts,
+      posts: shippedPosts,
       comments: shippedComments,
       samsungBaseline: baseline,
       meta: {
